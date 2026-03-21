@@ -1,0 +1,120 @@
+@extends('layouts.admin')
+@section('title', 'Featured Content – Admin Panel')
+@section('content')
+<div class="panel-page-header">
+    <div><h1 class="panel-page-title">Featured Content</h1><p class="panel-page-sub">Manage Product of the Month & Delivery of the Week</p></div>
+    <button class="btn btn--primary btn--pill" id="toggleAddFeatured"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Featured Content</button>
+</div>
+
+@if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
+@if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif
+
+<div class="card" id="addFeaturedCard" style="display:none">
+    <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Add Featured Content</div>
+    <form method="POST" action="{{ route('admin.featured.store') }}" enctype="multipart/form-data">
+        @csrf
+        <div class="grid grid--2">
+            <div class="form-group">
+                <label class="form-label">Content Type *</label>
+                <select name="content_type" class="form-input" required>
+                    <option value="product_of_month">Product of the Month</option>
+                    <option value="delivery_of_week">Delivery of the Week</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Brand</label>
+                <select name="brand_id" class="form-input">
+                    <option value="">Select brand</option>
+                    @foreach($brands as $b)
+                        <option value="{{ $b->id }}">{{ $b->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Hot Tub/Swim Spa</label>
+                <select name="hot_tub_id" class="form-input">
+                    <option value="">Select product</option>
+                    @foreach($products as $p)
+                        <option value="{{ $p->id }}">{{ $p->brand }} — {{ $p->model }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Title</label>
+            <input name="title" class="form-input" placeholder="Auto-generated from product/dealer if left blank">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Featured Image</label>
+            <input type="file" name="image" class="form-input" accept="image/*">
+            <div class="text-sm text-muted">Click to upload image</div>
+        </div>
+        <div class="grid grid--2">
+            <div class="form-group">
+                <label class="form-label">Featured From</label>
+                <input type="date" name="featured_from" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Featured Until</label>
+                <input type="date" name="featured_until" class="form-input">
+            </div>
+        </div>
+        <label class="form-check" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="show_on_homepage" value="1" checked> Display on homepage
+        </label>
+        <div class="form-group">
+            <label class="form-label">Status *</label>
+            <select name="status" class="form-input" required>
+                <option value="active" selected>Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+        </div>
+        @include('components.upload-progress')
+        <div class="modal-actions" style="justify-content:flex-start">
+            <button class="btn btn--primary" type="submit">Create</button>
+        </div>
+    </form>
+    <script>
+        document.getElementById('toggleAddFeatured')?.addEventListener('click', function(){
+            const el = document.getElementById('addFeaturedCard');
+            el.style.display = el.style.display === 'none' ? '' : 'none';
+        });
+    </script>
+</div>
+
+<div class="grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1rem">
+    @forelse($items as $it)
+        <div class="card">
+            <div style="display:flex;gap:14px">
+                <div style="width:160px;height:100px;background:#f3f4f6;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+                    @php
+                        $adminImg = $it->image_url;
+                        if (!$adminImg && $it->hotTub && count($it->hotTub->images ?? [])) {
+                            $adminImg = asset('storage/' . $it->hotTub->images[0]);
+                        }
+                    @endphp
+                    @if($adminImg)
+                        <img src="{{ $adminImg }}" alt="{{ $it->title }}" style="width:100%;height:100%;object-fit:cover">
+                    @else
+                        <span>📷</span>
+                    @endif
+                </div>
+                <div style="flex:1">
+                    <div class="fw-800" style="font-size:1.05rem;color:var(--gray-900)">
+                        @if($it->content_type==='delivery_of_week') Delivery of Week @else Product of Month @endif
+                    </div>
+                    <div class="text-sm text-muted">{{ $it->title ?: '—' }}</div>
+                    <div class="text-sm text-muted">{{ $it->featured_from }} — {{ $it->featured_until }}</div>
+                    <div style="margin-top:6px">@if($it->status==='active')<span class="badge badge--success">Active</span>@else<span class="badge badge--dark">Inactive</span>@endif</div>
+                    <div class="actions-row" style="margin-top:8px">
+                        <a href="{{ route('admin.featured.edit', $it) }}" class="btn btn--ghost btn--sm">Edit</a>
+                        <form method="POST" action="{{ route('admin.featured.destroy', $it) }}" onsubmit="return confirm('Delete this featured item?')">@csrf @method('DELETE') <button class="btn btn--ghost btn--sm">Delete</button></form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @empty
+        <div class="card"><div class="text-muted">No featured items yet.</div></div>
+    @endforelse
+</div>
+@endsection

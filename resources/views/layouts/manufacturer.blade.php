@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@yield('title', 'Manufacturer Panel – Hot Tub Buyer')</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ asset('css/global.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/panel.css') }}">
+
+    @yield('styles')
+    </head>
+<body class="panel-body">
+
+    @include('layouts.header')
+
+    @if(isset($isAccountRestricted) && $isAccountRestricted)
+        <div style="position:fixed; inset:0; background:rgba(15, 23, 42, 0.9); backdrop-filter:blur(8px); z-index:99999; display:flex; align-items:center; justify-content:center; padding:1.5rem;">
+            <div class="card" style="max-width:550px; width:100%; padding:3.5rem 2rem; text-align:center; border:2px solid #ef4444; box-shadow:0 25px 50px -12px rgba(239, 68, 68, 0.25);">
+                <div style="width:80px; height:80px; background:#fef2f2; color:#ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 2rem; font-size:2.5rem; border:4px solid #fee2e2;">
+                    <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h1 style="font-size:2rem; font-weight:800; color:#111827; margin-bottom:1rem; letter-spacing:-0.025em;">Account {{ ucfirst($restrictionStatus) }}</h1>
+                <p style="color:#4b5563; font-size:1.1rem; line-height:1.6; margin-bottom:2.5rem;">Your manufacturer account has been <strong>{{ $restrictionStatus }}</strong> by the administrator. All functionality has been locked. Please contact support to resolve this.</p>
+                
+                <div style="background:#f9fafb; padding:2rem; border-radius:12px; border:1px solid #e5e7eb; text-align:left;">
+                    <h3 style="font-size:1rem; font-weight:700; color:#374151; margin-bottom:1rem; display:flex; align-items:center; gap:8px;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Send Support Request
+                    </h3>
+                    @php
+                        $requestCount = \App\Models\Message::where('sender_id', auth()->id())->where('receiver_id', 1)->count();
+                    @endphp
+                    
+                    @if($requestCount < 3)
+                        <form action="{{ route('manufacturer.api.send_message', 1) }}" method="POST">
+                            @csrf
+                            <textarea name="content" class="form-input" rows="3" placeholder="Explain your situation or request reactivation..." required style="margin-bottom:1rem; border-color:#d1d5db;"></textarea>
+                            <button type="submit" class="btn btn--danger btn--full" style="padding:0.8rem;">Send Request ({{ $requestCount }}/3)</button>
+                        </form>
+                    @else
+                        <div style="padding:1rem; background:#fee2e2; color:#b91c1c; border-radius:8px; font-weight:600; font-size:0.9rem; text-align:center;">
+                            Maximum of 3 support requests reached.
+                        </div>
+                    @endif
+                </div>
+                
+                <form action="{{ route('logout') }}" method="POST" style="margin-top:2rem;">
+                    @csrf
+                    <button type="submit" class="btn btn--ghost" style="color:#6b7280; border-color:#d1d5db;">Sign Out</button>
+                </form>
+            </div>
+        </div>
+    @else
+        <div class="panel-wrapper">
+            @include('components.manufacturer-sidebar')
+            <main class="panel-main">
+                @yield('content')
+            </main>
+        </div>
+    @endif
+
+    @yield('modals')
+    @if(file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @endif
+    @yield('scripts')
+</body>
+</html>
+

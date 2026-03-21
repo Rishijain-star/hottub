@@ -1,0 +1,125 @@
+@extends('layouts.admin')
+@section('title', 'Parts – Admin Panel')
+@section('content')
+<div class="panel-page-header">
+    <div><h1 class="panel-page-title">Parts Management</h1><p class="panel-page-sub">Manage hot tub replacement parts catalog</p></div>
+    <button class="btn btn--primary btn--pill" id="toggleAddPart"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Part</button>
+</div>
+
+@if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
+@if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif
+
+<div class="card" id="addPartCard" style="display:none">
+    <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Add New Part</div>
+    <form method="POST" action="{{ route('admin.parts.store') }}" enctype="multipart/form-data">
+        @csrf
+        <div class="grid grid--2">
+            <div class="form-group">
+                <label class="form-label">Part Name *</label>
+                <input name="name" class="form-input" required placeholder="e.g., Circulation Pump 1.5HP">
+            </div>
+            <div class="form-group">
+                <label class="form-label">URL Slug</label>
+                <input name="slug" class="form-input" placeholder="Auto-generated from name if left blank">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Part Number</label>
+                <input name="part_number" class="form-input" placeholder="e.g., PWP-15E">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category" class="form-input">
+                    <option value="">Select...</option>
+                    <option>Pumps</option>
+                    <option>Heaters</option>
+                    <option>Filters</option>
+                    <option>Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Price</label>
+                <input name="price" type="number" step="0.01" min="0" class="form-input" placeholder="e.g., 95.00">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status *</label>
+                <select name="status" class="form-input" required>
+                    <option value="active" selected>Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Part Images</label>
+            <input type="file" name="images[]" class="form-input" accept="image/*" multiple>
+            <div class="text-sm text-muted">Click to upload images (up to 4). First image is cover.</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Description (HTML supported)</label>
+            <textarea name="description" class="form-input" rows="4" placeholder="Enter part description with HTML formatting if needed..."></textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Compatible Brands</label>
+            <div class="grid grid--3">
+                @foreach($brands as $b)
+                    <label class="form-check" style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" name="compatible_brand_ids[]" value="{{ $b->id }}"> {{ $b->name }}
+                    </label>
+                @endforeach
+            </div>
+        </div>
+        @include('components.upload-progress')
+        <div class="modal-actions" style="justify-content:flex-start">
+            <button class="btn btn--primary" type="submit">Create Part</button>
+        </div>
+    </form>
+    <script>
+        document.getElementById('toggleAddPart')?.addEventListener('click', function(){
+            const el = document.getElementById('addPartCard');
+            el.style.display = el.style.display === 'none' ? '' : 'none';
+        });
+    </script>
+</div>
+
+<div class="card" style="padding:0;margin-top:1rem;">
+    <table class="table">
+        <thead><tr><th>Image</th><th>Part Name</th><th>Part Number</th><th>Category</th><th>Price</th><th>Compatible Brands</th><th>Actions</th></tr></thead>
+        <tbody>
+        @forelse($items as $it)
+            <tr>
+                <td style="width:60px">
+                    @php $img = (is_array($it->images) && count($it->images)) ? $it->images[0] : null; @endphp
+                    @if($img)
+                        <img src="{{ $img }}" alt="{{ $it->name }}" style="width:48px;height:48px;object-fit:cover;border-radius:6px">
+                    @else
+                        <div style="width:48px;height:48px;border:1px dashed var(--gray-300);border-radius:6px;display:flex;align-items:center;justify-content:center">📷</div>
+                    @endif
+                </td>
+                <td><div class="fw-700 text-dark">{{ $it->name }}</div><div class="text-sm text-muted">{{ $it->slug }}</div></td>
+                <td>{{ $it->part_number ?? '—' }}</td>
+                <td>@if($it->category)<span class="badge">{{ $it->category }}</span>@else — @endif</td>
+                <td>@if(!is_null($it->price)) £{{ number_format($it->price, 2) }} @else — @endif</td>
+                <td>
+                    @if(is_array($it->compatible_brand_ids) && count($it->compatible_brand_ids))
+                        {{ count($it->compatible_brand_ids) }} brands
+                    @else
+                        All brands
+                    @endif
+                </td>
+                <td>
+                    <div class="actions-row">
+                        <a href="{{ route('admin.parts.edit', $it) }}" class="icon-btn" title="Edit">✎</a>
+                        <form method="POST" action="{{ route('admin.parts.destroy', $it) }}" onsubmit="return confirm('Delete this part?')">
+                            @csrf @method('DELETE')
+                            <button class="icon-btn" title="Delete">✕</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+        @empty
+            <tr><td colspan="7" class="text-muted">No parts found.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+    <div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
+</div>
+@endsection

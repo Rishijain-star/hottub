@@ -1,0 +1,329 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PANEL CSS — Admin & Dealer Panel Layout
+   Save as: public/css/panel.css
+═══════════════════════════════════════════════════════════════════════════════ */
+html,
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.panel-body {
+    background: var(--gray-50);
+    margin: 0;
+    padding: 0;
+}
+
+.content-wrapper,
+.dealer-panel {
+    padding: 0;
+    margin: 0;
+}
+
+/* ── Panel wrapper (sidebar + main) ─────────────────────────────────────── */
+.panel-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+.panel-body .panel-wrapper {
+    margin-top: 0;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.panel-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--white);
+    border-right: 1px solid var(--gray-200);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+.panel-sidebar__head {
+    padding: 1.5rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.panel-sidebar__title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin-bottom: .15rem;
+}
+
+.panel-sidebar__sub {
+    font-size: .75rem;
+    color: var(--gray-400);
+}
+
+/* ── Nav links ───────────────────────────────────────────────────────────── */
+.panel-nav {
+    padding: .75rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+
+.panel-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .65rem .85rem;
+    border-radius: var(--r-md);
+    font-size: .88rem;
+    font-weight: 500;
+    color: var(--gray-700);
+    transition: var(--transition);
+    position: relative;
+    text-decoration: none;
+}
+
+.panel-nav-link:hover {
+    background: var(--teal-xlt);
+    color: var(--teal);
+}
+
+.panel-nav-link.active {
+    background: var(--teal-xlt);
+    color: var(--teal-dk);
+    font-weight: 700;
+}
+
+.panel-nav-link svg {
+    flex-shrink: 0;
+    color: var(--gray-400);
+    transition: color .2s;
+}
+
+.panel-nav-link:hover svg,
+.panel-nav-link.active svg {
+    color: var(--teal);
+}
+
+/* Badge on nav link */
+.panel-nav-badge {
+    margin-left: auto;
+    background: #ef4444;
+    color: white;
+    font-size: .65rem;
+    font-weight: 800;
+    padding: .15rem .5rem;
+    border-radius: var(--r-pill);
+    min-width: 20px;
+    text-align: center;
+}
+
+/* ── Main content area ───────────────────────────────────────────────────── */
+.panel-main {
+    padding: 2rem;
+    flex: 1;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.panel-content {
+    padding: 1rem;
+    max-width: 1200px;
+}
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+.panel-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.panel-page-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin-bottom: .2rem;
+}
+
+.panel-page-sub {
+    font-size: .88rem;
+    color: var(--gray-500);
+}
+
+/* ── Stats grid ──────────────────────────────────────────────────────────── */
+.panel-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.panel-stat-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--r-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-xs);
+    transition: var(--transition);
+}
+
+/* Stat cards get a subtle hover only */
+.panel-stat-card:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--gray-300);
+    transform: none;
+}
+
+.panel-stat-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.panel-stat-card__label {
+    font-size: .82rem;
+    color: var(--gray-500);
+    margin-bottom: .3rem;
+}
+
+.panel-stat-card__value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--gray-900);
+}
+
+/* ── Coming Soon box ─────────────────────────────────────────────────────── */
+.panel-coming-soon {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--r-xl);
+    padding: 4rem 2rem;
+    text-align: center;
+    box-shadow: var(--shadow-xs);
+}
+
+.panel-coming-soon__icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.panel-coming-soon h2 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin-bottom: .75rem;
+}
+
+.panel-coming-soon p {
+    font-size: .93rem;
+    color: var(--gray-500);
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.7;
+}
+
+/* ── Ghost button override for panel (light background) ─────────────────── */
+.panel-content .btn--ghost,
+.panel-content .btn.btn--ghost {
+    background: transparent;
+    color: var(--gray-700);
+    border-color: var(--gray-300);
+    border-width: 1.5px;
+}
+
+.panel-content .btn--ghost:hover,
+.panel-content .btn.btn--ghost:hover {
+    background: var(--teal-xlt);
+    color: var(--teal-dk);
+    border-color: var(--teal);
+    transform: none;
+}
+
+/* ── CRM Lead Page ───────────────────────────────────────────────────────── */
+.crm-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    .crm-grid {
+        grid-template-columns: 1fr 350px;
+    }
+}
+
+.note-item:last-child {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.task-item:last-child, .task-item--completed:last-child {
+    border-bottom: none !important;
+}
+
+#toggleCompletedBtn svg {
+    transition: transform .2s ease-in-out;
+}
+
+#toggleCompletedBtn.open svg {
+    transform: rotate(180deg);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .panel-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .panel-sidebar {
+        position: fixed;
+        left: -240px;
+        top: 0;
+        transition: left .25s ease;
+        z-index: 999;
+        box-shadow: var(--shadow-lg);
+        height: 100vh;
+    }
+
+    .panel-sidebar--open {
+        left: 0;
+    }
+
+    .panel-content {
+        padding: 1.25rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .panel-stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .panel-page-title {
+        font-size: 1.3rem;
+    }
+}
+
+.table .btn--ghost {
+    background: var(--white) !important;
+    color: var(--gray-700) !important;
+    border-color: var(--gray-300) !important;
+}
