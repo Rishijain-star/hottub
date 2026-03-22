@@ -8,46 +8,130 @@
     </div>
 </div>
 
-<div class="panel-stats-grid">
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#eef7ff;"><svg width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-        <div class="panel-stat-card__label">Total Leads Generated</div>
-        <div class="panel-stat-card__value">{{ $leadsTotal }}</div>
+<style>
+    .admin-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card-modern {
+        background: #fff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid #f1f5f9;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .stat-card-modern:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    .stat-card-modern__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items:center;
+        justify-content:center;
+        margin-bottom: 1rem;
+    }
+    .stat-card-modern__label {
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .stat-card-modern__value {
+        color: #1e293b;
+        font-size: 1.5rem;
+        font-weight: 800;
+    }
+    @media (max-width: 1400px) {
+        .admin-stats-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
+        .admin-stats-grid { grid-template-columns: repeat(1, 1fr); }
+    }
+</style>
+
+<div class="admin-stats-grid">
+    {{-- Row 1 --}}
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#eff6ff; color:#3b82f6;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Total Leads</div>
+        <div class="stat-card-modern__value">{{ $leadsTotal }}</div>
     </div>
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#f5f3ff;"><svg width="22" height="22" fill="none" stroke="#7c3aed" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div>
-        <div class="panel-stat-card__label">Leads Purchased (Dealers)</div>
-        <div class="panel-stat-card__value">{{ $dealerPurchasedCount }}</div>
+
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#fff7ed; color:#f97316;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Active Leads</div>
+        <div class="stat-card-modern__value">{{ $activeLeadsCount }}</div>
     </div>
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#f5f3ff;"><svg width="22" height="22" fill="none" stroke="#7c3aed" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div>
-        <div class="panel-stat-card__label">Leads Purchased (Manufacturers)</div>
-        <div class="panel-stat-card__value">{{ $manufacturerPurchasedCount }}</div>
+
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#f5f3ff; color:#8b5cf6;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Dealer Leads</div>
+        <div class="stat-card-modern__value">{{ $dealerPurchasedCount }}</div>
     </div>
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#ecfdf5;"><svg width="22" height="22" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <div class="panel-stat-card__label">Total Converted Sales</div>
-        <div class="panel-stat-card__value">{{ $totalConverted }}</div>
+
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#f0f9ff; color:#0ea5e9;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Manuf. Leads</div>
+        <div class="stat-card-modern__value">{{ $manufacturerPurchasedCount }}</div>
     </div>
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#fff7ed;"><svg width="22" height="22" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 2 2 5-5"/></svg></div>
-        <div class="panel-stat-card__label">Overall Conversion Rate</div>
-        <div class="panel-stat-card__value">{{ number_format($overallConversionRate, 1) }}%</div>
+
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#ecfdf5; color:#10b981;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Total Won</div>
+        <div class="stat-card-modern__value">{{ $totalConverted }}</div>
     </div>
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#fff7ed;"><svg width="22" height="22" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 2 2 5-5"/></svg></div>
-        <div class="panel-stat-card__label">Dealer Conversion Rate</div>
-        <div class="panel-stat-card__value">{{ number_format($dealerConversionRate, 1) }}%</div>
+
+    {{-- Row 2 --}}
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#fff1f2; color:#f43f5e;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1.5 17.5"/><polyline points="17 6 23 6 23 12"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Conversion Rate</div>
+        <div class="stat-card-modern__value">{{ number_format($overallConversionRate, 1) }}%</div>
     </div>
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#fff7ed;"><svg width="22" height="22" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 2 2 5-5"/></svg></div>
-        <div class="panel-stat-card__label">Manufacturer Conversion Rate</div>
-        <div class="panel-stat-card__value">{{ number_format($manufacturerConversionRate, 1) }}%</div>
+
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#f8fafc; color:#475569;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Dealer Rate</div>
+        <div class="stat-card-modern__value">{{ number_format($dealerConversionRate, 1) }}%</div>
     </div>
-    <div class="panel-stat-card">
-        <div class="panel-stat-card__icon" style="background:#ecfdf5;"><svg width="22" height="22" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9a4 4 0 0 0 0 8h6a4 4 0 0 1 0 8H6"/></svg></div>
-        <div class="panel-stat-card__label">Revenue from Leads</div>
-        <div class="panel-stat-card__value">£{{ number_format($revenue, 2) }}</div>
+
+    <div class="stat-card-modern">
+        <div class="stat-card-modern__icon" style="background:#fdf4ff; color:#d946ef;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="stat-card-modern__label">Manuf. Rate</div>
+        <div class="stat-card-modern__value">{{ number_format($manufacturerConversionRate, 1) }}%</div>
+    </div>
+
+    <div class="stat-card-modern" style="grid-column: span 2; background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div class="stat-card-modern__label" style="color:rgba(255,255,255,0.8);">Total Revenue</div>
+                <div class="stat-card-modern__value" style="color:#fff; font-size:2rem;">£{{ number_format($revenue, 2) }}</div>
+            </div>
+            <div style="width:56px; height:56px; background:rgba(255,255,255,0.2); border-radius:14px; display:flex; align-items:center; justify-content:center; color:#fff;">
+                <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -56,7 +56,10 @@ class AdminController extends Controller
             // 4. Total Converted Sales (Unique leads that were converted)
             $totalConverted = (int) DB::table('leads')->where('status', 'converted')->count();
 
-            // 5. Dealer Converted Sales
+            // 5. Active Leads (Total Generated Leads that are NOT converted)
+            $activeLeadsCount = (int) DB::table('leads')->where('status', '!=', 'converted')->count();
+
+            // 6. Dealer Converted Sales
             $dealerConverted = DB::table('leads')
                 ->join('users', 'leads.assigned_dealer_id', '=', 'users.id')
                 ->where('leads.status', 'converted')
@@ -91,45 +94,28 @@ class AdminController extends Controller
 
         return view('admin.overview', compact(
             'dealersTotal', 'dealersApproved', 'dealersPending', 'dealersRevoked',
-            'hotTubs', 'brands', 'leadsTotal', 'dealerPurchasedCount', 'manufacturerPurchasedCount', 'totalConverted',
+            'hotTubs', 'brands', 'leadsTotal', 'dealerPurchasedCount', 'manufacturerPurchasedCount', 'totalConverted', 'activeLeadsCount',
             'overallConversionRate', 'dealerConversionRate', 'manufacturerConversionRate', 'revenue'
         ));
     }
 
+    public function supportRequests()
+    {
+        // Get all messages where receiver is admin (ID 1)
+        // Join with users to see the sender's info and status
+        $requests = \App\Models\Message::where('receiver_id', 1)
+            ->join('users', 'messages.sender_id', '=', 'users.id')
+            ->select('messages.*', 'users.name as sender_name', 'users.email as sender_email', 'users.role as sender_role', 'users.status as sender_status', 'users.company_name')
+            ->orderBy('messages.created_at', 'desc')
+            ->paginate(15);
+
+        return view('admin.support-requests', compact('requests'));
+    }
+
+
     public function hotTubs()
     {
-      
         return view('admin.hot-tubs');
-    }
-
-    public function brands()
-    {
-        return view('admin.brands');
-    }
-
-    public function services()
-    {
-        return view('admin.services');
-    }
-
-    public function parts()
-    {
-        return view('admin.parts');
-    }
-
-    public function featured()
-    {
-        return view('admin.featured');
-    }
-
-    public function manufacturers()
-    {
-        return view('admin.manufacturers');
-    }
-
-    public function leads()
-    {
-        return view('admin.leads');
     }
 
     public function payments()

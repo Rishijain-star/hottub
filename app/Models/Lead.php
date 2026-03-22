@@ -12,6 +12,7 @@ class Lead extends Model
     protected $fillable = [
         'name',
         'email',
+        'session_id',
         'phone',
         'postcode',
         'lead_postcode',
@@ -48,5 +49,27 @@ class Lead extends Model
     public function purchases()
     {
         return $this->hasMany(LeadPurchase::class);
+    }
+
+    public function dealer()
+    {
+        return $this->belongsTo(User::class, 'assigned_dealer_id');
+    }
+
+    public function customerActivities()
+    {
+        // Find user by email first
+        $user = User::where('email', $this->email)->first();
+        if ($user) {
+            return CustomerActivity::where('user_id', $user->id)->orderBy('created_at', 'desc');
+        }
+        
+        // Fallback to session_id if provided
+        if ($this->session_id) {
+            return CustomerActivity::where('session_id', $this->session_id)->orderBy('created_at', 'desc');
+        }
+        
+        // If no user or session, we only show activity for registered users (linked by email)
+        return CustomerActivity::where('id', 0); // Empty query
     }
 }

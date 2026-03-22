@@ -1,6 +1,19 @@
 @extends('layouts.dealer')
 @section('title', 'Lead – Dealer Panel')
 @section('content')
+@php 
+        $stages = ['New Lead','Contacted','Nurturing','Sale Pending','Site Visit','Delivered','Lost']; 
+        $purchase = \App\Models\LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', auth()->id())->where('buyer_role', 'dealer')->first();
+        $isLost = ($purchase && $purchase->stage === 'Lost') || ($lead->status === 'converted' && $lead->assigned_dealer_id && $lead->assigned_dealer_id !== auth()->id());
+        
+        if ($isLost) {
+            $currentStage = 'Lost';
+        } elseif ($lead->assigned_dealer_id === auth()->id()) {
+            $currentStage = $lead->stage ?: 'New Lead';
+        } else {
+            $currentStage = ($purchase && $purchase->stage) ? $purchase->stage : ($lead->stage ?: 'New Lead');
+        }
+    @endphp
 <div class="panel-page-header">
     <div>
         <h1 class="panel-page-title">Lead</h1>
@@ -9,11 +22,43 @@
     <a href="{{ route('dealer.leads.index') }}" class="btn btn--ghost btn--sm">Back to Leads</a>
 </div>
 <div class="crm-grid">
+    {{-- Top Message Boxes --}}
+    <div style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
+        @if($lead->status === 'converted' && $lead->assigned_dealer_id === auth()->id())
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:40px; height:40px; background:#dcfce7; color:#166534; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div>
+                    <h3 style="font-size:1.05rem; font-weight:800; color:#166534; margin:0;">Congratulations!</h3>
+                    <p style="color:#15803d; font-size:0.95rem; margin:0.25rem 0 0; font-weight:600;">You have successfully completed this lead and secured the customer.</p>
+                </div>
+            </div>
+        @endif
+
+        @if($currentStage === 'Lost')
+            <div style="background:#fffbeb; border:1px solid #fef3c7; border-radius:12px; padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:40px; height:40px; background:#fef3c7; color:#92400e; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <h3 style="font-size:1.05rem; font-weight:800; color:#92400e; margin:0;">Lead Closed</h3>
+                    <p style="color:#b45309; font-size:0.95rem; margin:0.25rem 0 0; font-weight:600;">This lead has been completed by another dealer. Don’t worry — new opportunities are on the way. Keep going and stay focused! 💪✨</p>
+                </div>
+            </div>
+        @endif
+    </div>
+
     {{-- Left side --}}
     <div class="crm-grid__left">
         <div class="card">
-            <div class="form-group" style="margin-bottom:12px">
-                <div class="text-sm text-muted" style="margin-bottom:6px">Progress</div>
+            <div class="form-group" style="margin-bottom:12px; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div class="text-sm text-muted">Progress</div>
+                    <button type="button" class="btn--icon-only" onclick="openActivityModal()" title="User Activity" style="background:none; border:none; color:var(--gray-400); cursor:pointer; transition:color 0.2s; padding:0; display:flex; align-items:center;" onmouseover="this.style.color='var(--primary-600)'" onmouseout="this.style.color='var(--gray-400)'">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </button>
+                </div>
                 <div style="background:#eef2f7;border-radius:999px;height:8px;overflow:hidden">
                     <div id="ldProgress" style="height:8px;background:#0ea5a3;width:0%"></div>
                 </div>
@@ -21,24 +66,59 @@
             <div class="form-group" style="margin-bottom:12px">
                 <div class="text-sm text-muted" style="margin-bottom:6px">Stage</div>
                 <div id="ldStageBar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                    @php 
-                        $stages = ['New Lead','Contacted','Nurturing','Sale Pending','Site Visit','Delivered','Lost']; 
-                        $purchase = \App\Models\LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', auth()->id())->first();
-                        $currentStage = $purchase ? $purchase->stage : 'New Lead';
-                    @endphp
                     @foreach($stages as $s)
                     <button class="badge js-stage {{ ($currentStage === $s) ? 'badge--success':'' }}" data-stage="{{ $s }}" style="cursor:default; pointer-events:none;">{{ $s }}</button>
                     @endforeach
                 </div>
             </div>
             <div id="ldStageMsg" class="text-sm" style="margin-bottom:12px;color:#6b7280"></div>
+            
             <div class="grid grid--2">
-                <div class="form-group"><label class="form-label">Name</label><div class="text-sm">{{ $lead->name }}</div></div>
-                <div class="form-group"><label class="form-label">Email</label><div class="text-sm">{{ $lead->email }}</div></div>
-                <div class="form-group"><label class="form-label">Phone</label><div class="text-sm">{{ $lead->phone }}</div></div>
-                <div class="form-group"><label class="form-label">Postcode</label><div class="text-sm">{{ $lead->postcode }}</div></div>
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <div class="text-sm">
+                        @if(!$isLost)
+                            {{ $lead->name }}
+                        @else
+                            <span style="color: #94a3b8; font-style: italic;">Name Hidden</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <div class="text-sm">
+                        @if(!$isLost)
+                            {{ $lead->email }}
+                        @else
+                            <span style="color: #94a3b8; font-style: italic;">Email Hidden</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <div class="text-sm">
+                        @if(!$isLost)
+                            {{ $lead->phone }}
+                        @else
+                            <span style="color: #94a3b8; font-style: italic;">Phone Hidden</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Postcode</label>
+                    <div class="text-sm">{{ $lead->postcode }}</div>
+                </div>
             </div>
-            <div class="form-group"><label class="form-label">Message</label><div class="text-sm">{{ $lead->message }}</div></div>
+            <div class="form-group">
+                <label class="form-label">Message</label>
+                <div class="text-sm">
+                    @if(!$isLost)
+                        {{ $lead->message }}
+                    @else
+                        <span style="color: #94a3b8; font-style: italic;">Message Hidden</span>
+                    @endif
+                </div>
+            </div>
             <div id="customerGuidanceBox" style="display:{{ ($currentStage==='Sale Pending') ? '' : 'none' }};border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin-bottom:12px">
                 <div class="fw-700 text-dark" style="margin-bottom:8px">Customer Guidance</div>
                 <div class="modal-actions" style="justify-content:flex-start;margin-bottom:8px">
@@ -49,24 +129,70 @@
                     <span>I confirm I have sent these documents to the customer</span>
                 </label>
             </div>
-            <div class="modal-actions" style="justify-content:flex-start;margin-bottom:6px">
+            <div class="modal-actions" style="justify-content:flex-start;margin-bottom:6px;display:{{ ($currentStage==='Delivered') ? 'none' : 'flex' }}">
                 <button id="btnNextStage" class="btn btn--primary btn--sm">Next Step</button>
             </div>
+            
             <div id="ldDeliveredSection" style="display:{{ ($currentStage==='Delivered') ? '' : 'none' }};margin-top:10px">
                 <div class="fw-700 text-dark" style="margin-bottom:6px">Delivery Details</div>
                 <form id="deliverForm">
                     <div class="grid grid--2">
-                        @php $delivery_details = $purchase->delivery_details ?? []; @endphp
-                        <div class="form-group"><label class="form-label">Product Make *</label><input name="make" class="form-input" required value="{{ $delivery_details['make'] ?? '' }}"></div>
-                        <div class="form-group"><label class="form-label">Product Model *</label><input name="model" class="form-input" required value="{{ $delivery_details['model'] ?? '' }}"></div>
-                        <div class="form-group"><label class="form-label">Shell Colour</label><input name="shell_colour" class="form-input" value="{{ $delivery_details['shell_colour'] ?? '' }}"></div>
-                        <div class="form-group"><label class="form-label">Cabinet Colour</label><input name="cabinet_colour" class="form-input" value="{{ $delivery_details['cabinet_colour'] ?? '' }}"></div>
-                        <div class="form-group"><label class="form-label">Accessories</label><input name="accessories" class="form-input" value="{{ $delivery_details['accessories'] ?? '' }}"></div>
-                        <div class="form-group"><label class="form-label">Sale Price</label><input name="sale_price" class="form-input" type="number" step="0.01" min="0" value="{{ $delivery_details['sale_price'] ?? '' }}"></div>
-                        <div class="form-group"><label class="form-label">Invoice Upload</label><input name="invoice" class="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
-                        <div class="form-group"><label class="form-label">Warranty Upload</label><input name="warranty" class="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+                        @php 
+                            $delivery_details = $lead->delivery_details ?: ($purchase->delivery_details ?? []); 
+                        @endphp
+                        <div class="form-group">
+                            <label class="form-label">Product Make *</label>
+                            <input name="make" class="form-input" required value="{{ $delivery_details['make'] ?? '' }}" @if($lead->status === 'converted') readonly style="background-color: #f3f4f6;" @endif>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Product Model *</label>
+                            <input name="model" class="form-input" required value="{{ $delivery_details['model'] ?? '' }}" @if($lead->status === 'converted') readonly style="background-color: #f3f4f6;" @endif>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Shell Colour</label>
+                            <input name="shell_colour" class="form-input" value="{{ $delivery_details['shell_colour'] ?? '' }}" @if($lead->status === 'converted') readonly style="background-color: #f3f4f6;" @endif>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cabinet Colour</label>
+                            <input name="cabinet_colour" class="form-input" value="{{ $delivery_details['cabinet_colour'] ?? '' }}" @if($lead->status === 'converted') readonly style="background-color: #f3f4f6;" @endif>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Accessories</label>
+                            <input name="accessories" class="form-input" value="{{ $delivery_details['accessories'] ?? '' }}" @if($lead->status === 'converted') readonly style="background-color: #f3f4f6;" @endif>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Sale Price</label>
+                            <input name="sale_price" class="form-input" type="number" step="0.01" min="0" value="{{ $delivery_details['sale_price'] ?? '' }}" @if($lead->status === 'converted') readonly style="background-color: #f3f4f6;" @endif>
+                        </div>
+                        @if($lead->status !== 'converted')
+                            <div class="form-group"><label class="form-label">Invoice Upload</label><input name="invoice" class="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+                            <div class="form-group"><label class="form-label">Warranty Upload</label><input name="warranty" class="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+                        @else
+                            @php 
+                                $invoice_path = $lead->invoice_path ?: ($purchase->invoice_path ?? '');
+                                $warranty_path = $lead->warranty_path ?: ($purchase->warranty_path ?? '');
+                            @endphp
+                            <div class="form-group">
+                                <label class="form-label">Invoice</label>
+                                @if(!empty($invoice_path))
+                                    <div class="text-sm"><a href="{{ asset('storage/' . $invoice_path) }}" target="_blank" class="text-teal fw-700">View Uploaded Invoice</a></div>
+                                @else
+                                    <div class="text-sm text-muted italic">No invoice uploaded</div>
+                                @endif
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Warranty</label>
+                                @if(!empty($warranty_path))
+                                    <div class="text-sm"><a href="{{ asset('storage/' . $warranty_path) }}" target="_blank" class="text-teal fw-700">View Uploaded Warranty</a></div>
+                                @else
+                                    <div class="text-sm text-muted italic">No warranty uploaded</div>
+                                @endif
+                            </div>
+                        @endif
                     </div>
-                    <div class="modal-actions"><button type="submit" class="btn btn--primary btn--sm">Save Delivery & Convert</button></div>
+                    @if($lead->status !== 'converted')
+                        <div class="modal-actions"><button type="submit" class="btn btn--primary btn--sm">Save Delivery & Convert</button></div>
+                    @endif
                 </form>
             </div>
 
@@ -93,7 +219,9 @@
         <div class="card" style="margin-top:1.5rem;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                 <div class="fw-800" style="font-size:1.125rem;color:var(--gray-900)">Notes</div>
-                <button id="addNoteBtn" class="btn btn--primary btn--sm">+ Add Note</button>
+                @if($currentStage !== 'Lost' && $currentStage !== 'Delivered')
+                    <button id="addNoteBtn" class="btn btn--primary btn--sm">+ Add Note</button>
+                @endif
             </div>
             <form id="addNoteForm" style="display:none;margin-bottom:1.5rem;background:#f9fafb;padding:1rem;border-radius:12px;border:1px solid #e5e7eb;">
                 @csrf
@@ -140,7 +268,9 @@
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                 <div class="fw-800" style="font-size:1.125rem;color:var(--gray-900)">Tasks</div>
-                <button id="addTaskBtn" class="btn btn--primary btn--sm">+ Add Task</button>
+                @if($currentStage !== 'Lost' && $currentStage !== 'Delivered')
+                    <button id="addTaskBtn" class="btn btn--primary btn--sm">+ Add Task</button>
+                @endif
             </div>
             <div id="tasksList">
                 @php
@@ -151,7 +281,7 @@
                 <div id="pendingTasksContainer">
                     @forelse($pendingTasks as $index => $task)
                         <div class="task-item js-task-item {{ $index >= 5 ? 'd-none' : '' }}" style="display:{{ $index >= 5 ? 'none' : 'flex' }};align-items:flex-start;gap:1rem;padding:.75rem 0;border-bottom:1px solid #f3f4f6;">
-                            <input type="checkbox" class="js-toggle-task" data-id="{{ $task->id }}" style="margin-top:4px;">
+                            <input type="checkbox" class="js-toggle-task" data-id="{{ $task->id }}" style="margin-top:4px;" @if($currentStage === 'Lost' || $currentStage === 'Delivered') disabled @endif>
                             <div style="flex:1;">
                                 <div class="fw-700 text-dark">{{ $task->content }}</div>
                                 @if($task->due_date)
@@ -233,6 +363,56 @@
     </div>
 </div>
 
+{{-- Customer Activity Modal --}}
+<div id="activityModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; align-items:center; justify-content:center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+    <div class="card" style="width:90%; max-width:650px; max-height:85vh; overflow-y:auto; padding:35px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); background:#fff; position: relative; margin: 0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
+            <div style="display:flex; align-items:center; gap:12px">
+                <div style="width:40px; height:40px; background:var(--primary-100); color:var(--primary-600); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </div>
+                <h2 style="margin:0; font-weight:800; font-size: 1.5rem; color: var(--gray-900); letter-spacing: -0.02em;">User Activity</h2>
+            </div>
+            <button onclick="closeActivityModal()" style="background:var(--gray-100); border:none; font-size:24px; cursor:pointer; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition: all 0.2s ease;" onmouseover="this.style.background='var(--gray-200)'" onmouseout="this.style.background='var(--gray-100)'">&times;</button>
+        </div>
+        
+        @php $activities = $lead->customerActivities()->limit(30)->get(); @endphp
+        @if($activities->count() > 0)
+            <div class="activity-timeline">
+                @foreach($activities as $act)
+                    <div style="display:flex; gap:18px; margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #f8fafc">
+                        <div style="width:42px; height:42px; background:#f8fafc; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; border: 1px solid #f1f5f9;">
+                            @if($act->product_id)
+                                <svg width="20" height="20" fill="var(--primary-500)" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            @else
+                                <svg width="20" height="20" fill="none" stroke="var(--gray-400)" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                            @endif
+                        </div>
+                        <div style="flex-grow:1">
+                            <div class="fw-800 text-sm" style="color:var(--gray-900); margin-bottom: 4px; font-size: 1.05rem;">{{ $act->page_name }}</div>
+                            <div class="text-xs text-muted" style="display:flex; align-items:center; gap:6px; font-weight: 600;">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                {{ $act->created_at->diffForHumans() }}
+                            </div>
+                            <div class="text-xs mt-2" style="color:var(--primary-600); word-break: break-all; opacity: 0.8; font-family: monospace;">{{ $act->url }}</div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div style="text-align:center; padding:60px 20px;">
+                <div style="font-size: 50px; margin-bottom: 20px; opacity: 0.2;">🔍</div>
+                <div class="fw-800" style="color:var(--gray-900); font-size: 1.25rem;">No activity found</div>
+                <p class="text-sm text-muted mt-2">The customer hasn't browsed any tracked pages yet.</p>
+            </div>
+        @endif
+        
+        <div class="mt-5" style="text-align: center;">
+            <button class="btn btn--primary btn--pill" style="padding: 0.75rem 2.5rem;" onclick="closeActivityModal()">Close Activity Logs</button>
+        </div>
+    </div>
+</div>
+
 <div id="addTaskModal" class="modal" style="display:none;">
     <div class="modal-content">
         <div class="modal-header">
@@ -291,44 +471,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cgBox) cgBox.style.display = (stage === 'Sale Pending') ? '' : 'none';
         const ck = document.getElementById('cgConfirm');
         if (nextStageBtn) nextStageBtn.disabled = (stage === 'Sale Pending' && !(ck && ck.checked));
-        document.querySelectorAll('.js-stage').forEach((b)=>{
-            const bi = STAGES.indexOf(b.getAttribute('data-stage'));
-            const lock = bi < idx; // lock previous stages
-            b.disabled = lock;
-            b.style.pointerEvents = lock ? 'none' : 'auto';
-            b.style.opacity = lock ? .6 : 1;
-        });
     }
     setProgress(getCurrentStage());
 
-    // --- Stage Buttons ---
-    document.querySelectorAll('.js-stage').forEach(btn=>{
-        btn.addEventListener('click', async function(){
-            const stage = this.getAttribute('data-stage');
-            const cur = getCurrentStage();
-            if (STAGES.indexOf(stage) < STAGES.indexOf(cur)) return; // prevent backward
-            if (cur === 'Sale Pending' && !document.getElementById('cgConfirm')?.checked) {
-                alert('Please confirm you have sent the customer guidance documents.');
-                return;
-            }
-            try{
-                const res = await fetch('{{ route("dealer.leads.stage", $lead) }}', {
-                    method: 'POST',
-                    headers: { 'X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json' },
-                    body: JSON.stringify({ stage })
-                });
-                const data = await res.json();
-                if (res.ok && data.ok){
-                    window.location.reload();
-                } else {
-                    alert(data.msg || 'Unable to update stage');
-                }
-            }catch(err){ alert('Network error'); }
-        });
-    });
-
     // --- Next Step Button ---
     document.getElementById('btnNextStage')?.addEventListener('click', async function(){
+        @if($currentStage === 'Lost')
+            alert('This lead has already been closed.');
+            return;
+        @endif
         const cur = getCurrentStage();
         if (cur === 'Sale Pending' && !document.getElementById('cgConfirm')?.checked) {
             alert('Please confirm you have sent the customer guidance documents.');
@@ -532,6 +683,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Unable to save checklist.');
             }
         } catch (err) { alert('Network error'); }
+    });
+
+    // --- Activity Modal Functions ---
+    window.openActivityModal = function() {
+        document.getElementById('activityModal').style.display = 'flex';
+    };
+    window.closeActivityModal = function() {
+        document.getElementById('activityModal').style.display = 'none';
+    };
+    window.addEventListener('click', function(e) {
+        const modal = document.getElementById('activityModal');
+        if (e.target === modal) {
+            closeActivityModal();
+        }
     });
 });
 </script>

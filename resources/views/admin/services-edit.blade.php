@@ -6,10 +6,9 @@
         <h1 class="panel-page-title">Edit Service</h1>
         <p class="panel-page-sub">{{ $item->name }}</p>
     </div>
-    <a href="{{ route('admin.services') }}" class="btn">Back</a>
-@endsection
-@@
-@section('content')
+    <a href="{{ route('admin.services.index') }}" class="btn">Back</a>
+</div>
+
 <div class="card">
     <form method="POST" action="{{ route('admin.services.update', $item) }}" enctype="multipart/form-data">
         @csrf @method('PUT')

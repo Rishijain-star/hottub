@@ -8,8 +8,17 @@
     <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:28px;margin-top:16px;align-items:start">
         <div>
             @php
-                $imgs = is_array($item->images) ? $item->images : [];
-                $img = count($imgs) ? asset('storage/' . $imgs[0]) : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=80&auto=format&fit=crop';
+                $rawImgs = $item->images;
+                if ($rawImgs instanceof \Illuminate\Support\Collection) {
+                    $rawImgs = $rawImgs->all();
+                }
+                $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+                $imgs = array_values(array_filter(array_map(function ($v) {
+                    if (is_string($v)) return $v;
+                    if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+                    return null;
+                }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+                $img = count($imgs) ? url('storage/app/public/' . $imgs[0]) : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=80&auto=format&fit=crop';
             @endphp
             <div class="ht-gallery__stage ht-detail__img-wrap">
                 <button id="htPrev" class="ht-gallery__nav ht-gallery__nav--prev">‹</button>
@@ -19,7 +28,7 @@
             @if(count($imgs) > 1)
             <div class="ht-gallery__thumbs">
                 @foreach($imgs as $i => $src)
-                    <img src="{{ asset('storage/' . $src) }}" class="ht-gallery__thumb {{ $i===0 ? 'active' : '' }}" data-idx="{{ $i }}" loading="lazy" decoding="async">
+                    <img src="{{ url('storage/app/public/' . $src) }}" class="ht-gallery__thumb {{ $i===0 ? 'active' : '' }}" data-idx="{{ $i }}" loading="lazy" decoding="async">
                 @endforeach
             </div>
             @endif
@@ -59,7 +68,7 @@
                     <div><div style="font-size:12px;color:#6b7280">Power</div><div style="font-weight:700">{{ $item->power_requirements ?? '—' }}</div></div>
                 </div>
             </div>
-            <a href="#quote" id="btnGetFreeQuote" class="ht-get-quote-btn" style="display:inline-block;text-align:center">Get Free Quote</a>
+            <button onclick="window.__openEnquiryModal({ title: 'Quote: {{ addslashes($item->brand) }} {{ addslashes($item->model) }}', type: 'hot_tub', product_id: '{{ $item->id }}' })" class="ht-get-quote-btn" style="display:block; width:100%; text-align:center;">Get Free Quote</button>
             <p style="margin-top: 1rem; font-size: 0.82rem; color: #6b7280; text-align: center; line-height: 1.4;">
                 Buying a hot tub is exciting. Our platform connects you with trusted dealers who will support you from purchase to installation and long-term ownership.
             </p>
@@ -127,9 +136,13 @@
 @section('scripts')
 <script>
 (function(){
-    const BASE = '{{ asset('') }}';
-    const imgs = @json(isset($item->images) && is_array($item->images) ? array_values($item->images) : []);
-    const urls = imgs.map(s => BASE + '/storage/' + s);
+    const BASE = '{{ url('') }}';
+    const imgs = @json(collect($item->images ?? [])->map(function ($v) {
+        if (is_string($v)) return $v;
+        if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+        return null;
+    })->filter()->values());
+    const urls = imgs.map(s => BASE + '/storage/app/public/' + s);
     if(!imgs || imgs.length === 0) return;
     let idx = 0;
     const main = document.getElementById('htMainImg');
@@ -145,16 +158,5 @@
     next && next.addEventListener('click', function(e){ e.preventDefault(); show(idx+1); });
     thumbs.forEach((t,k)=> t.addEventListener('click', function(){ show(k); }));
 })();
-
-document.getElementById('btnGetFreeQuote')?.addEventListener('click', function(e){
-    e.preventDefault();
-    window.__openEnquiryModal({
-        title: 'Request {{ $item->brand }} {{ $item->model }}',
-        subtitle: 'Fill in your details and an approved dealer will contact you.',
-        type: 'hot_tub',
-        timeframe: null,
-        product_id: '{{ $item->id }}'
-    });
-});
 </script>
 @endsection

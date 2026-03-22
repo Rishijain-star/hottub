@@ -20,6 +20,14 @@
             Overview
         </a>
 
+        <a href="{{ route('admin.support-requests') }}"
+           class="panel-nav-link {{ request()->routeIs('admin.support-requests*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            Support Requests
+        </a>
+
         <a href="{{ route('admin.hot-tubs.index') }}"
            class="panel-nav-link {{ request()->routeIs('admin.hot-tubs.*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -54,7 +62,7 @@
             Brands
         </a>
 
-        <a href="{{ route('admin.services') }}"
+        <a href="{{ route('admin.services.index') }}"
            class="panel-nav-link {{ request()->routeIs('admin.services*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
@@ -79,6 +87,16 @@
             Featured Content
         </a>
 
+        <a href="{{ route('admin.dealer-academy.index') }}"
+           class="panel-nav-link {{ request()->routeIs('admin.dealer-academy.*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 14l9-5-9-5-9 5 9 5z"/>
+                <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/>
+            </svg>
+            Dealer Academy
+        </a>
+
         <a href="{{ route('admin.dealers.index') }}"
            class="panel-nav-link {{ request()->routeIs('admin.dealers.*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -91,6 +109,15 @@
             @if(isset($pendingDealers) && $pendingDealers > 0)
                 <span class="panel-nav-badge">{{ $pendingDealers }}</span>
             @endif
+        </a>
+
+        <a href="{{ route('admin.users.index') }}"
+           class="panel-nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+            </svg>
+            Users
         </a>
 
         <a href="{{ route('admin.manufacturers') }}"

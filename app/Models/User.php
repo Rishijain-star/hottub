@@ -65,7 +65,7 @@ class User extends Authenticatable
 
     protected $attributes = [
         'role' => self::ROLE_USER,
-        'status' => 'pending',
+        'status' => 'active',
         'credits' => 0,
     ];
 

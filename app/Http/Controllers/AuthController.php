@@ -24,9 +24,11 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         if (Auth::attempt($credentials)) {
+            $sessionId = $request->session()->getId();
             $request->session()->regenerate();
 
             $user = Auth::user();
+            $this->syncGuestActivity($user, $sessionId);
 
             if ($request->filled('redirect')) {
                 return redirect($request->redirect);
@@ -75,6 +77,7 @@ class AuthController extends Controller
             'role' => $dbRole,
             'postcode' => $request->postcode,
             'phone' => $request->phone,
+            'status' => ($dbRole === 'user') ? 'active' : 'pending',
         ];
 
         if ($dbRole === 'dealer' || $dbRole === 'manufacturer') {
@@ -92,7 +95,9 @@ class AuthController extends Controller
 
         $user = User::create($userData);
 
+        $sessionId = $request->session()->getId();
         Auth::login($user);
+        $this->syncGuestActivity($user, $sessionId);
 
         if ($request->filled('redirect')) {
             return redirect($request->redirect);
@@ -103,6 +108,18 @@ class AuthController extends Controller
             'manufacturer' => redirect()->route('manufacturer.overview'),
             default => redirect()->route('customer.overview'),
         };
+    }
+
+    private function syncGuestActivity($user, $sessionId)
+    {
+        if ($sessionId) {
+            \App\Models\CustomerActivity::where('session_id', $sessionId)
+                ->whereNull('user_id')
+                ->update([
+                    'user_id' => $user->id,
+                    'session_id' => null
+                ]);
+        }
     }
 
     public function logout(Request $request)

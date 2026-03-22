@@ -3767,92 +3767,124 @@ textarea.form-input {
 .brand-card {
     background: var(--white);
     border: 1px solid var(--gray-200);
-    border-radius: var(--r-xl);
+    border-radius: 20px;
     overflow: hidden;
-    box-shadow: var(--shadow-xs);
-    transition: var(--transition);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-card--featured {
+    border-color: #f5d76e;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .brand-card:hover {
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-4px);
-    border-color: rgba(0, 168, 150, .2);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transform: translateY(-6px);
+    border-color: var(--teal);
+}
+
+.brand-card:hover .brand-card__header img {
+    transform: scale(1.05);
+}
+
+.brand-card__featured-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 5px 12px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #fcd34d;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .brand-card__header {
-    height: 90px;
-    display: flex;
-    align-items: center;
-    padding: 0 1.25rem;
-    justify-content: space-between;
-    position: relative;
-}
-
-.brand-card__initials {
-    width: 52px;
-    height: 52px;
-    border-radius: var(--r-md);
-    background: rgba(255, 255, 255, .22);
-    border: 2px solid rgba(255, 255, 255, .3);
+    height: 120px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--white);
+    padding: 1.5rem;
+    background: #f8fafb;
+    position: relative;
+    border-bottom: 1px solid #f1f5f9;
 }
 
-.brand-card__tier-badge {
-    font-size: .67rem;
+.brand-card__initials {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
     font-weight: 800;
-    padding: .22rem .65rem;
-    border-radius: var(--r-pill);
-    text-transform: uppercase;
-    letter-spacing: .4px;
+    color: var(--white);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 .brand-card__body {
-    padding: 1.1rem 1.1rem 1.25rem;
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .brand-card__name {
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     font-weight: 800;
     color: var(--gray-900);
-    margin-bottom: .15rem;
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.025em;
 }
 
 .brand-card__tagline {
-    font-size: .78rem;
-    color: var(--gray-400);
-    font-style: italic;
-    margin-bottom: .65rem;
+    font-size: 0.85rem;
+    color: var(--teal);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .brand-card__meta {
     display: flex;
-    gap: .85rem;
-    margin-bottom: .75rem;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
 }
 
 .brand-card__meta-item {
     display: inline-flex;
     align-items: center;
-    gap: .3rem;
-    font-size: .76rem;
-    color: var(--gray-500);
-    font-weight: 500;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--gray-600);
+    font-weight: 600;
+}
+
+.brand-card__meta-item svg {
+    color: var(--teal);
 }
 
 .brand-card__short {
-    font-size: .84rem;
+    font-size: 0.9rem;
     color: var(--gray-500);
-    line-height: 1.65;
-    margin-bottom: .85rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+    flex-grow: 1;
 }
 
 .brand-card__price {

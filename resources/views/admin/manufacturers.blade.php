@@ -88,7 +88,25 @@
                         @else
                             <form method="POST" action="{{ route('admin.manufacturers.revoke', $m) }}">@csrf @method('PATCH') <button class="btn btn--danger btn--sm">Revoke</button></form>
                         @endif
-                        <a href="{{ route('admin.manufacturers.edit', $m) }}" class="icon-btn" title="Edit">✎</a>
+                        <button type="button"
+                           class="icon-btn js-open-edit"
+                           title="Edit manufacturer"
+                           data-action="{{ route('admin.manufacturers.update', $m) }}"
+                           data-name="{{ $m->name }}"
+                           data-email="{{ $m->email }}"
+                           data-company_name="{{ $m->company_name }}"
+                           data-company_number="{{ $m->company_number }}"
+                           data-vat_number="{{ $m->vat_number }}"
+                           data-phone="{{ $m->phone }}"
+                           data-postcode="{{ $m->postcode }}"
+                           data-address="{{ $m->address }}"
+                           data-website="{{ $m->website }}"
+                           data-status="{{ $m->status }}"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                            </svg>
+                        </button>
                         <form method="POST" action="{{ route('admin.manufacturers.destroy', $m) }}" onsubmit="return confirm('Delete this manufacturer?')">
                             @csrf @method('DELETE')
                             <button class="icon-btn" title="Delete">✕</button>
@@ -103,4 +121,128 @@
     </table>
     <div class="mt-4" style="padding:1rem">{{ $manufacturers->links('components.pagination') }}</div>
 </div>
+
+<div class="modal-backdrop" id="editManufacturerModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div class="modal-title">Edit Manufacturer - Account Control</div>
+            <button type="button" class="modal-close" data-close="#editManufacturerModal">✕</button>
+        </div>
+        <form id="editManufacturerForm" method="POST" action="#">
+            @csrf
+            @method('PUT')
+            <div class="modal-body">
+                <div class="grid grid--2">
+                    <div class="form-group"><label class="form-label">Contact Name *</label><input name="name" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">Email *</label><input type="email" name="email" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">Company Name *</label><input name="company_name" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">Company Number</label><input name="company_number" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">VAT Number</label><input name="vat_number" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">Postcode</label><input name="postcode" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">Address</label><input name="address" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">Website</label><input name="website" class="form-input"></div>
+                    <div class="form-group">
+                        <label class="form-label">Account Status</label>
+                        <select name="status" class="form-input" id="editManufacturerStatus">
+                            <option value="pending">Pending Approval</option>
+                            <option value="approved">Approved / Active</option>
+                            <option value="paused">Pause Account</option>
+                            <option value="frozen">Freeze Account</option>
+                            <option value="revoked">Revoked / Disabled</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="resumeOptionContainer" style="display:none; grid-column: span 2;">
+                        <div class="alert alert--warning" style="margin-bottom:0; display:flex; align-items:center; justify-content:space-between;">
+                            <span>This account is currently <strong>paused or frozen</strong>.</span>
+                            <button type="button" class="btn btn--sm btn--primary" onclick="resumeAccount()">Resume Account</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="btn btn--primary">Save Changes</button>
+                <button type="button" class="btn" data-close="#editManufacturerModal">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function openModal(id) {
+        const modal = document.querySelector(id);
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeModal(id) {
+        const modal = document.querySelector(id);
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    window.resumeAccount = function() {
+        const statusSel = document.getElementById('editManufacturerStatus');
+        const resumeCont = document.getElementById('resumeOptionContainer');
+        if (statusSel) {
+            statusSel.value = 'approved';
+            if (resumeCont) resumeCont.style.display = 'none';
+        }
+    };
+
+    document.querySelectorAll('[data-close]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            closeModal(btn.getAttribute('data-close'));
+        });
+    });
+
+    const editForm = document.getElementById('editManufacturerForm');
+    const statusSel = document.getElementById('editManufacturerStatus');
+    const resumeCont = document.getElementById('resumeOptionContainer');
+
+    document.querySelectorAll('.js-open-edit').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (editForm) {
+                editForm.action = btn.getAttribute('data-action');
+                const fields = ['name', 'email', 'company_name', 'company_number', 'vat_number', 'phone', 'postcode', 'address', 'website', 'status'];
+                
+                fields.forEach(function(key) {
+                    const input = editForm.querySelector('[name="' + key + '"]');
+                    if (input) {
+                        const val = btn.getAttribute('data-' + key) || '';
+                        input.value = val;
+                        
+                        if (key === 'status') {
+                            if (val === 'paused' || val === 'frozen') {
+                                if (resumeCont) resumeCont.style.display = 'block';
+                            } else {
+                                if (resumeCont) resumeCont.style.display = 'none';
+                            }
+                        }
+                    }
+                });
+            }
+            openModal('#editManufacturerModal');
+        });
+    });
+
+    if (statusSel) {
+        statusSel.addEventListener('change', function() {
+            if (this.value === 'paused' || this.value === 'frozen') {
+                if (resumeCont) resumeCont.style.display = 'block';
+            } else {
+                if (resumeCont) resumeCont.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
+@endsection
 @endsection

@@ -88,112 +88,12 @@
                         @endif
                         <button class="svc-request-btn" onclick="window.__openEnquiryModal({ title: 'Request {{ addslashes($svc->name) }}', type: 'service', product_id: '{{ $svc->id }}' })">
                             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.58 1.25h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5A16 16 0 0 0 16 16.59l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 24 17z"/></svg>
-                            Request Service
+                            Get Free Quote
                         </button>
                     </div>
                 </div>
                 @endforeach
             @endif
-
-
-            {{-- Annual Maintenance --}}
-            <div class="svc-card">
-                <div class="svc-card__img svc-card__img--blue">
-                    <svg width="64" height="64" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                </div>
-                <div class="svc-card__body">
-                    <h3 class="svc-card__title">Annual Maintenance Service</h3>
-                    <p class="svc-card__desc">Complete annual service including water chemistry check, filter cleaning, jet inspection, and equipment testing.</p>
-                    <div class="svc-card__price-row">
-                        <span class="svc-card__from">Starting from</span>
-                        <span class="svc-card__price">£250.00</span>
-                        <span class="svc-card__price-note">*Final price may vary based on requirements</span>
-                    </div>
-                    <div class="svc-card__included">
-                        <div class="svc-card__included-title">
-                            <svg width="16" height="16" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            What's Included:
-                        </div>
-                        <ul class="svc-card__list">
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Water chemistry balance</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Filter deep clean</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Jet inspection</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Cover treatment</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Equipment testing</li>
-                        </ul>
-                    </div>
-                    <button class="svc-request-btn" onclick="openServiceModal('Annual Maintenance Service')">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.58 1.25h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5A16 16 0 0 0 16 16.59l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 24 17z"/></svg>
-                        Request Service
-                    </button>
-                </div>
-            </div>
-
-            {{-- Emergency Repair --}}
-            <div class="svc-card">
-                <div class="svc-card__img svc-card__img--red">
-                    <svg width="64" height="64" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                </div>
-                <div class="svc-card__body">
-                    <h3 class="svc-card__title">Emergency Repair Service</h3>
-                    <p class="svc-card__desc">24/7 emergency repair service for urgent hot tub issues including pump failures, heater problems, and leaks.</p>
-                    <div class="svc-card__price-row">
-                        <span class="svc-card__from">Starting from</span>
-                        <span class="svc-card__price">£200.00</span>
-                        <span class="svc-card__price-note">*Final price may vary based on requirements</span>
-                    </div>
-                    <div class="svc-card__included">
-                        <div class="svc-card__included-title">
-                            <svg width="16" height="16" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            What's Included:
-                        </div>
-                        <ul class="svc-card__list">
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Emergency callout</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Diagnosis</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Labour (first hour)</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Parts extra</li>
-                        </ul>
-                    </div>
-                    <button class="svc-request-btn" onclick="openServiceModal('Emergency Repair Service')">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.58 1.25h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5A16 16 0 0 0 16 16.59l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 24 17z"/></svg>
-                        Request Service
-                    </button>
-                </div>
-            </div>
-
-            {{-- Installation --}}
-            <div class="svc-card">
-                <div class="svc-card__img svc-card__img--green">
-                    <svg width="64" height="64" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                </div>
-                <div class="svc-card__body">
-                    <h3 class="svc-card__title">Hot Tub Installation</h3>
-                    <p class="svc-card__desc">Professional installation service including delivery, positioning, electrical connection, and initial setup.</p>
-                    <div class="svc-card__price-row">
-                        <span class="svc-card__from">Starting from</span>
-                        <span class="svc-card__price">£500.00</span>
-                        <span class="svc-card__price-note">*Final price may vary based on requirements</span>
-                    </div>
-                    <div class="svc-card__included">
-                        <div class="svc-card__included-title">
-                            <svg width="16" height="16" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            What's Included:
-                        </div>
-                        <ul class="svc-card__list">
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Delivery to site</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Positioning</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Electrical connection</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Water fill</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Chemical balance</li>
-                            <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Operation tutorial</li>
-                        </ul>
-                    </div>
-                    <button class="svc-request-btn" onclick="openServiceModal('Hot Tub Installation')">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.58 1.25h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5A16 16 0 0 0 16 16.59l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 24 17z"/></svg>
-                        Request Service
-                    </button>
-                </div>
-            </div>
 
         </div>
     </div>
@@ -215,14 +115,14 @@
                             <div class="svc-plan-name">Basic Plan</div>
                             <div class="svc-plan-sub">2 visits per year</div>
                         </div>
-                        <span class="svc-plan-price">£250/yr</span>
+                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal);">£250/yr</span>
                     </div>
                     <div class="svc-plan-row">
                         <div>
                             <div class="svc-plan-name">Premium Plan</div>
                             <div class="svc-plan-sub">4 visits per year + priority support</div>
                         </div>
-                        <span class="svc-plan-price">£450/yr</span>
+                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal);">£450/yr</span>
                     </div>
                     <div class="svc-plan-row svc-plan-row--best">
                         <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
@@ -234,7 +134,7 @@
                                 <div class="svc-plan-sub">Monthly visits + 24/7 emergency cover</div>
                             </div>
                         </div>
-                        <span class="svc-plan-price" style="color:var(--teal-dk);">£800/yr</span>
+                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal-dk);">£800/yr</span>
                     </div>
                 </div>
             </div>
@@ -274,13 +174,23 @@
                     </div>
                 </div>
 
-                <button class="svc-call-btn" onclick="openServiceModal('Emergency Repair Service')">
+                <button class="svc-call-btn" onclick="window.__openEnquiryModal({ title: 'Request Emergency Repair', type: 'service' })">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.58 1.25h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5A16 16 0 0 0 16 16.59l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 24 17z"/></svg>
-                    Call Now: 0800 123 456
+                    Get Free Quote
                 </button>
             </div>
 
         </div>
+
+        {{-- Bottom CTA --}}
+        <div style="margin-top: 3rem; text-align: center; background: #fff; padding: 3rem 2rem; border-radius: 14px; border: 1px solid #e5e7eb; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem; color: var(--gray-900);">Still Have Questions?</h2>
+            <p style="color: var(--gray-600); max-width: 600px; margin: 0 auto 2rem;">Our experts are ready to help you with any hot tub service or maintenance inquiry. Get professional advice and a free quote today.</p>
+            <button class="ht-get-quote-btn" style="display: inline-block; padding: 1rem 2.5rem; font-size: 1.1rem;" onclick="window.__openEnquiryModal({ title: 'General Service Enquiry', type: 'service' })">
+                Get Free Quote
+            </button>
+        </div>
+
     </div>
 </section>
 

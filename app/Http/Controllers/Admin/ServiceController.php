@@ -25,7 +25,7 @@ class ServiceController extends Controller
             $data['image_url'] = $path;
         }
         Service::create($data);
-        return redirect()->route('admin.services')->with('success', 'Service created.');
+        return redirect()->route('admin.services.index')->with('success', 'Service created successfully.');
     }
 
     public function edit(Service $service)
@@ -38,15 +38,25 @@ class ServiceController extends Controller
     {
         $data = $this->validateData($request);
         $data['includes'] = $request->input('includes', []);
-        $slug = $service->slug;
-        if ($request->boolean('regen_slug') || empty($service->slug) || (!empty($data['slug']) && $data['slug'] !== $service->slug)) {
-            $slug = $data['slug'] = $this->uniqueSlug($data['name'], $service->id);
+        
+        // Handle slug logic: only change if requested or if regen_slug is checked
+        if ($request->boolean('regen_slug')) {
+            $data['slug'] = $this->uniqueSlug($data['name'], $service->id);
+        } elseif (empty($data['slug'])) {
+            // If user left slug field blank and didn't check regen_slug, 
+            // remove 'slug' from $data so Eloquent doesn't try to set it to NULL
+            unset($data['slug']);
         }
-        if ($path = $this->storeImage($request, 'services/'.$slug)) {
+
+        // Use current slug for image folder unless we just generated a new one
+        $slugForFolder = $data['slug'] ?? $service->slug;
+        
+        if ($path = $this->storeImage($request, 'services/'.$slugForFolder)) {
             $data['image_url'] = $path;
         }
+
         $service->update($data);
-        return redirect()->route('admin.services')->with('success', 'Service updated.');
+        return redirect()->route('admin.services.index')->with('success', 'Service updated successfully.');
     }
 
     public function destroy(Service $service)

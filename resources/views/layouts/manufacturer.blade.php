@@ -27,7 +27,7 @@
                 <h1 style="font-size:2rem; font-weight:800; color:#111827; margin-bottom:1rem; letter-spacing:-0.025em;">Account {{ ucfirst($restrictionStatus) }}</h1>
                 <p style="color:#4b5563; font-size:1.1rem; line-height:1.6; margin-bottom:2.5rem;">Your manufacturer account has been <strong>{{ $restrictionStatus }}</strong> by the administrator. All functionality has been locked. Please contact support to resolve this.</p>
                 
-                <div style="background:#f9fafb; padding:2rem; border-radius:12px; border:1px solid #e5e7eb; text-align:left;">
+                <div id="supportFormContainer" style="background:#f9fafb; padding:2rem; border-radius:12px; border:1px solid #e5e7eb; text-align:left;">
                     <h3 style="font-size:1rem; font-weight:700; color:#374151; margin-bottom:1rem; display:flex; align-items:center; gap:8px;">
                         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                         Send Support Request
@@ -37,11 +37,14 @@
                     @endphp
                     
                     @if($requestCount < 3)
-                        <form action="{{ route('manufacturer.api.send_message', 1) }}" method="POST">
+                        <form id="restrictedSupportForm">
                             @csrf
-                            <textarea name="content" class="form-input" rows="3" placeholder="Explain your situation or request reactivation..." required style="margin-bottom:1rem; border-color:#d1d5db;"></textarea>
-                            <button type="submit" class="btn btn--danger btn--full" style="padding:0.8rem;">Send Request ({{ $requestCount }}/3)</button>
+                            <textarea name="content" id="supportContent" class="form-input" rows="3" placeholder="Explain your situation or request reactivation..." required style="margin-bottom:1rem; border-color:#d1d5db;"></textarea>
+                            <button type="submit" id="btnSendSupport" class="btn btn--danger btn--full" style="padding:0.8rem;">Send Request ({{ $requestCount }}/3)</button>
                         </form>
+                        <div id="supportSuccessMsg" style="display:none; margin-top:1rem; padding:0.75rem; background:#dcfce7; color:#166534; border-radius:8px; font-size:0.9rem; text-align:center; font-weight:600;">
+                            Request sent successfully.
+                        </div>
                     @else
                         <div style="padding:1rem; background:#fee2e2; color:#b91c1c; border-radius:8px; font-weight:600; font-size:0.9rem; text-align:center;">
                             Maximum of 3 support requests reached.
@@ -69,6 +72,52 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif
     @yield('scripts')
+    
+    @if(isset($isAccountRestricted) && $isAccountRestricted)
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('restrictedSupportForm');
+        if (form) {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('btnSendSupport');
+                const content = document.getElementById('supportContent').value;
+                const successMsg = document.getElementById('supportSuccessMsg');
+                
+                btn.disabled = true;
+                btn.textContent = 'Sending...';
+                
+                try {
+                    const response = await fetch('{{ route("manufacturer.api.send_message", 1) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ content: content })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        form.style.display = 'none';
+                        successMsg.style.display = 'block';
+                    } else {
+                        alert(data.msg || 'Error sending request');
+                        btn.disabled = false;
+                        btn.textContent = 'Send Request';
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                    btn.disabled = false;
+                    btn.textContent = 'Send Request';
+                }
+            });
+        }
+    });
+    </script>
+    @endif
 </body>
 </html>
 

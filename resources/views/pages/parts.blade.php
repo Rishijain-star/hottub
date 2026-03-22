@@ -100,7 +100,7 @@
                         @endif
                     </div>
                     @endif
-                    <button class="parts-enquire-btn" onclick="window.__openEnquiryModal({ title: 'Enquire: {{ addslashes($p->name) }}', subtitle: 'Please provide quantity and hot tub model.', type: 'part', product_id: '{{ $p->id }}' })">Enquire Now</button>
+                    <button class="parts-enquire-btn" onclick="window.__openEnquiryModal({ title: 'Quote: {{ addslashes($p->name) }}', type: 'part', product_id: '{{ $p->id }}' })">Get Free Quote</button>
                 </div>
             </div>
 @endforeach
@@ -156,8 +156,8 @@
                 <div class="form-group" style="margin-bottom:1.25rem;">
                     <textarea class="form-input" rows="4" id="finderDesc" placeholder="Describe what you need or the problem you're experiencing..." style="resize:vertical;"></textarea>
                 </div>
-                <button class="svc-request-btn" onclick="submitPartFinder()">
-                    Get Expert Help
+                <button class="svc-request-btn" onclick="window.__openEnquiryModal({ title: 'Part Finder Help', type: 'part', message: 'Part/Model: ' + document.getElementById('finderModel').value + '\nIssue: ' + document.getElementById('finderDesc').value })">
+                    Get Free Quote
                 </button>
             </div>
 

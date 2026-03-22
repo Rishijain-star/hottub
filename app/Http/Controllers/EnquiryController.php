@@ -42,6 +42,7 @@ class EnquiryController extends Controller
         $lead = Lead::create([
             'name' => $data['name'],
             'email' => $data['email'],
+            'session_id' => session()->getId(),
             'phone' => $data['phone'] ?? null,
             'postcode' => $data['postcode'],
             'lead_postcode' => $data['postcode'],

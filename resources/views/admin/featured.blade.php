@@ -89,8 +89,20 @@
                 <div style="width:160px;height:100px;background:#f3f4f6;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
                     @php
                         $adminImg = $it->image_url;
-                        if (!$adminImg && $it->hotTub && count($it->hotTub->images ?? [])) {
-                            $adminImg = asset('storage/' . $it->hotTub->images[0]);
+                        if (!$adminImg && $it->hotTub) {
+                            $rawImgs = $it->hotTub->images;
+                            if ($rawImgs instanceof \Illuminate\Support\Collection) {
+                                $rawImgs = $rawImgs->all();
+                            }
+                            $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+                            $imgs = array_values(array_filter(array_map(function ($v) {
+                                if (is_string($v)) return $v;
+                                if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+                                return null;
+                            }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+                            if (count($imgs)) {
+                                $adminImg = url('storage/app/public/' . $imgs[0]);
+                            }
                         }
                     @endphp
                     @if($adminImg)

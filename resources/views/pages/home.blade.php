@@ -91,9 +91,24 @@
         </div>
         <div class="potm__img">
             @php
-                $potmImg = $potm->image_url;
-                if (!$potmImg && $potm->hotTub && count($potm->hotTub->images ?? [])) {
-                    $potmImg = asset('storage/' . $potm->hotTub->images[0]);
+                $potmImg = null;
+                if ($potm && $potm->image_url) {
+                    $potmImg = $potm->image_url;
+                }
+                if (!$potmImg && $potm && $potm->hotTub) {
+                    $rawImgs = $potm->hotTub->images;
+                    if ($rawImgs instanceof \Illuminate\Support\Collection) {
+                        $rawImgs = $rawImgs->all();
+                    }
+                    $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+                    $imgs = array_values(array_filter(array_map(function ($v) {
+                        if (is_string($v)) return $v;
+                        if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+                        return null;
+                    }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+                    if (count($imgs)) {
+                        $potmImg = url('storage/app/public/' . $imgs[0]);
+                    }
                 }
             @endphp
             <img src="{{ $potmImg ?: 'https://images.unsplash.com/photo-1584464479516-0c10b2d2eb1c?w=800' }}" alt="{{ $potm->title }}" loading="lazy">
@@ -178,8 +193,17 @@
             <div class="featured__track">
                 @foreach($featuredHotTubs as $it)
                     @php
-                        $imgs = is_array($it->images) ? $it->images : [];
-                        $img = count($imgs) ? asset('storage/' . $imgs[0]) : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80&auto=format&fit=crop';
+                        $rawImgs = $it->images;
+                        if ($rawImgs instanceof \Illuminate\Support\Collection) {
+                            $rawImgs = $rawImgs->all();
+                        }
+                        $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+                        $imgs = array_values(array_filter(array_map(function ($v) {
+                            if (is_string($v)) return $v;
+                            if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+                            return null;
+                        }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+                        $img = count($imgs) ? url('storage/app/public/' . $imgs[0]) : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80&auto=format&fit=crop';
                         
                         $featuredInfo = $it->featuredContents->first();
                         if ($featuredInfo && $featuredInfo->image_url) {

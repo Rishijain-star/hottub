@@ -60,22 +60,19 @@
                 <h5>Explore</h5>
                 <ul class="footer__links">
                     <li><a href="{{ route('brands') }}">Brands</a></li>
-                    <!-- <li><a href="{{ route('find-dealer') }}">Find Dealer</a></li> -->
+                    <li><a href="{{ route('find-dealer') }}">Find Dealer</a></li>
                     <li><a href="{{ route('care-guide') }}">Care Guide</a></li>
                     <li><a href="{{ route('faq') }}">FAQ</a></li>
-                    <li><a href="#">Blog</a></li>
                 </ul>
             </div>
 
-            {{-- ── Col 4: Company ── --}}
+            {{-- ── Col 4: Account ── --}}
             <div class="footer__col">
-                <h5>Company</h5>
+                <h5>Account</h5>
                 <ul class="footer__links">
-                    <li><a href="#">About Us</a></li>
-                    <li><a href="#">Contact</a></li>
-                    <li><a href="#">Careers</a></li>
                     <li><a href="{{ route('login') }}">Login</a></li>
                     <li><a href="{{ route('register') }}">Register</a></li>
+                    <li><a href="{{ route('dashboard') }}">My Dashboard</a></li>
                 </ul>
             </div>
 
@@ -83,11 +80,10 @@
             <div class="footer__col">
                 <h5>Legal</h5>
                 <ul class="footer__links">
-                    <li><a href="#">Privacy Policy</a></li>
-                    <li><a href="#">Terms of Service</a></li>
-                    <li><a href="#">Cookie Policy</a></li>
-                    <li><a href="#">Warranty Info</a></li>
-                    <li><a href="#">Support</a></li>
+                    <li><a href="{{ route('privacy') }}">Privacy Policy</a></li>
+                    <li><a href="{{ route('terms') }}">Terms &amp; Conditions</a></li>
+                    <li><a href="{{ route('dealer-agreement') }}">Dealer Agreement</a></li>
+                    <li><a href="{{ route('faq') }}">Support &amp; FAQ</a></li>
                 </ul>
             </div>
 
@@ -98,8 +94,7 @@
     <div class="footer__bottom">
         <p class="footer__copy">© {{ date('Y') }} Hot Tub Buyer. All rights reserved.</p>
         <p class="footer__credit">
-            <!-- Made with ❤️ for hot tub enthusiasts &nbsp;|&nbsp; -->
-            <a href="#">Contact Support</a>
+            <a href="{{ route('faq') }}">Contact Support</a>
         </p>
     </div>
 </footer>

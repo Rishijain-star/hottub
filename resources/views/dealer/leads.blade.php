@@ -1,5 +1,5 @@
 @extends('layouts.dealer')
-@section('title', 'My Leads – Dealer Panel')
+@section('title', 'Leads – Dealer Panel')
 @section('content')
 <div class="panel-page-header">
     <div><h1 class="panel-page-title">My Leads</h1><p class="panel-page-sub">Leads you have purchased or created</p></div>
@@ -14,19 +14,10 @@
         @csrf
         <div class="grid grid--2">
             <div class="form-group"><label class="form-label">Customer Name *</label><input name="name" class="form-input" required></div>
-            <div class="form-group"><label class="form-label">Email</label><input name="email" type="email" class="form-input"></div>
+            <div class="form-group"><label class="form-label">Email *</label><input name="email" type="email" class="form-input" required></div>
             <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-input"></div>
-            <div class="form-group">
-                <label class="form-label">Lead Source *</label>
-                <select name="lead_source" class="form-input" required>
-                    <option value="">Select Source...</option>
-                    @foreach(['Phone Call','Email','Social Media','Showroom Visit','Show','Other'] as $src)
-                        <option value="{{ $src }}">{{ $src }}</option>
-                    @endforeach
-                </select>
-            </div>
+            <div class="form-group"><label class="form-label">Postcode</label><input name="postcode" class="form-input"></div>
         </div>
-        <div class="form-group"><label class="form-label">Notes / Details</label><textarea name="message" class="form-input" rows="2"></textarea></div>
         <div class="modal-actions" style="justify-content: flex-start;">
             <button class="btn btn--primary">Save Lead</button>
             <button type="button" class="btn btn--ghost" onclick="document.getElementById('addLeadCard').style.display='none'">Cancel</button>
@@ -34,61 +25,152 @@
     </form>
 </div>
 
-<div class="card" style="padding:0;">
+{{-- Search Bar --}}
+<div class="card mb-4">
+    <form method="GET" action="{{ route('dealer.leads.index') }}">
+        <div style="display:flex; gap:10px;">
+            <input name="search" class="form-input" placeholder="Search by name, email or phone..." value="{{ request('search') }}">
+            <button class="btn btn--primary">Search</button>
+            @if(request('search'))
+                <a href="{{ route('dealer.leads.index') }}" class="btn btn--ghost">Clear</a>
+            @endif
+        </div>
+    </form>
+</div>
+
+<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">My Private Leads</div>
+<div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>
             <tr>
-                <th>Customer</th>
-                <th>Postcode</th>
-                <th>Interests</th>
-                <th>Price</th>
-                <th>Purchased On</th>
-                <th>Actions</th>
+                <th>CUSTOMER</th>
+                <th>POSTCODE</th>
+                <th>INTERESTS</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($items as $it)
-            @php $purchase = $purchases[$it->id] ?? null; @endphp
+            @forelse($privateLeads as $it)
+            @php
+                $status = 'ACTIVE';
+                $statusClass = ''; 
+                if ($it->stage === 'Delivered') {
+                    $status = 'WON';
+                    $statusClass = 'text-success';
+                }
+            @endphp
             <tr>
                 <td>
-                    @if($purchase && $purchase->stage === 'Lost')
-                        <div class="fw-700 text-dark">Name Hidden</div>
-                        <div class="text-sm text-muted">Email Hidden</div>
-                    @else
-                        <div class="fw-700 text-dark">{{ $it->name }}</div>
-                        <div class="text-sm text-muted">{{ $it->email }}</div>
-                    @endif
+                    <div class="fw-700 text-dark">{{ $it->name }}</div>
+                    <div class="text-sm text-muted">{{ $it->email }}</div>
                 </td>
-                <td>{{ $it->postcode }}</td>
+                <td>{{ $it->postcode ?: '—' }}</td>
                 <td>
-                    <div style="display:flex;flex-direction:column;gap:4px">
-                        @if(!empty($it->delivery_details['make']) || !empty($it->delivery_details['model']))
-                            <div class="fw-700 text-dark" style="font-size:0.85rem">
-                                {{ $it->delivery_details['make'] ?? '' }} {{ $it->delivery_details['model'] ?? '' }}
-                            </div>
+                    <div style="display:flex; flex-direction:column; gap:2px">
+                        @if(is_array($it->interests) && count($it->interests))
+                            @foreach($it->interests as $tag)
+                                <div class="fw-700 text-dark" style="font-size:0.85rem">{{ ucwords(str_replace('_',' ',$tag)) }}</div>
+                                <div class="text-xs text-muted">HOT TUB</div>
+                            @endforeach
+                        @else
+                            —
                         @endif
-                        <div style="display:flex;flex-wrap:wrap;gap:4px">
-                            @if(is_array($it->interests) && count($it->interests))
-                                @foreach($it->interests as $tag)
-                                    <span class="badge" style="font-size:10px;padding:2px 6px">{{ ucwords(str_replace('_',' ',$tag)) }}</span>
-                                @endforeach
-                            @endif
-                        </div>
                     </div>
                 </td>
-                <td>@if(!is_null($it->price)) £{{ number_format($it->price, 2) }} @else — @endif</td>
-                <td class="text-sm">{{ $purchase ? $purchase->created_at->format('d M Y') : '—' }}</td>
                 <td>
-                    <a href="{{ route('dealer.leads.view', $it->id) }}" class="btn btn--ghost btn--sm">View</a>
+                    <span class="fw-800 {{ $statusClass }}" style="font-size:0.85rem">{{ $status }}</span>
+                </td>
+                <td>
+                    <a href="{{ route('dealer.leads.view', $it->id) }}" class="fw-700 text-dark" style="text-decoration:none">View</a>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:1rem">No leads purchased yet.</td></tr>
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No private leads found.</td></tr>
             @endforelse
         </tbody>
     </table>
 </div>
-@if($items->hasPages())
-    <div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
+
+@if($privateLeads->hasPages())
+    <div class="mt-4 mb-4">
+        {{ $privateLeads->appends(request()->except('private_page'))->links('components.pagination') }}
+    </div>
+@endif
+
+<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">My Won Leads</div>
+<div class="card" style="padding:0; margin-bottom: 2rem;">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>CUSTOMER</th>
+                <th>POSTCODE</th>
+                <th>INTERESTS</th>
+                <th>PRICE</th>
+                <th>PURCHASED ON</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($myLeads as $it)
+            @php
+                $purchase = \App\Models\LeadPurchase::where('lead_id', $it->id)->where('dealer_id', auth()->id())->where('buyer_role', 'dealer')->first();
+                
+                $status = 'ACTIVE';
+                $statusClass = ''; // Default
+                
+                if ($it->assigned_dealer_id === auth()->id() && $it->status === 'converted' && $it->stage === 'Delivered') {
+                    $status = 'WON';
+                    $statusClass = 'text-success';
+                } elseif (($purchase && $purchase->stage === 'Lost') || ($it->status === 'converted' && $it->assigned_dealer_id && $it->assigned_dealer_id !== auth()->id())) {
+                    $status = 'CLOSED';
+                    $statusClass = 'text-warning';
+                }
+            @endphp
+            <tr>
+                <td>
+                    <div class="fw-700 text-dark">{{ ($status === 'CLOSED') ? 'Name Hidden' : $it->name }}</div>
+                    <div class="text-sm text-muted">{{ ($status === 'CLOSED') ? 'Email Hidden' : $it->email }}</div>
+                </td>
+                <td>{{ $it->postcode ?: '—' }}</td>
+                <td>
+                    <div style="display:flex; flex-direction:column; gap:2px">
+                        @if(is_array($it->interests) && count($it->interests))
+                            @foreach($it->interests as $tag)
+                                <div class="fw-700 text-dark" style="font-size:0.85rem">{{ ucwords(str_replace('_',' ',$tag)) }}</div>
+                                <div class="text-xs text-muted">HOT TUB</div>
+                            @endforeach
+                        @else
+                            —
+                        @endif
+                    </div>
+                </td>
+                <td><div class="fw-700 text-dark">£{{ number_format($it->price ?: 0, 2) }}</div></td>
+                <td class="text-sm text-muted">{{ $it->created_at->format('d M Y') }}</td>
+                <td>
+                    @if($status === 'WON')
+                        <span class="fw-800 text-success" style="font-size:0.85rem">WON</span>
+                    @elseif($status === 'CLOSED')
+                        <span class="badge" style="background: #ffedd5; color: #9a3412; font-weight: 800; font-size: 0.75rem; padding: 4px 8px;">CLOSED</span>
+                    @else
+                        <span class="fw-800" style="font-size:0.85rem; color: #1e293b;">ACTIVE</span>
+                    @endif
+                </td>
+                <td>
+                    <a href="{{ route('dealer.leads.view', $it->id) }}" class="fw-700 text-dark" style="text-decoration:none">View</a>
+                </td>
+            </tr>
+            @empty
+            <tr><td colspan="7" class="text-muted" style="text-align:center;padding:2rem">No won leads found.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
+@if($myLeads->hasPages())
+    <div class="mt-4">
+        {{ $myLeads->appends(request()->except('won_page'))->links('components.pagination') }}
+    </div>
 @endif
 @endsection

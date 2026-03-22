@@ -14,6 +14,20 @@
         @csrf
         <div class="grid grid--2">
             <div class="form-group">
+                <label class="form-label">Product *</label>
+                <select name="lead_id" id="leadId" class="form-input" required onchange="updateDealerInfo()">
+                    <option value="">Select your Product...</option>
+                    @foreach($leads as $l)
+                        <option value="{{ $l->id }}" data-dealer="{{ $l->dealer->company_name ?: $l->dealer->name }}">
+                            {{ $l->delivery_details['make'] ?? 'Product' }} {{ $l->delivery_details['model'] ?? '' }} (Dealer: {{ $l->dealer->company_name ?: $l->dealer->name }})
+                        </option>
+                    @endforeach
+                </select>
+                <div id="dealerNotice" class="text-sm text-muted mt-1" style="display:none">
+                    This request will be sent to: <strong id="dealerName" class="text-primary-600"></strong>
+                </div>
+            </div>
+            <div class="form-group">
                 <label class="form-label">Request Type *</label>
                 <select name="type" id="requestType" class="form-input" required onchange="updateProductList()">
                     <option value="">Select Type...</option>
@@ -136,6 +150,21 @@
         const el = document.getElementById('newRequestCard');
         el.style.display = el.style.display === 'none' ? '' : 'none';
     });
+
+    function updateDealerInfo() {
+        const sel = document.getElementById('leadId');
+        const opt = sel.options[sel.selectedIndex];
+        const dealer = opt.getAttribute('data-dealer');
+        const notice = document.getElementById('dealerNotice');
+        const nameSpan = document.getElementById('dealerName');
+        
+        if (dealer) {
+            nameSpan.textContent = dealer;
+            notice.style.display = 'block';
+        } else {
+            notice.style.display = 'none';
+        }
+    }
 
     function openConfirmationModal(req) {
         const form = document.getElementById('confirmationForm');

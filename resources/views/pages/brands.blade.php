@@ -67,15 +67,19 @@
     $type = $b->type ?: 'Brand';
     $brandLink = route('hot-tubs', ['brand' => $b->slug]);
 @endphp
-            <div class="brand-card">
-                <a href="{{ $brandLink }}" class="brand-card__header" style="background:#0d9488;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;overflow:hidden">
+            <div class="brand-card {{ $b->featured ? 'brand-card--featured' : '' }}">
+                @if($b->featured)
+                <div class="brand-card__featured-badge">
+                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="margin-right:4px"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    FEATURED
+                </div>
+                @endif
+                
+                <a href="{{ $brandLink }}" class="brand-card__header" style="background:#f8fafb;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;overflow:hidden;border-bottom:1px solid #f1f5f9;height:120px;">
                     @if($b->logo_path)
-                        <img src="{{ asset('storage/'.$b->logo_path) }}" alt="{{ $b->name }}" style="width:100%;height:100%;object-fit:contain;background:white;padding:10px">
+                        <img src="{{ url('storage/app/public/'.$b->logo_path) }}" alt="{{ $b->name }}" style="max-width:160px; max-height:80px; width:auto; height:auto; object-fit:contain; transition:transform 0.3s ease;">
                     @else
-                        <div class="brand-card__initials">{{ strtoupper(substr($b->name,0,1)) }}</div>
-                    @endif
-                    @if($b->featured)
-                    <span class="brand-card__tier-badge" style="background:#fff8e6;color:#a06200;">FEATURED</span>
+                        <div class="brand-card__initials" style="background:var(--teal);">{{ strtoupper(substr($b->name,0,1)) }}</div>
                     @endif
                 </a>
                 <div class="brand-card__body">
@@ -89,19 +93,19 @@
                     @if($desc)
                     <p class="brand-card__short" style="max-height:3.6em;overflow:hidden">{{ $desc }}</p>
                     @endif
-                    <div class="brand-card__meta" style="margin-top:.4rem">
+                    <div class="brand-card__meta">
                         <span class="brand-card__meta-item">
-                            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             {{ $hotCount }} hot tubs
                         </span>
                         <span class="brand-card__meta-item">
-                            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                             {{ $swimCount }} swim spas
                         </span>
                     </div>
-                    <div style="display:flex;gap:.5rem;margin-top:.5rem;">
-                        <a href="{{ $brandLink }}" class="btn btn--sm" style="flex:1;">View {{ $b->name }} Hot Tubs →</a>
-                        <button class="parts-enquire-btn" style="flex:1;padding:.5rem;font-size:.85rem;border-radius:var(--r-sm);" onclick="window.__openEnquiryModal({ title: 'Get a Quote — {{ addslashes($b->name) }}', subtitle: 'Request pricing from authorised {{ addslashes($b->name) }} dealers.' })">Get Quote</button>
+                    <div style="display:flex;gap:.75rem;margin-top:auto;">
+                        <a href="{{ $brandLink }}" class="btn btn--outline btn--sm" style="flex:1.2; border-radius:12px; font-weight:700;">Explore Range</a>
+                        <button class="btn btn--primary btn--sm" style="flex:1; border-radius:12px; font-weight:700;" onclick="window.__openEnquiryModal({ title: 'Get a Quote — {{ addslashes($b->name) }}', subtitle: 'Request pricing from authorised {{ addslashes($b->name) }} dealers.' })">Get Quote</button>
                     </div>
                 </div>
             </div>

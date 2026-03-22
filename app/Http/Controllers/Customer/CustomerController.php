@@ -9,23 +9,46 @@ class CustomerController extends Controller
     public function overview()
     {
         $user = auth()->user();
-        $lead = \App\Models\Lead::where('email', $user->email)
+        
+        // Fetch all converted leads for this customer (email-based)
+        $leads = \App\Models\Lead::whereRaw('LOWER(email) = ?', [strtolower($user->email)])
             ->where('status', 'converted')
-            ->whereNotNull('assigned_dealer_id')
-            ->first();
+            ->orderByRaw("CASE WHEN stage = 'Delivered' THEN 1 ELSE 2 END")
+            ->orderBy('updated_at', 'desc')
+            ->get();
 
-        $dealer = null;
-        $packages = collect();
-        if ($lead) {
-            $dealer = \App\Models\User::find($lead->assigned_dealer_id);
-            if ($dealer) {
-                $packages = \App\Models\MaintenancePackage::where('dealer_id', $dealer->id)
-                    ->where('status', 'active')
-                    ->get();
+        // Also check via messages to ensure we don't miss any linked leads (e.g. if email was different but message was sent)
+        $messageLeadIds = \App\Models\Message::where('receiver_id', $user->id)
+            ->whereNotNull('lead_id')
+            ->pluck('lead_id')
+            ->unique();
+        
+        if ($messageLeadIds->isNotEmpty()) {
+            $messageLeads = \App\Models\Lead::whereIn('id', $messageLeadIds)
+                ->where('status', 'converted')
+                ->get();
+            
+            // Merge and ensure uniqueness
+            $leads = $leads->merge($messageLeads)->unique('id')->sortByDesc(function($l) {
+                return [$l->stage === 'Delivered' ? 1 : 0, $l->updated_at];
+            });
+        }
+
+        // Attach dealer and their packages to each lead
+        foreach ($leads as $lead) {
+            $lead->dealer = null;
+            $lead->packages = collect();
+            if ($lead->assigned_dealer_id) {
+                $lead->dealer = \App\Models\User::find($lead->assigned_dealer_id);
+                if ($lead->dealer) {
+                    $lead->packages = \App\Models\MaintenancePackage::where('dealer_id', $lead->dealer->id)
+                        ->where('status', 'active')
+                        ->get();
+                }
             }
         }
 
-        return view('customer.overview', compact('dealer', 'packages'));
+        return view('customer.overview', compact('leads'));
     }
 
     public function storePackageRequest(\Illuminate\Http\Request $request)
@@ -33,14 +56,19 @@ class CustomerController extends Controller
         $user = auth()->user();
         $data = $request->validate([
             'package_id' => 'required|exists:maintenance_packages,id',
+            'lead_id' => 'required|exists:leads,id',
             'message' => 'nullable|string',
         ]);
 
         $package = \App\Models\MaintenancePackage::find($data['package_id']);
+        $lead = \App\Models\Lead::find($data['lead_id']);
+
+        // Use the dealer linked to the specific lead/product
+        $dealer_id = $lead->assigned_dealer_id ?: $package->dealer_id;
         
         \App\Models\PackageRequest::create([
             'user_id' => $user->id,
-            'dealer_id' => $package->dealer_id,
+            'dealer_id' => $dealer_id,
             'package_id' => $package->id,
             'message' => $data['message'],
             'status' => 'pending',
@@ -52,12 +80,32 @@ class CustomerController extends Controller
     public function myHotTub()
     {
         $user = auth()->user();
-        $lead = \App\Models\Lead::where('email', $user->email)
+        
+        // Fetch all converted leads for this customer (email-based)
+        $leads = \App\Models\Lead::whereRaw('LOWER(email) = ?', [strtolower($user->email)])
             ->where('status', 'converted')
+            ->orderByRaw("CASE WHEN stage = 'Delivered' THEN 1 ELSE 2 END")
             ->orderBy('updated_at', 'desc')
-            ->first();
+            ->get();
 
-        return view('customer.my-hot-tub', compact('lead'));
+        // Also check via messages to ensure we don't miss any linked leads
+        $messageLeadIds = \App\Models\Message::where('receiver_id', $user->id)
+            ->whereNotNull('lead_id')
+            ->pluck('lead_id')
+            ->unique();
+        
+        if ($messageLeadIds->isNotEmpty()) {
+            $messageLeads = \App\Models\Lead::whereIn('id', $messageLeadIds)
+                ->where('status', 'converted')
+                ->get();
+            
+            // Merge and ensure uniqueness
+            $leads = $leads->merge($messageLeads)->unique('id')->sortByDesc(function($l) {
+                return [$l->stage === 'Delivered' ? 1 : 0, $l->updated_at];
+            });
+        }
+
+        return view('customer.my-hot-tub', compact('leads'));
     }
     public function serviceRequests()
     {
@@ -70,7 +118,14 @@ class CustomerController extends Controller
         $parts = \App\Models\Part::where('status', 'active')->get();
         $services = \App\Models\Service::where('status', 'active')->get();
 
-        return view('customer.service-requests', compact('requests', 'parts', 'services'));
+        // Fetch all products owned by the customer to link to requests
+        $leads = \App\Models\Lead::whereRaw('LOWER(email) = ?', [strtolower($user->email)])
+            ->where('status', 'converted')
+            ->whereNotNull('assigned_dealer_id')
+            ->with('dealer')
+            ->get();
+
+        return view('customer.service-requests', compact('requests', 'parts', 'services', 'leads'));
     }
 
     public function confirmServiceRequest(\Illuminate\Http\Request $request, \App\Models\ServiceRequest $serviceRequest)
@@ -99,16 +154,20 @@ class CustomerController extends Controller
         $data = $request->validate([
             'type' => 'required|in:part,service',
             'product_id' => 'required|integer',
+            'lead_id' => 'required|exists:leads,id', // Selected product (lead)
             'message' => 'nullable|string',
         ]);
 
-        // Find linked dealer via lead/delivery
-        $lead = \App\Models\Lead::where('email', $user->email)
+        // Find linked dealer via the selected lead
+        $lead = \App\Models\Lead::where('id', $data['lead_id'])
             ->where('status', 'converted')
-            ->whereNotNull('assigned_dealer_id')
             ->first();
 
-        $dealerId = $lead ? $lead->assigned_dealer_id : null;
+        if (!$lead) {
+            return back()->with('error', 'Invalid product selected.');
+        }
+
+        $dealerId = $lead->assigned_dealer_id;
 
         $productName = '';
         if ($data['type'] === 'part') {
@@ -119,12 +178,16 @@ class CustomerController extends Controller
             $productName = $s ? $s->name : 'Unknown Service';
         }
 
+        // Include the product name (make/model) in the request title for clarity
+        $fullProductName = ($lead->delivery_details['make'] ?? 'Product') . ' ' . ($lead->delivery_details['model'] ?? '') . ' - ' . $productName;
+
         \App\Models\ServiceRequest::create([
             'user_id' => $user->id,
             'dealer_id' => $dealerId,
+            'lead_id' => $lead->id,
             'type' => $data['type'],
             'product_id' => $data['product_id'],
-            'product_name' => $productName,
+            'product_name' => $fullProductName,
             'message' => $data['message'],
             'status' => 'pending',
         ]);
@@ -148,6 +211,36 @@ class CustomerController extends Controller
     public function profile()
     {
         return view('customer.profile');
+    }
+
+    public function updateProfile(\Illuminate\Http\Request $request)
+    {
+        $user = auth()->user();
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+            'postcode' => 'nullable|string|max:10',
+        ]);
+
+        $user->update($data);
+
+        return back()->with('success', 'Profile updated successfully.');
+    }
+
+    public function updateProfileImage(\Illuminate\Http\Request $request)
+    {
+        $user = auth()->user();
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('profiles', 'public');
+            $user->update(['profile_image' => $path]);
+        }
+
+        return back()->with('success', 'Profile picture updated successfully.');
     }
 
     public function serviceHistory()

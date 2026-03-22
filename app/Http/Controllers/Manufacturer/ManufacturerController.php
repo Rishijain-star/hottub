@@ -25,37 +25,35 @@ class ManufacturerController extends Controller
             ->having('count', '>=', 3)
             ->pluck('lead_id');
         $excludeIds = $myPurchasedIds->merge($fullLeadIds)->unique();
-        $availableLeads = Lead::whereNotIn('id', $excludeIds)->count();
+        $availableLeads = Lead::where('is_private', false)->whereNotIn('id', $excludeIds)->count();
 
-        // 3. My Leads (purchased by me)
-        $myPurchasedLeadIds = LeadPurchase::where('dealer_id', $me->id)->pluck('lead_id');
-        $purchasedLeadsCount = $myPurchasedLeadIds->count();
-
-        // 4. Active Leads (purchased by me, not delivered or lost)
-        $activeLeads = Lead::whereIn('id', $myPurchasedLeadIds)
-            ->whereNotIn('stage', ['Delivered', 'Lost'])
-            ->where(function ($query) use ($me) {
-                $query
-                    ->whereNull('assigned_dealer_id')
-                    ->orWhere('assigned_dealer_id', $me->id);
+        $purchasedLeadsCount = LeadPurchase::where('dealer_id', $me->id)->where('buyer_role', 'manufacturer')->count();
+        $convertedLeads = Lead::where('assigned_dealer_id', $me->id)->where('status', 'converted')->count();
+        $lostLeads = LeadPurchase::where('dealer_id', $me->id)
+            ->where('buyer_role', 'manufacturer')
+            ->where(function($q) use ($me) {
+                $q->where('stage', 'Lost')
+                  ->orWhereHas('lead', function($sq) use ($me) {
+                      $sq->where('status', 'converted')
+                         ->where('assigned_dealer_id', '!=', $me->id);
+                  });
+            })
+            ->count();
+        $activeLeads = LeadPurchase::where('dealer_id', $me->id)
+            ->where('buyer_role', 'manufacturer')
+            ->where(function($q) {
+                $q->whereNull('stage')
+                  ->orWhereNotIn('stage', ['Delivered', 'Lost']);
+            })
+            ->whereHas('lead', function($q) {
+                $q->where(function($sq) {
+                    $sq->whereNull('status')
+                      ->orWhere('status', '!=', 'converted');
+                });
             })
             ->count();
 
-        // 5. Converted Leads (won by me)
-        $convertedLeads = Lead::whereIn('id', $myPurchasedLeadIds)
-            ->where('stage', 'Delivered')
-            ->where('assigned_dealer_id', $me->id)
-            ->count();
-
-        // 6. Lost Leads (lost to another dealer)
-        $lostLeads = Lead::whereIn('id', $myPurchasedLeadIds)
-            ->where('stage', 'Lost')
-            ->count();
-
-        // 7. Conversion %
-        $conversionRate = $purchasedLeadsCount > 0
-            ? round(($convertedLeads / $purchasedLeadsCount) * 100, 1)
-            : 0.0;
+        $conversionRate = $purchasedLeadsCount > 0 ? round(($convertedLeads / $purchasedLeadsCount) * 100, 1) : 0;
 
         return view('manufacturer.overview', compact(
             'availableCredits',
@@ -68,22 +66,66 @@ class ManufacturerController extends Controller
         ));
     }
 
-    public function leads()
+    public function leads(Request $request)
     {
         $manufacturer = Auth::user();
-        $perPage = 6;
-        $leadIds = LeadPurchase::where('dealer_id', $manufacturer->id)
-            ->where('buyer_role', 'manufacturer')
+        $query = Lead::query();
+
+        // If search is provided
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function($q) use ($s) {
+                $q->where('name', 'like', "%$s%")
+                  ->orWhere('email', 'like', "%$s%")
+                  ->orWhere('phone', 'like', "%$s%");
+            });
+        }
+
+        // Available Leads (Marketplace)
+        $purchasedLeadIds = LeadPurchase::where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->pluck('lead_id');
+        $availableLeads = (clone $query)->where('is_private', false)
+            ->whereNull('assigned_dealer_id')
+            ->whereNotIn('id', $purchasedLeadIds)
             ->orderBy('created_at', 'desc')
-            ->pluck('lead_id');
-        $items = Lead::whereIn('id', $leadIds)
-            ->where(function ($q) use ($manufacturer) {
-                $q->whereNull('assigned_dealer_id')->orWhere('assigned_dealer_id', $manufacturer->id);
-            })
+            ->get();
+
+        // Private Leads
+        $privateLeads = (clone $query)->where('assigned_dealer_id', $manufacturer->id)
+            ->where('is_private', true)
             ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-        $purchases = LeadPurchase::where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->get()->keyBy('lead_id');
-        return view('manufacturer.leads', compact('items', 'purchases'));
+            ->paginate(4, ['*'], 'private_page');
+
+        // Won / Purchased Leads (Excluding Private)
+        $myLeads = (clone $query)->whereIn('id', $purchasedLeadIds)
+            ->where('is_private', false)
+            ->orderBy('updated_at', 'desc')
+            ->paginate(7, ['*'], 'won_page');
+
+        return view('manufacturer.leads', compact('availableLeads', 'myLeads', 'privateLeads'));
+    }
+
+    public function storePrivateLead(Request $request)
+    {
+        $manufacturer = Auth::user();
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'nullable|string|max:255',
+            'postcode' => 'nullable|string|max:255',
+        ]);
+
+        Lead::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? '',
+            'postcode' => $data['postcode'] ?? '',
+            'status' => 'new', 
+            'stage' => 'New Lead',
+            'assigned_dealer_id' => $manufacturer->id,
+            'is_private' => true,
+        ]);
+
+        return back()->with('success', 'Private lead created successfully.');
     }
 
     public function quotes()
@@ -101,11 +143,12 @@ class ManufacturerController extends Controller
             ->having('count', '>=', 3)
             ->pluck('lead_id');
 
-        // 3. Exclude my purchased leads and full leads
+        // 3. Exclude my purchased leads and full leads, and private leads
         $excludeIds = $myPurchasedIds->merge($fullLeadIds)->unique();
 
-        // 4. Manufacturers see ALL leads (no postcode restriction)
-        $items = Lead::whereNotIn('id', $excludeIds)
+        // 4. Manufacturers see ALL leads (no postcode restriction, but exclude private)
+        $items = Lead::where('is_private', false)
+            ->whereNotIn('id', $excludeIds)
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
 
@@ -165,6 +208,11 @@ class ManufacturerController extends Controller
     {
         $manufacturer = Auth::user();
 
+        // Check if the lead is private
+        if ($lead->is_private) {
+            return response()->json(['ok' => false, 'msg' => 'This lead is private and not available for purchase.'], 403);
+        }
+
         // Check if the manufacturer has enough credits
         if ($manufacturer->credits < $lead->price) {
             return response()->json(['ok' => false, 'msg' => 'Insufficient credits'], 422);
@@ -212,21 +260,159 @@ class ManufacturerController extends Controller
         ]);
     }
 
+    public function maintenancePackages()
+    {
+        $mfr = Auth::user();
+        $packages = \App\Models\MaintenancePackage::where('dealer_id', $mfr->id)->get();
+        return view('manufacturer.maintenance-packages', compact('packages'));
+    }
+
+    public function storeMaintenancePackage(Request $request)
+    {
+        $mfr = Auth::user();
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric|min:0',
+            'description' => 'nullable|string',
+            'features' => 'nullable|array',
+        ]);
+
+        \App\Models\MaintenancePackage::create([
+            'dealer_id' => $mfr->id,
+            'name' => $data['name'],
+            'price' => $data['price'],
+            'description' => $data['description'],
+            'features' => $data['features'] ?? [],
+            'status' => 'active',
+        ]);
+
+        return back()->with('success', 'Maintenance package created.');
+    }
+
+    public function editMaintenancePackage(\App\Models\MaintenancePackage $package)
+    {
+        if ($package->dealer_id !== Auth::id()) abort(403);
+        return response()->json(['ok' => true, 'package' => $package]);
+    }
+
+    public function updateMaintenancePackage(Request $request, \App\Models\MaintenancePackage $package)
+    {
+        if ($package->dealer_id !== Auth::id()) abort(403);
+        
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric|min:0',
+            'description' => 'nullable|string',
+            'features' => 'nullable|array',
+        ]);
+
+        $package->update([
+            'name' => $data['name'],
+            'price' => $data['price'],
+            'description' => $data['description'],
+            'features' => $data['features'] ?? [],
+        ]);
+
+        return back()->with('success', 'Maintenance package updated.');
+    }
+
+    public function destroyMaintenancePackage(\App\Models\MaintenancePackage $package)
+    {
+        if ($package->dealer_id !== Auth::id()) abort(403);
+        $package->delete();
+        return back()->with('success', 'Maintenance package deleted.');
+    }
+
+    public function packageRequests()
+    {
+        $mfr = Auth::user();
+        $requests = \App\Models\PackageRequest::where('dealer_id', $mfr->id)
+            ->with(['customer', 'package'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return view('manufacturer.package-requests', compact('requests'));
+    }
+
+    public function updatePackageRequestStatus(Request $request, \App\Models\PackageRequest $packageRequest)
+    {
+        if ($packageRequest->dealer_id !== Auth::id()) abort(403);
+        $packageRequest->update(['status' => $request->status]);
+        return back()->with('success', 'Request status updated.');
+    }
+
+    public function serviceRequests()
+    {
+        $mfr = Auth::user();
+        $requests = \App\Models\ServiceRequest::where('dealer_id', $mfr->id)
+            ->where('status', '!=', 'completed')
+            ->with('customer')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return view('manufacturer.service-requests', compact('requests'));
+    }
+
+    public function serviceHistory()
+    {
+        $mfr = Auth::user();
+        $requests = \App\Models\ServiceRequest::where('dealer_id', $mfr->id)
+            ->where('status', 'completed')
+            ->with('customer')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return view('manufacturer.service-history', compact('requests'));
+    }
+
+    public function updateServiceRequestStatus(Request $request, \App\Models\ServiceRequest $serviceRequest)
+    {
+        if ($serviceRequest->dealer_id !== Auth::id()) abort(403);
+        $serviceRequest->update(['status' => $request->status]);
+        return back()->with('success', 'Service request status updated.');
+    }
+
+    private function checkLeadAccess(Lead $lead, int $userId): bool
+    {
+        // 1. If it's private, ONLY the assigned dealer/manufacturer can see it.
+        if ($lead->is_private) {
+            return ($lead->assigned_dealer_id === $userId);
+        }
+
+        // 2. If it's not private, we check for purchase or assigned winner
+        if ($lead->assigned_dealer_id === $userId) return true;
+
+        return LeadPurchase::where('lead_id', $lead->id)
+            ->where('dealer_id', $userId)
+            ->where('buyer_role', 'manufacturer')
+            ->exists();
+    }
+
     public function leadDetail(Lead $lead)
     {
         $manufacturer = Auth::user();
-        $has = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->exists();
-        if ($lead->assigned_dealer_id && $lead->assigned_dealer_id !== $manufacturer->id) {
-            return response()->json(['ok' => false, 'msg' => 'Lead closed'], 403);
-        }
-        if (!$has) {
+        
+        if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
             return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+
+        // Hide details ONLY if it's won by another dealer/manufacturer
+        if (!$lead->is_private && $lead->assigned_dealer_id && $lead->assigned_dealer_id !== $manufacturer->id) {
+            $lead->name = 'Name Hidden';
+            $lead->email = 'Email Hidden';
+            $lead->phone = 'Phone Hidden';
+            $lead->message = 'Message Hidden';
         }
 
         $activities = \App\Models\LeadActivity::where('lead_id', $lead->id)
             ->where('dealer_id', $manufacturer->id)
             ->orderBy('created_at', 'desc')
             ->get();
+
+        // Use stage from Lead model for private leads or assigned leads
+        $stage = $lead->stage ?: 'New Lead';
+        $hasPurchased = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->exists();
+        if (!$lead->is_private && $hasPurchased) {
+            $purchase = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->first();
+            if ($purchase && $purchase->stage) $stage = $purchase->stage;
+        }
 
         return response()->json([
             'ok' => true,
@@ -239,7 +425,7 @@ class ManufacturerController extends Controller
                 'message' => $lead->message,
                 'price' => $lead->price,
                 'interests' => $lead->interests,
-                'stage' => $lead->stage ?: 'New Lead',
+                'stage' => $stage,
                 'status' => $lead->status,
                 'delivery_details' => $lead->delivery_details,
             ],
@@ -250,11 +436,15 @@ class ManufacturerController extends Controller
     public function viewLead(Lead $lead)
     {
         $manufacturer = Auth::user();
-        $has = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->exists();
-        if ($lead->assigned_dealer_id && $lead->assigned_dealer_id !== $manufacturer->id) {
-            abort(403);
+        abort_unless($this->checkLeadAccess($lead, $manufacturer->id), 403);
+
+        // Hide details ONLY if it's won by another dealer/manufacturer
+        if (!$lead->is_private && $lead->assigned_dealer_id && $lead->assigned_dealer_id !== $manufacturer->id) {
+            $lead->name = 'Name Hidden';
+            $lead->email = 'Email Hidden';
+            $lead->phone = 'Phone Hidden';
+            $lead->message = 'Message Hidden';
         }
-        abort_unless($has, 403);
 
         // Automatically create tasks if they don't exist
         $this->createDefaultTasks($lead, $manufacturer->id);
@@ -333,14 +523,42 @@ class ManufacturerController extends Controller
     public function updateLeadStage(Request $request, Lead $lead)
     {
         $manufacturer = Auth::user();
-        $purchase = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->first();
-        if (!$purchase)
+        
+        if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
             return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+
         $data = $request->validate([
             'stage' => ['required', 'string', 'in:New Lead,Contacted,Nurturing,Sale Pending,Site Visit,Delivered,Lost'],
         ]);
 
-        $current = $purchase->stage ?: 'New Lead';
+        $isAssigned = ($lead->assigned_dealer_id === $manufacturer->id);
+        $purchase = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->first();
+        $current = 'New Lead';
+
+        if ($isAssigned) {
+            $current = $lead->stage ?: 'New Lead';
+            $lead->stage = $data['stage'];
+            if ($data['stage'] === 'Delivered') {
+                $lead->status = 'converted';
+            }
+            $lead->save();
+        } 
+        
+        if ($purchase) {
+            $current = $purchase->stage ?: 'New Lead';
+            $purchase->stage = $data['stage'];
+            $purchase->save();
+            
+            // Sync to Lead model if it's the winner
+            if ($lead->assigned_dealer_id === $manufacturer->id) {
+                $lead->stage = $data['stage'];
+                if ($data['stage'] === 'Delivered') {
+                    $lead->status = 'converted';
+                }
+                $lead->save();
+            }
+        }
 
         // Log activity
         \App\Models\LeadActivity::create([
@@ -352,24 +570,16 @@ class ManufacturerController extends Controller
             'content' => "Stage changed from {$current} to {$data['stage']}"
         ]);
 
-        $purchase->stage = $data['stage'];
-        $purchase->save();
-
-        if ($data['stage'] === 'Delivered') {
-            $lead->status = 'closed';
-            $lead->assigned_dealer_id = $manufacturer->id;
-            $lead->save();
-        }
-
-        return response()->json(['ok' => true, 'stage' => $purchase->stage, 'status' => $lead->status]);
+        return response()->json(['ok' => true, 'stage' => $data['stage'], 'status' => $lead->status]);
     }
 
     public function addLeadActivity(Request $request, Lead $lead)
     {
         $manufacturer = Auth::user();
-        $has = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->exists();
-        if (!$has)
+        
+        if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
             return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
 
         $data = $request->validate([
             'type' => 'required|in:note,task,activity',
@@ -421,12 +631,14 @@ class ManufacturerController extends Controller
     public function deliverLead(Request $request, Lead $lead)
     {
         $manufacturer = Auth::user();
-        $purchase = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->first();
-        if (!$purchase)
+        if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
             return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+
         if ($lead->assigned_dealer_id && $lead->assigned_dealer_id !== $manufacturer->id) {
             return response()->json(['ok' => false, 'msg' => 'Lead already converted'], 422);
         }
+
         $data = $request->validate([
             'make' => ['required', 'string', 'max:255'],
             'model' => ['required', 'string', 'max:255'],
@@ -437,6 +649,7 @@ class ManufacturerController extends Controller
             'invoice' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
             'warranty' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
+
         $details = [
             'make' => $data['make'],
             'model' => $data['model'],
@@ -446,31 +659,58 @@ class ManufacturerController extends Controller
             'sale_price' => $data['sale_price'] ?? null,
             'delivery_date' => now()->format('Y-m-d'),
         ];
-        if ($request->hasFile('invoice')) {
-            $path = $request->file('invoice')->store('leads', 'public');
-            $purchase->invoice_path = $path;
-        }
-        if ($request->hasFile('warranty')) {
-            $path = $request->file('warranty')->store('leads', 'public');
-            $purchase->warranty_path = $path;
-        }
 
-        $purchase->delivery_details = $details;
-        $purchase->stage = 'Delivered';
-        $purchase->save();
+        $purchase = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->first();
+
+        if ($purchase) {
+            if ($request->hasFile('invoice')) {
+                $path = $request->file('invoice')->store('leads', 'public');
+                $purchase->invoice_path = $path;
+            }
+            if ($request->hasFile('warranty')) {
+                $path = $request->file('warranty')->store('leads', 'public');
+                $purchase->warranty_path = $path;
+            }
+            $purchase->delivery_details = $details;
+            $purchase->stage = 'Delivered';
+            $purchase->save();
+        }
 
         $lead->status = 'converted';
+        $lead->stage = 'Delivered';
         $lead->assigned_dealer_id = $manufacturer->id;
+        $lead->delivery_details = $details;
+        
+        if (isset($purchase)) {
+            $lead->invoice_path = $purchase->invoice_path;
+            $lead->warranty_path = $purchase->warranty_path;
+        } else {
+            // Handle file uploads for private leads
+            if ($request->hasFile('invoice')) {
+                $lead->invoice_path = $request->file('invoice')->store('leads', 'public');
+            }
+            if ($request->hasFile('warranty')) {
+                $lead->warranty_path = $request->file('warranty')->store('leads', 'public');
+            }
+        }
+        
         $lead->save();
 
-        // Mark as lost for other manufacturers who purchased this lead
+        // Mark as lost for other dealers/manufacturers who purchased this lead
         LeadPurchase::where('lead_id', $lead->id)
             ->where('dealer_id', '!=', $manufacturer->id)
-            ->where('buyer_role', 'manufacturer')
             ->update(['stage' => 'Lost']);
 
+        // Log winner activity
+        \App\Models\LeadActivity::create([
+            'lead_id' => $lead->id,
+            'dealer_id' => $manufacturer->id,
+            'type' => 'delivery_form',
+            'content' => "Lead won and marked as Delivered."
+        ]);
+
         // Sync to Customer Account
-        $customer = \App\Models\User::where('email', $lead->email)->where('role', 'user')->first();
+        $customer = \App\Models\User::whereRaw('LOWER(email) = ?', [strtolower($lead->email)])->where('role', 'user')->first();
 
         if (!$customer) {
             // Create a customer account if it doesn't exist
@@ -485,12 +725,23 @@ class ManufacturerController extends Controller
         }
 
         if ($customer) {
+            // Update customer details from the lead if they are linked
+            $customer->update([
+                'phone' => $lead->phone,
+                'postcode' => $lead->postcode,
+                // Sync delivery data to customer dashboard
+                'delivery_details' => $details,
+                'invoice_path' => $lead->invoice_path,
+                'warranty_path' => $lead->warranty_path,
+                'assigned_dealer_id' => $manufacturer->id,
+            ]);
+
             // Create initial chat message
             \App\Models\Message::create([
                 'sender_id' => $manufacturer->id,
                 'receiver_id' => $customer->id,
                 'lead_id' => $lead->id,
-                'content' => "Hello, I have successfully processed your hot tub purchase for the {$details['make']} {$details['model']}. You can use this chat for any future work, service, or support regarding your new hot tub.",
+                'content' => "Hello, I have successfully processed your hot tub purchase for the {$details['make']} {$details['model']}. You can use this chat for any future work, service, or support regarding your new product.",
             ]);
         }
 

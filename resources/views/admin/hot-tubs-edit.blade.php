@@ -102,10 +102,22 @@
         <div class="form-group">
             <label class="form-label">Current Images</label>
             <div id="existingImages" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:1rem">
-                @if($item->images && count($item->images))
-                    @foreach($item->images as $idx => $img)
+                @php
+                    $rawImgs = $item->images;
+                    if ($rawImgs instanceof \Illuminate\Support\Collection) {
+                        $rawImgs = $rawImgs->all();
+                    }
+                    $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+                    $imgs = array_values(array_filter(array_map(function ($v) {
+                        if (is_string($v)) return $v;
+                        if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+                        return null;
+                    }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+                @endphp
+                @if(count($imgs))
+                    @foreach($imgs as $idx => $img)
                         <div class="image-item" style="position:relative;width:100px;height:100px;border:2px solid {{ $idx === 0 ? 'var(--primary)' : 'var(--gray-200)' }};border-radius:8px;overflow:hidden">
-                            <img src="{{ asset('storage/'.$img) }}" style="width:100%;height:100%;object-fit:cover">
+                            <img src="{{ url('storage/app/public/'.$img) }}" style="width:100%;height:100%;object-fit:cover">
                             @if($idx === 0)
                                 <div style="position:absolute;bottom:0;left:0;right:0;background:var(--primary);color:white;font-size:10px;text-align:center;padding:2px">Main</div>
                             @else
@@ -152,7 +164,7 @@
 
     function deleteImage(index) {
         if (!confirm('Delete this image?')) return;
-        const url = '{{ route('admin.hot-tubs.delete-image', [$item->id, ':idx']) }}'.replace(':idx', index);
+        const url = '{{ route('admin.hot-tubs.images.delete', [$item->id, ':idx']) }}'.replace(':idx', index);
         const fd = new FormData();
         fd.append('_token', '{{ csrf_token() }}');
         fd.append('_method', 'DELETE');

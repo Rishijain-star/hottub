@@ -40,7 +40,7 @@
 
             <div class="form-group">
                 <label class="form-label">URL Slug</label>
-                <input name="slug" class="form-input"
+                <input name="slug" class="form-input @error('slug') is-invalid @enderror"
                        placeholder="Auto-generated from name if left blank"
                        value="{{ old('slug') }}">
             </div>
@@ -48,13 +48,13 @@
             <div class="form-group">
                 <label class="form-label">Typical Starting Price</label>
                 <input name="price" type="number" step="0.01" min="0"
-                       class="form-input" placeholder="e.g., 150.00"
+                       class="form-input @error('price') is-invalid @enderror" placeholder="e.g., 150.00"
                        value="{{ old('price') }}">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Service Image</label>
-                <input type="file" name="image" class="form-input" accept="image/*"
+                <input type="file" name="image" class="form-input @error('image') is-invalid @enderror" accept="image/*"
                        onchange="previewImage(this)">
                 <div class="text-sm text-muted">Click to upload a service image</div>
                 <img id="imagePreview" src="" alt=""
@@ -63,7 +63,7 @@
 
             <div class="form-group">
                 <label class="form-label">Status *</label>
-                <select name="status" class="form-input" required>
+                <select name="status" class="form-input @error('status') is-invalid @enderror" required>
                     <option value="active"   {{ old('status', 'active') === 'active'   ? 'selected' : '' }}>Active</option>
                     <option value="inactive" {{ old('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
                 </select>
@@ -72,7 +72,7 @@
 
         <div class="form-group" style="margin-top:1rem">
             <label class="form-label">Description</label>
-            <textarea name="description" class="form-input" rows="6"
+            <textarea name="description" class="form-input @error('description') is-invalid @enderror" rows="6"
                       placeholder="Enter service description...">{{ old('description') }}</textarea>
         </div>
 
@@ -113,6 +113,7 @@
             <button class="btn btn--primary" type="submit">Create Service</button>
             <button type="button" class="btn btn--ghost" onclick="closeForm()">Cancel</button>
         </div>
+    </form>
 </div>
 
 {{-- ─── SERVICES TABLE ───────────────────────────────────────────── --}}

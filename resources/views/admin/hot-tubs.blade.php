@@ -259,7 +259,19 @@
             @forelse($items as $it)
                 <tr>
                     <td class="fw-700 text-dark" style="display:flex;align-items:center;gap:8px">
-                        @php $thumb = ($it->images && count($it->images)) ? asset('storage/'.$it->images[0]) : null; @endphp
+                        @php 
+                            $rawImgs = $it->images;
+                            if ($rawImgs instanceof \Illuminate\Support\Collection) {
+                                $rawImgs = $rawImgs->all();
+                            }
+                            $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+                            $imgs = array_values(array_filter(array_map(function ($v) {
+                                if (is_string($v)) return $v;
+                                if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+                                return null;
+                            }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+                            $thumb = count($imgs) ? url('storage/app/public/'.$imgs[0]) : null; 
+                        @endphp
                         @if($thumb)
                             <img src="{{ $thumb }}" alt="{{ $it->model }}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--gray-200)">
                         @endif

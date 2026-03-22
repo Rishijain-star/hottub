@@ -1,6 +1,16 @@
 @php
-$img = ($it->images && count($it->images))
-    ? asset('storage/' . $it->images[0])
+$rawImgs = $it->images;
+if ($rawImgs instanceof \Illuminate\Support\Collection) {
+    $rawImgs = $rawImgs->all();
+}
+$imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+$imgs = array_values(array_filter(array_map(function ($v) {
+    if (is_string($v)) return $v;
+    if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+    return null;
+}, $imgs), fn ($v) => is_string($v) && $v !== ''));
+$img = count($imgs)
+    ? url('storage/app/public/' . $imgs[0])
     : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400&q=80&auto=format&fit=crop';
 @endphp
 <div class="ht-card" data-brand="{{ strtolower($it->brand) }}">

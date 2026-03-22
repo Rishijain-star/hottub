@@ -22,7 +22,7 @@
                 </div>
                 <div class="ht-quote__terms">
                     <input type="checkbox" id="enqTerms" style="margin-top:2px;accent-color:var(--teal);flex-shrink:0;width:16px;height:16px;cursor:pointer;" checked>
-                    <label for="enqTerms">I agree to the <a href="#" class="text-teal">Terms &amp; Conditions</a> and consent to Hot Tub Buyer processing my personal data. *</label>
+                    <label for="enqTerms">I agree to the <a href="{{ route('terms') }}" class="text-teal" target="_blank">Terms &amp; Conditions</a> and consent to Hot Tub Buyer processing my personal data. *</label>
                 </div>
                 <button class="ht-get-quote-btn" id="enqSubmit">
                     Submit Enquiry
@@ -35,11 +35,16 @@
             @endif
         @else
             <div id="enqGuestNotice" style="padding: 2rem; text-align: center; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 12px; margin-bottom: 1.5rem;">
-                <p style="color: #0d9488; font-weight: 700; margin-bottom: 1rem; font-size: 1.1rem;">Please register as a customer to submit an enquiry.</p>
+                <p style="color: #0d9488; font-weight: 700; margin-bottom: 1rem; font-size: 1.1rem;">Please login or register as a customer to submit an enquiry.</p>
                 <p class="text-sm text-muted" style="margin-bottom: 1.5rem;">Registering allows you to track your enquiries and chat directly with dealers.</p>
-                <a href="{{ route('register', ['redirect' => url()->current()]) }}" class="ht-get-quote-btn" style="display: inline-block; text-decoration: none;">
-                    Customer Registration
-                </a>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="{{ route('login', ['redirect' => url()->current() . '?reopen_enquiry=1']) }}" class="ht-get-quote-btn" style="display: block; text-decoration: none;">
+                        Login to Your Account
+                    </a>
+                    <a href="{{ route('register', ['redirect' => url()->current() . '?reopen_enquiry=1']) }}" class="btn btn--outline" style="display: block; text-decoration: none; border-radius: 999px; padding: 0.8rem;">
+                        New Customer Registration
+                    </a>
+                </div>
             </div>
         @endauth
         <p style="margin-top: 1rem; font-size: 0.85rem; color: #6b7280; text-align: center; line-height: 1.4;">
@@ -62,20 +67,29 @@
 window.__openEnquiryModal = function(opts){
     const title = (opts && opts.title) ? opts.title : 'Request Service';
     const subtitle = (opts && opts.subtitle) ? opts.subtitle : 'Fill in your details and a certified technician will get in touch.';
+    const initialMessage = (opts && opts.message) ? opts.message : '';
+
     document.getElementById('enquiryTitle').textContent = title;
     document.getElementById('enquirySubtitle').textContent = subtitle;
+    if (document.getElementById('enqDetails')) {
+        document.getElementById('enqDetails').value = initialMessage;
+    }
+
     document.getElementById('enquiryOverlay').style.display = 'flex';
     document.body.style.overflow = 'hidden';
     window.__enquiryType = (opts && opts.type) ? opts.type : 'hot_tub';
     window.__enquiryTimeframe = (opts && opts.timeframe) ? opts.timeframe : null;
     window.__enquiryProductId = (opts && opts.product_id) ? opts.product_id : null;
     
-    // Store product info in session for guest users
+    // Store info in session for guest users
     if (window.__enquiryProductId) {
         sessionStorage.setItem('pending_enquiry_product_id', window.__enquiryProductId);
     } else {
         sessionStorage.removeItem('pending_enquiry_product_id');
     }
+    sessionStorage.setItem('pending_enquiry_title', title);
+    sessionStorage.setItem('pending_enquiry_type', window.__enquiryType);
+    sessionStorage.setItem('pending_enquiry_message', initialMessage);
 };
 window.__closeEnquiryModal = function(e){
     if (!e || e.target === document.getElementById('enquiryOverlay')) window.__hideEnquiry();
@@ -88,7 +102,19 @@ window.__hideEnquirySuccess = function(){
     document.getElementById('enquirySuccessOverlay').style.display = 'none';
     document.body.style.overflow = '';
 };
+/* ── INIT ─────────────────────────────────────────────────────────────────── */
 (function(){
+    // Check if we need to auto-open after redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('reopen_enquiry')) {
+        window.__openEnquiryModal({
+            title: sessionStorage.getItem('pending_enquiry_title') || 'Request Service',
+            type: sessionStorage.getItem('pending_enquiry_type') || 'hot_tub',
+            product_id: sessionStorage.getItem('pending_enquiry_product_id'),
+            message: sessionStorage.getItem('pending_enquiry_message') || ''
+        });
+    }
+
     const btn = document.getElementById('enqSubmit');
     if(!btn) return;
     btn.addEventListener('click', function(){
