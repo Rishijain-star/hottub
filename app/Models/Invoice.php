@@ -22,5 +22,10 @@ class Invoice extends Model
         'credits' => 'integer',
         'amount' => 'decimal:2',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'dealer_id');
+    }
 }
 

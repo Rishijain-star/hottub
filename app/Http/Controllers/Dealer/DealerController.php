@@ -3,17 +3,19 @@
 namespace App\Http\Controllers\Dealer;
 
 use App\Http\Controllers\Controller;
+use App\Models\CreditPackage;
+use App\Models\CreditRequest;
+use App\Models\Invoice;
 use App\Models\Lead;
+use App\Models\LeadActivity;
 use App\Models\LeadPurchase;
 use App\Models\MaintenancePackage;
-use App\Models\PackageRequest;
-use App\Models\ServiceRequest;
-use App\Models\CreditRequest;
-use App\Models\LeadActivity;
-use App\Models\ServiceChecklist;
-use App\Models\User;
 use App\Models\Message;
-use App\Models\Invoice;
+use App\Models\PackageRequest;
+use App\Models\PaymentProcessorSetting;
+use App\Models\ServiceChecklist;
+use App\Models\ServiceRequest;
+use App\Models\User;
 use App\Services\GeocodingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,29 +33,33 @@ class DealerController extends Controller
         // If search is provided
         if ($request->filled('search')) {
             $s = $request->search;
-            $query->where(function($q) use ($s) {
-                $q->where('name', 'like', "%$s%")
-                  ->orWhere('email', 'like', "%$s%")
-                  ->orWhere('phone', 'like', "%$s%");
+            $query->where(function ($q) use ($s) {
+                $q
+                    ->where('name', 'like', "%$s%")
+                    ->orWhere('email', 'like', "%$s%")
+                    ->orWhere('phone', 'like', "%$s%");
             });
         }
 
         // Available Leads (Marketplace)
         $purchasedLeadIds = LeadPurchase::where('dealer_id', $dealer->id)->where('buyer_role', 'dealer')->pluck('lead_id');
-        $availableLeads = (clone $query)->where('is_private', false)
+        $availableLeads = (clone $query)
+            ->where('is_private', false)
             ->whereNull('assigned_dealer_id')
             ->whereNotIn('id', $purchasedLeadIds)
             ->orderBy('created_at', 'desc')
             ->get();
 
         // Private Leads
-        $privateLeads = (clone $query)->where('assigned_dealer_id', $dealer->id)
+        $privateLeads = (clone $query)
+            ->where('assigned_dealer_id', $dealer->id)
             ->where('is_private', true)
             ->orderBy('created_at', 'desc')
             ->paginate(4, ['*'], 'private_page');
 
         // Won / Purchased Leads (Excluding Private)
-        $myLeads = (clone $query)->whereIn('id', $purchasedLeadIds)
+        $myLeads = (clone $query)
+            ->whereIn('id', $purchasedLeadIds)
             ->where('is_private', false)
             ->orderBy('updated_at', 'desc')
             ->paginate(7, ['*'], 'won_page');
@@ -76,7 +82,7 @@ class DealerController extends Controller
             'email' => $data['email'],
             'phone' => $data['phone'] ?? '',
             'postcode' => $data['postcode'] ?? '',
-            'status' => 'new', 
+            'status' => 'new',
             'stage' => 'New Lead',
             'assigned_dealer_id' => $dealer->id,
             'is_private' => true,
@@ -115,14 +121,16 @@ class DealerController extends Controller
 
     public function editMaintenancePackage(MaintenancePackage $package)
     {
-        if ($package->dealer_id !== Auth::id()) abort(403);
+        if ($package->dealer_id !== Auth::id())
+            abort(403);
         return response()->json(['ok' => true, 'package' => $package]);
     }
 
     public function updateMaintenancePackage(Request $request, MaintenancePackage $package)
     {
-        if ($package->dealer_id !== Auth::id()) abort(403);
-        
+        if ($package->dealer_id !== Auth::id())
+            abort(403);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
@@ -142,7 +150,8 @@ class DealerController extends Controller
 
     public function destroyMaintenancePackage(MaintenancePackage $package)
     {
-        if ($package->dealer_id !== Auth::id()) abort(403);
+        if ($package->dealer_id !== Auth::id())
+            abort(403);
         $package->delete();
         return back()->with('success', 'Maintenance package deleted.');
     }
@@ -159,7 +168,8 @@ class DealerController extends Controller
 
     public function updatePackageRequestStatus(Request $request, PackageRequest $packageRequest)
     {
-        if ($packageRequest->dealer_id !== Auth::id()) abort(403);
+        if ($packageRequest->dealer_id !== Auth::id())
+            abort(403);
         $packageRequest->update(['status' => $request->status]);
         return back()->with('success', 'Request status updated.');
     }
@@ -182,13 +192,14 @@ class DealerController extends Controller
 
         $availableQuery = Lead::where('is_private', false)->whereNotIn('id', $excludeIds);
         if ($me->dealer_lat && $me->dealer_lng) {
-            $availableQuery->where(function($q) use ($me) {
-                $q->where('is_national', true)
-                  ->orWhereRaw("(3958.8 * acos(cos(radians(?)) * cos(radians(lead_lat)) * cos(radians(lead_lng) - radians(?)) + sin(radians(?)) * sin(radians(lead_lat)))) <= 50", [
-                      $me->dealer_lat,
-                      $me->dealer_lng,
-                      $me->dealer_lat
-                  ]);
+            $availableQuery->where(function ($q) use ($me) {
+                $q
+                    ->where('is_national', true)
+                    ->orWhereRaw('(3958.8 * acos(cos(radians(?)) * cos(radians(lead_lat)) * cos(radians(lead_lng) - radians(?)) + sin(radians(?)) * sin(radians(lead_lat)))) <= 50', [
+                        $me->dealer_lat,
+                        $me->dealer_lng,
+                        $me->dealer_lat
+                    ]);
             });
         }
         $availableLeads = $availableQuery->count();
@@ -199,14 +210,16 @@ class DealerController extends Controller
         // 4. Active Leads (purchased by me, not won by anyone, not manually marked lost)
         $activeLeads = LeadPurchase::where('dealer_id', $me->id)
             ->where('buyer_role', 'dealer')
-            ->where(function($q) {
-                $q->whereNull('stage')
-                  ->orWhereNotIn('stage', ['Delivered', 'Lost']);
+            ->where(function ($q) {
+                $q
+                    ->whereNull('stage')
+                    ->orWhereNotIn('stage', ['Delivered', 'Lost']);
             })
-            ->whereHas('lead', function($q) {
-                $q->where(function($sq) {
-                    $sq->whereNull('status')
-                      ->orWhere('status', '!=', 'converted');
+            ->whereHas('lead', function ($q) {
+                $q->where(function ($sq) {
+                    $sq
+                        ->whereNull('status')
+                        ->orWhere('status', '!=', 'converted');
                 });
             })
             ->count();
@@ -219,12 +232,14 @@ class DealerController extends Controller
         // 6. Lost Leads (purchased by me, but won by someone else OR manually marked lost)
         $lostLeads = LeadPurchase::where('dealer_id', $me->id)
             ->where('buyer_role', 'dealer')
-            ->where(function($q) use ($me) {
-                $q->where('stage', 'Lost')
-                  ->orWhereHas('lead', function($sq) use ($me) {
-                      $sq->where('status', 'converted')
-                         ->where('assigned_dealer_id', '!=', $me->id);
-                  });
+            ->where(function ($q) use ($me) {
+                $q
+                    ->where('stage', 'Lost')
+                    ->orWhereHas('lead', function ($sq) use ($me) {
+                        $sq
+                            ->where('status', 'converted')
+                            ->where('assigned_dealer_id', '!=', $me->id);
+                    });
             })
             ->count();
 
@@ -267,13 +282,14 @@ class DealerController extends Controller
         // 4. Distance filtering for dealers (if not national)
         // If dealer has lat/lng, only show leads within 50 miles or national leads
         if ($dealer->dealer_lat && $dealer->dealer_lng) {
-            $query->where(function($q) use ($dealer) {
-                $q->where('is_national', true)
-                  ->orWhereRaw("(3958.8 * acos(cos(radians(?)) * cos(radians(lead_lat)) * cos(radians(lead_lng) - radians(?)) + sin(radians(?)) * sin(radians(lead_lat)))) <= 50", [
-                      $dealer->dealer_lat,
-                      $dealer->dealer_lng,
-                      $dealer->dealer_lat
-                  ]);
+            $query->where(function ($q) use ($dealer) {
+                $q
+                    ->where('is_national', true)
+                    ->orWhereRaw('(3958.8 * acos(cos(radians(?)) * cos(radians(lead_lat)) * cos(radians(lead_lng) - radians(?)) + sin(radians(?)) * sin(radians(lead_lat)))) <= 50', [
+                        $dealer->dealer_lat,
+                        $dealer->dealer_lng,
+                        $dealer->dealer_lat
+                    ]);
             });
         }
 
@@ -297,7 +313,7 @@ class DealerController extends Controller
         // Since hot_tubs table doesn't have dealer_id, we'll just return 0 for now or find the correct column
         // Based on HotTub model, it has brand_id. Maybe that's what's intended for manufacturers.
         // For dealers, let's just use 0 to fix the error until schema is clarified.
-        $inventoryCount = 0; 
+        $inventoryCount = 0;
         return view('dealer.inventory', compact('inventoryCount'));
     }
 
@@ -307,7 +323,9 @@ class DealerController extends Controller
         $creditRequests = CreditRequest::where('user_id', $me->id)
             ->orderBy('created_at', 'desc')
             ->get();
-        return view('dealer.credits', compact('me', 'creditRequests'));
+        $packages = CreditPackage::orderBy('position')->get();
+        $paymentSettings = \App\Models\PaymentProcessorSetting::first();
+        return view('dealer.credits', compact('me', 'creditRequests', 'packages', 'paymentSettings'));
     }
 
     public function requestCredits(Request $request)
@@ -315,17 +333,49 @@ class DealerController extends Controller
         $me = Auth::user();
         $data = $request->validate([
             'credits' => 'required|integer|min:1',
-            'amount' => 'nullable|numeric|min:0',
+            'amount' => 'required|numeric|min:0',
+            'payment_method' => 'nullable|in:paypal,stripe',
         ]);
 
-        CreditRequest::create([
+        $creditRequest = CreditRequest::create([
             'user_id' => $me->id,
             'credits' => $data['credits'],
             'amount' => $data['amount'],
             'status' => 'pending',
         ]);
 
-        return back()->with('success', 'Credit request submitted successfully. It is now awaiting admin approval.');
+        $settings = \App\Models\PaymentProcessorSetting::first();
+
+        $method = $request->payment_method ?: ($settings ? $settings->active_processor : 'manual');
+
+        if ($method === 'stripe') {
+            if (!$settings || !$settings->stripe_secret_key) {
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'Stripe payment is not yet configured.']) : back()->with('error', 'Stripe payment is not yet configured by the administrator.');
+            }
+            try {
+                $stripe = new \App\Services\Payment\StripeService();
+                $url = $stripe->createCheckoutSession($creditRequest, $settings);
+                return $request->ajax() ? response()->json(['ok' => true, 'url' => $url]) : redirect()->away($url);
+            } catch (\Exception $e) {
+                \Log::info('Stripe Error: ' . $e->getMessage());
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'Stripe Error: ' . $e->getMessage()]) : back()->with('error', 'Stripe Error: ' . $e->getMessage());
+            }
+        }
+
+        if ($method === 'paypal') {
+            if (!$settings || !$settings->paypal_client_id) {
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'PayPal payment is not yet configured.']) : back()->with('error', 'PayPal payment is not yet configured by the administrator.');
+            }
+            try {
+                $paypal = new \App\Services\Payment\PayPalService();
+                $url = $paypal->createCheckoutSession($creditRequest, $settings);
+                return $request->ajax() ? response()->json(['ok' => true, 'url' => $url]) : redirect()->away($url);
+            } catch (\Exception $e) {
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'PayPal Error: ' . $e->getMessage()]) : back()->with('error', 'PayPal Error: ' . $e->getMessage());
+            }
+        }
+
+        return $request->ajax() ? response()->json(['ok' => true, 'msg' => 'Credit request submitted successfully. It is now awaiting admin approval.']) : back()->with('success', 'Credit request submitted successfully. It is now awaiting admin approval.');
     }
 
     public function profile()
@@ -374,23 +424,23 @@ class DealerController extends Controller
         }
         $lead->save();
 
-        $count = LeadPurchase::where('lead_id',$lead->id)->where('buyer_role','dealer')->count();
+        $count = LeadPurchase::where('lead_id', $lead->id)->where('buyer_role', 'dealer')->count();
         return response()->json([
-            'ok'=>true,
-            'count'=>$count,
-            'limitReached'=>$count>=3,
-            'lead'=>[
-                'id'=>$lead->id,
-                'name'=>$lead->name,
-                'email'=>$lead->email,
-                'phone'=>$lead->phone,
-                'postcode'=>$lead->postcode,
-                'message'=>$lead->message,
-                'price'=>$lead->price,
-                'interests'=>$lead->interests,
-                'stage'=>$lead->stage ?: 'New Lead',
-                'status'=>$lead->status,
-                'delivery_details'=>$lead->delivery_details,
+            'ok' => true,
+            'count' => $count,
+            'limitReached' => $count >= 3,
+            'lead' => [
+                'id' => $lead->id,
+                'name' => $lead->name,
+                'email' => $lead->email,
+                'phone' => $lead->phone,
+                'postcode' => $lead->postcode,
+                'message' => $lead->message,
+                'price' => $lead->price,
+                'interests' => $lead->interests,
+                'stage' => $lead->stage ?: 'New Lead',
+                'status' => $lead->status,
+                'delivery_details' => $lead->delivery_details,
             ],
         ]);
     }
@@ -403,7 +453,8 @@ class DealerController extends Controller
         }
 
         // 2. If it's not private, we check for purchase or assigned winner
-        if ($lead->assigned_dealer_id === $userId) return true;
+        if ($lead->assigned_dealer_id === $userId)
+            return true;
 
         return LeadPurchase::where('lead_id', $lead->id)
             ->where('dealer_id', $userId)
@@ -414,7 +465,7 @@ class DealerController extends Controller
     public function leadDetail(Lead $lead)
     {
         $dealer = Auth::user();
-        
+
         $hasPurchased = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $dealer->id)->where('buyer_role', 'dealer')->exists();
         $isAssigned = ($lead->assigned_dealer_id === $dealer->id);
 
@@ -439,7 +490,8 @@ class DealerController extends Controller
         $stage = $lead->stage ?: 'New Lead';
         if (!$lead->is_private && $hasPurchased) {
             $purchase = LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', $dealer->id)->where('buyer_role', 'dealer')->first();
-            if ($purchase && $purchase->stage) $stage = $purchase->stage;
+            if ($purchase && $purchase->stage)
+                $stage = $purchase->stage;
         }
 
         return response()->json([
@@ -519,7 +571,7 @@ class DealerController extends Controller
     {
         $dealer = Auth::user();
         abort_unless($this->checkLeadAccess($lead, $dealer->id), 403);
-        
+
         if ($lead->assigned_dealer_id && $lead->assigned_dealer_id !== $dealer->id) {
             abort(403);
         }
@@ -552,7 +604,7 @@ class DealerController extends Controller
     public function updateLeadStage(Request $request, Lead $lead)
     {
         $dealer = Auth::user();
-        
+
         if (!$this->checkLeadAccess($lead, $dealer->id)) {
             return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
         }
@@ -572,13 +624,13 @@ class DealerController extends Controller
                 $lead->status = 'converted';
             }
             $lead->save();
-        } 
-        
+        }
+
         if ($purchase) {
             $current = $purchase->stage ?: 'New Lead';
             $purchase->stage = $data['stage'];
             $purchase->save();
-            
+
             // Sync to Lead model if it's the winner
             if ($lead->assigned_dealer_id === $dealer->id) {
                 $lead->stage = $data['stage'];
@@ -605,7 +657,7 @@ class DealerController extends Controller
     public function addLeadActivity(Request $request, Lead $lead)
     {
         $dealer = Auth::user();
-        
+
         if (!$this->checkLeadAccess($lead, $dealer->id)) {
             return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
         }
@@ -673,8 +725,9 @@ class DealerController extends Controller
     public function toggleTask(Request $request, LeadActivity $activity)
     {
         $dealer = Auth::user();
-        if ($activity->dealer_id !== $dealer->id) return response()->json(['ok'=>false], 403);
-        
+        if ($activity->dealer_id !== $dealer->id)
+            return response()->json(['ok' => false], 403);
+
         $activity->is_completed = !$activity->is_completed;
         $activity->save();
 
@@ -742,7 +795,7 @@ class DealerController extends Controller
         $lead->stage = 'Delivered';
         $lead->assigned_dealer_id = $dealer->id;
         $lead->delivery_details = $details;
-        
+
         if (isset($purchase)) {
             $lead->invoice_path = $purchase->invoice_path;
             $lead->warranty_path = $purchase->warranty_path;
@@ -755,7 +808,7 @@ class DealerController extends Controller
                 $lead->warranty_path = $request->file('warranty')->store('leads', 'public');
             }
         }
-        
+
         $lead->save();
 
         // Mark as lost for other dealers/manufacturers who purchased this lead
@@ -768,12 +821,12 @@ class DealerController extends Controller
             'lead_id' => $lead->id,
             'dealer_id' => $dealer->id,
             'type' => 'delivery_form',
-            'content' => "Lead won and marked as Delivered."
+            'content' => 'Lead won and marked as Delivered.'
         ]);
 
         // Sync to Customer Account
         $customer = User::whereRaw('LOWER(email) = ?', [strtolower($lead->email)])->where('role', 'user')->first();
-        
+
         if (!$customer) {
             // Create a customer account if it doesn't exist
             $customer = User::create([
@@ -801,13 +854,12 @@ class DealerController extends Controller
                 'sender_id' => $dealer->id,
                 'receiver_id' => $customer->id,
                 'lead_id' => $lead->id,
-                'content' => "Congratulations on your purchase! We have successfully delivered your hot tub. How are you finding it?",
+                'content' => 'Congratulations on your purchase! We have successfully delivered your hot tub. How are you finding it?',
             ]);
         }
 
         return response()->json(['ok' => true, 'stage' => $lead->stage, 'status' => $lead->status, 'details' => $lead->delivery_details]);
     }
-
 
     public function serviceHistory()
     {
@@ -816,7 +868,7 @@ class DealerController extends Controller
             ->with('lead')
             ->orderBy('completed_at', 'desc')
             ->paginate(10);
-        
+
         $completedRequests = ServiceRequest::where('dealer_id', $dealer->id)
             ->where('status', 'completed')
             ->with('customer')
@@ -841,7 +893,8 @@ class DealerController extends Controller
     public function updateServiceRequestStatus(Request $request, ServiceRequest $serviceRequest)
     {
         $dealer = Auth::user();
-        if ($serviceRequest->dealer_id !== $dealer->id) abort(403);
+        if ($serviceRequest->dealer_id !== $dealer->id)
+            abort(403);
 
         $data = $request->validate([
             'status' => 'required|in:processing,under_review,completed',

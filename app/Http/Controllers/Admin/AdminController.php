@@ -88,8 +88,8 @@ class AdminController extends Controller
                 ? round(($manufacturerConverted / $leadsTotal) * 100, 1)
                 : 0.0;
 
-            // 10. Total Revenue
-            $revenue = $dealerRevenue + $manufacturerRevenue;
+            // 10. Total Revenue (Based on paid invoices)
+            $revenue = DB::table('invoices')->where('status', 'paid')->sum('amount');
         }
 
         return view('admin.overview', compact(
@@ -129,7 +129,11 @@ class AdminController extends Controller
         $completed = \App\Models\CreditRequest::where('status', 'approved')->count();
         $failed = \App\Models\CreditRequest::where('status', 'rejected')->count();
 
-        return view('admin.payments', compact('creditRequests', 'revenue', 'pending', 'completed', 'failed'));
+        $invoices = \App\Models\Invoice::with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('admin.payments', compact('creditRequests', 'revenue', 'pending', 'completed', 'failed', 'invoices'));
     }
 
     public function approveCreditRequest(\App\Models\CreditRequest $request)
@@ -145,15 +149,20 @@ class AdminController extends Controller
         $request->status = 'approved';
         $request->save();
 
-        // Also create an invoice for record
-        \App\Models\Invoice::create([
-            'invoice_number' => 'INV-' . time() . '-' . strtolower(\Illuminate\Support\Str::random(6)),
-            'dealer_id' => $user->id,
-            'credits' => $request->credits,
-            'amount' => $request->amount ?: 0,
-            'status' => 'paid',
-            'payment_id' => 'MANUAL-CREDIT-' . $request->id,
-        ]);
+        // Check if an invoice for this payment ID already exists (from webhook)
+        $paymentId = 'MANUAL-CREDIT-' . $request->id;
+        $exists = \App\Models\Invoice::where('payment_id', $paymentId)->exists();
+
+        if (!$exists) {
+            \App\Models\Invoice::create([
+                'invoice_number' => 'INV-' . time() . '-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                'dealer_id' => $user->id,
+                'credits' => $request->credits,
+                'amount' => $request->amount ?: 0,
+                'status' => 'paid',
+                'payment_id' => $paymentId,
+            ]);
+        }
 
         return back()->with('success', 'Credit request approved and credits added to account.');
     }

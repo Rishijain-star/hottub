@@ -67,6 +67,14 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 // Public enquiry submit (creates a Lead)
 Route::post('/enquiry', [\App\Http\Controllers\EnquiryController::class, 'submit'])->name('enquiry.submit');
 
+// Webhooks
+Route::post('/webhooks/stripe', [\App\Http\Controllers\WebhookController::class, 'handleStripe']);
+Route::post('/webhooks/paypal', [\App\Http\Controllers\WebhookController::class, 'handlePayPal']);
+
+Route::get('/payment-success', function () {
+    return view('payment-success');
+})->name('payment.success');
+
 // Unified dashboard redirect for any authenticated user
 Route::get('/dashboard', function () {
     $u = auth()->user();

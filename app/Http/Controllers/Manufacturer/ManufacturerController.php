@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Manufacturer;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\LeadPurchase;
+use App\Models\CreditRequest;
+use App\Models\CreditPackage;
+use App\Models\PaymentProcessorSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -177,7 +180,9 @@ class ManufacturerController extends Controller
         $creditRequests = \App\Models\CreditRequest::where('user_id', $me->id)
             ->orderBy('created_at', 'desc')
             ->get();
-        return view('manufacturer.credits', compact('me', 'creditRequests'));
+        $packages = \App\Models\CreditPackage::orderBy('position')->get();
+        $paymentSettings = \App\Models\PaymentProcessorSetting::first();
+        return view('manufacturer.credits', compact('me', 'creditRequests', 'packages', 'paymentSettings'));
     }
 
     public function requestCredits(Request $request)
@@ -185,17 +190,48 @@ class ManufacturerController extends Controller
         $me = Auth::user();
         $data = $request->validate([
             'credits' => 'required|integer|min:1',
-            'amount' => 'nullable|numeric|min:0',
+            'amount' => 'required|numeric|min:0',
+            'payment_method' => 'nullable|in:paypal,stripe',
         ]);
 
-        \App\Models\CreditRequest::create([
+        $creditRequest = \App\Models\CreditRequest::create([
             'user_id' => $me->id,
             'credits' => $data['credits'],
             'amount' => $data['amount'],
             'status' => 'pending',
         ]);
 
-        return back()->with('success', 'Credit request submitted successfully. It is now awaiting admin approval.');
+        $settings = \App\Models\PaymentProcessorSetting::first();
+        $method = $request->payment_method ?: ($settings ? $settings->active_processor : 'manual');
+
+        if ($method === 'stripe') {
+            if (!$settings || !$settings->stripe_secret_key) {
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'Stripe payment is not yet configured.']) : back()->with('error', 'Stripe payment is not yet configured by the administrator.');
+            }
+            try {
+                $stripe = new \App\Services\Payment\StripeService();
+                $url = $stripe->createCheckoutSession($creditRequest, $settings);
+                return $request->ajax() ? response()->json(['ok' => true, 'url' => $url]) : redirect()->away($url);
+            } catch (\Exception $e) {
+                \Log::info('Stripe Error: ' . $e->getMessage());
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'Stripe Error: ' . $e->getMessage()]) : back()->with('error', 'Stripe Error: ' . $e->getMessage());
+            }
+        }
+
+        if ($method === 'paypal') {
+            if (!$settings || !$settings->paypal_client_id) {
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'PayPal payment is not yet configured.']) : back()->with('error', 'PayPal payment is not yet configured by the administrator.');
+            }
+            try {
+                $paypal = new \App\Services\Payment\PayPalService();
+                $url = $paypal->createCheckoutSession($creditRequest, $settings);
+                return $request->ajax() ? response()->json(['ok' => true, 'url' => $url]) : redirect()->away($url);
+            } catch (\Exception $e) {
+                return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'PayPal Error: ' . $e->getMessage()]) : back()->with('error', 'PayPal Error: ' . $e->getMessage());
+            }
+        }
+
+        return $request->ajax() ? response()->json(['ok' => true, 'msg' => 'Credit request submitted successfully. It is now awaiting admin approval.']) : back()->with('success', 'Credit request submitted successfully. It is now awaiting admin approval.');
     }
 
     public function profile()

@@ -11,10 +11,12 @@ class PaymentProcessorSetting extends Model
 
     protected $fillable = [
         'active_processor', // manual|paypal|stripe
+        'mode', // test|live
         'paypal_client_id',
         'paypal_secret',
         'stripe_publishable_key',
         'stripe_secret_key',
+        'stripe_webhook_secret',
     ];
 }
 

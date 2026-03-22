@@ -91,4 +91,57 @@
         </tbody>
     </table>
 </div>
+
+<div class="card" style="padding: 0; margin-top: 2rem;">
+    <div style="padding: 1.25rem; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
+        <div class="fw-800" style="color:var(--gray-900)">Gateway Payments & Invoices</div>
+        <div class="text-sm text-muted">Showing all Stripe/PayPal transactions</div>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Invoice #</th>
+                <th>User / Company</th>
+                <th>Credits</th>
+                <th>Amount (£)</th>
+                <th>Gateway Status</th>
+                <th>Payment ID</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($invoices as $inv)
+            <tr>
+                <td class="fw-700">{{ $inv->invoice_number }}</td>
+                <td>
+                    <div class="fw-700">{{ $inv->user->name ?? 'N/A' }}</div>
+                    <div class="text-xs text-muted">{{ $inv->user->company_name ?? $inv->user->email ?? 'N/A' }}</div>
+                </td>
+                <td>{{ number_format($inv->credits) }}</td>
+                <td>£{{ number_format($inv->amount, 2) }}</td>
+                <td>
+                    @if($inv->status === 'paid' || $inv->status === 'success')
+                        <span class="badge badge--success">Paid (Success)</span>
+                    @elseif($inv->status === 'failed')
+                        <span class="badge badge--danger">Failed</span>
+                    @elseif($inv->status === 'pending')
+                        <span class="badge badge--warning">Pending</span>
+                    @else
+                        <span class="badge">{{ ucfirst($inv->status) }}</span>
+                    @endif
+                </td>
+                <td><span class="text-xs">{{ $inv->payment_id ?: 'N/A' }}</span></td>
+                <td class="text-sm">{{ $inv->created_at->format('d/m/Y H:i') }}</td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="7" class="text-center text-muted" style="padding: 3rem;">No gateway payments found.</td>
+            </tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+@endsection
+
+@section('scripts')
 @endsection
