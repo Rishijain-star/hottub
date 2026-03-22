@@ -52,7 +52,7 @@
         </tbody>
     </table>
     <div style="padding:1rem">
-        {{ $items->links() }}
+        {{ $items->links('components.pagination') }}
     </div>
 </div>
 @endsection

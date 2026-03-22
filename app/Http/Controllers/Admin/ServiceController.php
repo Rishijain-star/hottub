@@ -12,7 +12,7 @@ class ServiceController extends Controller
 {
     public function index()
     {
-        $items = Service::orderBy('created_at','desc')->paginate(6);
+        $items = Service::orderBy('created_at','desc')->paginate(7);
         return view('admin.services', compact('items'));
     }
 
@@ -30,7 +30,7 @@ class ServiceController extends Controller
 
     public function edit(Service $service)
     {
-        $items = Service::orderBy('created_at','desc')->paginate(6);
+        $items = Service::orderBy('created_at','desc')->paginate(7);
         return view('admin.services-edit', ['item' => $service, 'items' => $items]);
     }
 

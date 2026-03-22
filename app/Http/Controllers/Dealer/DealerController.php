@@ -55,7 +55,8 @@ class DealerController extends Controller
             ->where('assigned_dealer_id', $dealer->id)
             ->where('is_private', true)
             ->orderBy('created_at', 'desc')
-            ->paginate(4, ['*'], 'private_page');
+            ->paginate(7, ['*'], 'private_page')
+            ->withQueryString();
 
         // Won / Purchased Leads (Excluding Private)
         $myLeads = (clone $query)
@@ -322,7 +323,7 @@ class DealerController extends Controller
         $me = Auth::user();
         $creditRequests = CreditRequest::where('user_id', $me->id)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(7);
         $packages = CreditPackage::orderBy('position')->get();
         $paymentSettings = \App\Models\PaymentProcessorSetting::first();
         return view('dealer.credits', compact('me', 'creditRequests', 'packages', 'paymentSettings'));

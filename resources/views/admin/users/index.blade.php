@@ -86,8 +86,8 @@
             @endforelse
         </tbody>
     </table>
-    <div class="pagination-wrap">
-        {{ $users->links() }}
+    <div class="pagination-wrap mt-4">
+        {{ $users->links('components.pagination') }}
     </div>
 </div>
 

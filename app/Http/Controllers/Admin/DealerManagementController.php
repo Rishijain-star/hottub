@@ -15,7 +15,7 @@ class DealerManagementController extends Controller
         $dealers = User::where('role', 'dealer')
             ->select(['id', 'name', 'email', 'company_name', 'company_number', 'vat_number', 'phone', 'postcode', 'address', 'website', 'status', 'credits', 'profile_picture', 'type', 'service_offerings', 'created_at'])
             ->orderBy('created_at', 'desc')
-            ->paginate(6);
+            ->paginate(7);
 
         return view('admin.dealers.index', compact('dealers'));
     }

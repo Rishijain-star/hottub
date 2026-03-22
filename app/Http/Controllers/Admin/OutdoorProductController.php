@@ -14,7 +14,7 @@ class OutdoorProductController extends Controller
 {
     public function index()
     {
-        $items = OutdoorProduct::orderBy('created_at', 'desc')->paginate(6);
+        $items = OutdoorProduct::orderBy('created_at', 'desc')->paginate(7);
         $brands = Schema::hasTable('brands') ? Brand::orderBy('name')->get() : collect();
         return view('admin.outdoor-products', compact('items', 'brands'));
     }

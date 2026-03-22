@@ -90,6 +90,7 @@
             @endforelse
         </tbody>
     </table>
+    <div class="mt-4" style="padding:1rem">{{ $creditRequests->appends(request()->except('credits_page'))->links('components.pagination') }}</div>
 </div>
 
 <div class="card" style="padding: 0; margin-top: 2rem;">
@@ -140,6 +141,7 @@
             @endforelse
         </tbody>
     </table>
+    <div class="mt-4" style="padding:1rem">{{ $invoices->appends(request()->except('invoices_page'))->links('components.pagination') }}</div>
 </div>
 @endsection
 

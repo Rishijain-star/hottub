@@ -15,12 +15,12 @@
             <div class="form-group">
                 <label class="form-label">Active Processor</label>
                 <div style="display:flex;gap:15px;margin-top:5px">
-                    <label class="form-check" style="display:flex;align-items:center;gap:8px">
+                    <!-- <label class="form-check" style="display:flex;align-items:center;gap:8px">
                         <input type="radio" name="active_processor" value="manual" @checked(optional($settings)->active_processor==='manual' || !optional($settings)->active_processor)> Manual
                     </label>
                     <label class="form-check" style="display:flex;align-items:center;gap:8px">
                         <input type="radio" name="active_processor" value="paypal" @checked(optional($settings)->active_processor==='paypal')> PayPal
-                    </label>
+                    </label> -->
                     <label class="form-check" style="display:flex;align-items:center;gap:8px">
                         <input type="radio" name="active_processor" value="stripe" @checked(optional($settings)->active_processor==='stripe')> Stripe
                     </label>
@@ -39,13 +39,13 @@
             </div>
         </div>
     </div>
-    <div class="card">
+    <!-- <div class="card">
         <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">PayPal API Configuration</div>
         <div class="grid grid--2">
             <div class="form-group"><label class="form-label">PayPal Client ID</label><input class="form-input" name="paypal_client_id" value="{{ old('paypal_client_id', optional($settings)->paypal_client_id) }}"></div>
             <div class="form-group"><label class="form-label">PayPal Secret Key</label><input class="form-input" name="paypal_secret" value="{{ old('paypal_secret', optional($settings)->paypal_secret) }}"></div>
         </div>
-    </div>
+    </div> -->
     <div class="card">
         <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Stripe API Configuration</div>
         <div class="grid grid--2">

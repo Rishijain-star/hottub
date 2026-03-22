@@ -11,7 +11,7 @@ class DealerAcademyController extends Controller
 {
     public function index()
     {
-        $items = DealerAcademyContent::orderBy('created_at', 'desc')->paginate(10);
+        $items = DealerAcademyContent::orderBy('created_at', 'desc')->paginate(7);
         return view('admin.dealer-academy.index', compact('items'));
     }
 

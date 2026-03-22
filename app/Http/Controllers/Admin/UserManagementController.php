@@ -13,7 +13,7 @@ class UserManagementController extends Controller
         $users = User::where('role', User::ROLE_USER)
             ->select(['id', 'name', 'email', 'phone', 'postcode', 'status', 'created_at'])
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(7);
 
         return view('admin.users.index', compact('users'));
     }

@@ -15,7 +15,7 @@ class PaymentController extends Controller
         $pending = Invoice::where('status','pending')->sum('amount');
         $completed = Invoice::where('status','paid')->count();
         $failed = Invoice::where('status','failed')->count();
-        $items = Invoice::orderBy('created_at','desc')->paginate(6);
+        $items = Invoice::orderBy('created_at','desc')->paginate(7);
         return view('admin.payments', compact('revenue','pending','completed','failed','items'));
     }
 
@@ -31,7 +31,7 @@ class PaymentController extends Controller
 
     public function edit(Invoice $invoice)
     {
-        $items = Invoice::orderBy('created_at','desc')->paginate(6);
+        $items = Invoice::orderBy('created_at','desc')->paginate(7);
         return view('admin.payments-edit', ['item'=>$invoice, 'items'=>$items]);
     }
 

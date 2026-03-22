@@ -12,7 +12,7 @@ class ServiceManagementController extends Controller
     {
         $requests = ServiceRequest::with(['customer', 'dealer'])
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->paginate(7);
 
         return view('admin.service-management', compact('requests'));
     }

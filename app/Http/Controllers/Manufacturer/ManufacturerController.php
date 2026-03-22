@@ -96,13 +96,13 @@ class ManufacturerController extends Controller
         $privateLeads = (clone $query)->where('assigned_dealer_id', $manufacturer->id)
             ->where('is_private', true)
             ->orderBy('created_at', 'desc')
-            ->paginate(4, ['*'], 'private_page');
+            ->paginate(7, ['*'], 'private_page');
 
         // Won / Purchased Leads (Excluding Private)
         $myLeads = (clone $query)->whereIn('id', $purchasedLeadIds)
             ->where('is_private', false)
             ->orderBy('updated_at', 'desc')
-            ->paginate(7, ['*'], 'won_page');
+            ->paginate(7, ['*'], 'won_page')->withQueryString();
 
         return view('manufacturer.leads', compact('availableLeads', 'myLeads', 'privateLeads'));
     }
@@ -179,7 +179,7 @@ class ManufacturerController extends Controller
         $me = Auth::user();
         $creditRequests = \App\Models\CreditRequest::where('user_id', $me->id)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(7);
         $packages = \App\Models\CreditPackage::orderBy('position')->get();
         $paymentSettings = \App\Models\PaymentProcessorSetting::first();
         return view('manufacturer.credits', compact('me', 'creditRequests', 'packages', 'paymentSettings'));

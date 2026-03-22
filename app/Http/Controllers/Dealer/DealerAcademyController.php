@@ -25,7 +25,7 @@ class DealerAcademyController extends Controller
             $query->where('category', $request->input('category'));
         }
 
-        $items = $query->orderBy('created_at', 'desc')->paginate(12);
+        $items = $query->orderBy('created_at', 'desc')->paginate(7);
         $categories = DealerAcademyContent::select('category')->distinct()->pluck('category');
 
         return view('dealer.academy.index', compact('items', 'categories'));

@@ -98,7 +98,7 @@
     </div>
 @endif
 
-<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">My Won Leads</div>
+<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)"> Leads</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>

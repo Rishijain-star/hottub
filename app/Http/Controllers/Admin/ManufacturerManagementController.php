@@ -15,7 +15,7 @@ class ManufacturerManagementController extends Controller
         $manufacturers = User::where('role', User::ROLE_MANUFACTURER)
             ->select(['id', 'name', 'email', 'company_name', 'company_number', 'vat_number', 'phone', 'postcode', 'address', 'website', 'status', 'credits', 'profile_picture', 'created_at'])
             ->orderBy('created_at','desc')
-            ->paginate(6);
+            ->paginate(7);
         return view('admin.manufacturers', compact('manufacturers'));
     }
 

@@ -11,7 +11,7 @@ class BrandController extends Controller
 {
     public function index()
     {
-        $brands = Brand::orderBy('name')->paginate(6);
+        $brands = Brand::orderBy('name')->paginate(7);
         return view('admin.brands', compact('brands'));
     }
 
@@ -39,7 +39,7 @@ class BrandController extends Controller
 
     public function edit(Brand $brand)
     {
-        $brands = Brand::orderBy('name')->paginate(6);
+        $brands = Brand::orderBy('name')->paginate(7);
         return view('admin.brands-edit', ['item' => $brand, 'brands' => $brands]);
     }
 

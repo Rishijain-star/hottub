@@ -28,7 +28,7 @@ class LeadController extends Controller
         }
 
         // Show all leads, including private ones
-        $items = $query->orderBy('created_at', 'desc')->paginate(15);
+        $items = $query->orderBy('created_at', 'desc')->paginate(7);
 
         $buyers = \App\Models\LeadPurchase::select('lead_id', 'dealer_id')
             ->join('users', 'users.id', '=', 'lead_purchases.dealer_id')
@@ -91,7 +91,7 @@ class LeadController extends Controller
 
     public function edit(Lead $lead)
     {
-        $items = Lead::orderBy('created_at', 'desc')->paginate(6);
+        $items = Lead::orderBy('created_at', 'desc')->paginate(7);
         return view('admin.leads-edit', ['item' => $lead, 'items' => $items]);
     }
 

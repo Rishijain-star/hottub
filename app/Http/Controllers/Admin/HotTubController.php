@@ -14,7 +14,7 @@ class HotTubController extends Controller
 {
     public function index()
     {
-        $items = HotTub::orderBy('created_at', 'desc')->paginate(6);
+        $items = HotTub::orderBy('created_at', 'desc')->paginate(7);
         $brands = Schema::hasTable('brands') ? Brand::orderBy('name')->get() : collect();
         return view('admin.hot-tubs', compact('items', 'brands'));
     }
@@ -44,7 +44,7 @@ class HotTubController extends Controller
 
     public function edit(HotTub $hot_tub)
     {
-        $items = HotTub::orderBy('created_at', 'desc')->paginate(6);
+        $items = HotTub::orderBy('created_at', 'desc')->paginate(7);
         $brands = Schema::hasTable('brands') ? Brand::orderBy('name')->get() : collect();
         return view('admin.hot-tubs-edit', ['item' => $hot_tub, 'items' => $items, 'brands' => $brands]);
     }

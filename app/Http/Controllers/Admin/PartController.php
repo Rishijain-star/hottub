@@ -13,7 +13,7 @@ class PartController extends Controller
 {
     public function index()
     {
-        $items = Part::orderBy('created_at','desc')->paginate(6);
+        $items = Part::orderBy('created_at','desc')->paginate(7);
         $brands = Brand::orderBy('name')->get();
         return view('admin.parts', compact('items','brands'));
     }
@@ -33,7 +33,7 @@ class PartController extends Controller
 
     public function edit(Part $part)
     {
-        $items = Part::orderBy('created_at','desc')->paginate(6);
+        $items = Part::orderBy('created_at','desc')->paginate(7);
         $brands = Brand::orderBy('name')->get();
         return view('admin.parts-edit', ['item'=>$part,'items'=>$items,'brands'=>$brands]);
     }

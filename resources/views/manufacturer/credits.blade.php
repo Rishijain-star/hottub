@@ -182,8 +182,9 @@
                     <td colspan="3" class="text-center text-muted" style="padding: 2rem;">No requests found.</td>
                 </tr>
                 @endforelse
-            </tbody>
-        </table>
-    </div>
+        </tbody>
+    </table>
+    <div class="mt-4" style="padding:1rem">{{ $creditRequests->links('components.pagination') }}</div>
+</div>
 </div>
 @endsection

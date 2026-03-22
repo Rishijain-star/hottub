@@ -14,7 +14,7 @@ class FeaturedContentController extends Controller
 {
     public function index()
     {
-        $items = FeaturedContent::with(['hotTub', 'brand'])->orderBy('created_at','desc')->paginate(6);
+        $items = FeaturedContent::with(['hotTub', 'brand'])->orderBy('created_at','desc')->paginate(7);
         $brands = Brand::orderBy('name')->get();
         $products = HotTub::orderBy('brand')->orderBy('model')->get();
         return view('admin.featured', compact('items','brands','products'));
@@ -35,7 +35,7 @@ class FeaturedContentController extends Controller
 
     public function edit(FeaturedContent $featured)
     {
-        $items = FeaturedContent::with(['hotTub', 'brand'])->orderBy('created_at','desc')->paginate(6);
+        $items = FeaturedContent::with(['hotTub', 'brand'])->orderBy('created_at','desc')->paginate(7);
         $brands = Brand::orderBy('name')->get();
         $products = HotTub::orderBy('brand')->orderBy('model')->get();
         return view('admin.featured-edit', ['item'=>$featured,'items'=>$items,'brands'=>$brands,'products'=>$products]);

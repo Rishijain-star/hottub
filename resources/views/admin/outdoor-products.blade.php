@@ -226,7 +226,7 @@
             @endforelse
         </tbody>
     </table>
-    <div style="padding:1rem">{{ $items->links('components.pagination') }}</div>
+    <div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
 </div>
 
 <script>

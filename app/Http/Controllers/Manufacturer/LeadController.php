@@ -15,7 +15,7 @@ class LeadController extends Controller
     {
         $user = auth()->user();
         $query = $user->purchasedLeads()->with('purchases')->orderBy('created_at', 'desc');
-        $items = $query->paginate(10);
+        $items = $query->paginate(7);
         $purchases = $user->leadPurchases()->whereIn('lead_id', $items->pluck('id'))->get()->keyBy('lead_id');
         return view('manufacturer.leads', compact('items', 'purchases'));
     }
@@ -27,7 +27,7 @@ class LeadController extends Controller
         $query = Lead::where('status', 'new')
             ->whereNotIn('id', $purchasedLeadIds)
             ->orderBy('created_at', 'desc');
-        $items = $query->paginate(10);
+        $items = $query->paginate(7);
         return view('manufacturer.leads-available', compact('items'));
     }
 

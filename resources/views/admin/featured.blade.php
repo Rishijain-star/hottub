@@ -129,4 +129,5 @@
         <div class="card"><div class="text-muted">No featured items yet.</div></div>
     @endforelse
 </div>
+<div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
 @endsection

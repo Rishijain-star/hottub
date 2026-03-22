@@ -74,13 +74,13 @@ class AdminController extends Controller
                 ->count();
 
             // 7. Overall Conversion Rate (Total Converted / Total Generated Leads)
-            $overallConversionRate = $leadsTotal > 0 
-                ? round(($totalConverted / $leadsTotal) * 100, 1) 
+            $overallConversionRate = $leadsTotal > 0
+                ? round(($totalConverted / $leadsTotal) * 100, 1)
                 : 0.0;
 
             // 8. Dealer Conversion Rate (Dealer Converted / Total Generated Leads)
-            $dealerConversionRate = $leadsTotal > 0 
-                ? round(($dealerConverted / $leadsTotal) * 100, 1) 
+            $dealerConversionRate = $leadsTotal > 0
+                ? round(($dealerConverted / $leadsTotal) * 100, 1)
                 : 0.0;
 
             // 9. Manufacturer Conversion Rate (Manufacturer Converted / Total Generated Leads)
@@ -107,23 +107,26 @@ class AdminController extends Controller
             ->join('users', 'messages.sender_id', '=', 'users.id')
             ->select('messages.*', 'users.name as sender_name', 'users.email as sender_email', 'users.role as sender_role', 'users.status as sender_status', 'users.company_name')
             ->orderBy('messages.created_at', 'desc')
-            ->paginate(15);
+            ->paginate(7);
 
         return view('admin.support-requests', compact('requests'));
     }
 
-
     public function hotTubs()
     {
-        return view('admin.hot-tubs');
+        $hotTubs = \App\Models\HotTub::with('brand')
+            ->orderBy('created_at', 'desc')
+            ->paginate(7);
+
+        return view('admin.hot-tubs', compact('hotTubs'));
     }
 
     public function payments()
     {
         $creditRequests = \App\Models\CreditRequest::with('user')
             ->orderBy('created_at', 'desc')
-            ->get();
-        
+            ->paginate(7);
+
         $revenue = \App\Models\Invoice::where('status', 'paid')->sum('amount');
         $pending = \App\Models\CreditRequest::where('status', 'pending')->count();
         $completed = \App\Models\CreditRequest::where('status', 'approved')->count();
@@ -131,7 +134,7 @@ class AdminController extends Controller
 
         $invoices = \App\Models\Invoice::with('user')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(7);
 
         return view('admin.payments', compact('creditRequests', 'revenue', 'pending', 'completed', 'failed', 'invoices'));
     }
