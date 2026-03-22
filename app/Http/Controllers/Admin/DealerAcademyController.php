@@ -9,9 +9,21 @@ use Illuminate\Support\Facades\Storage;
 
 class DealerAcademyController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = DealerAcademyContent::orderBy('created_at', 'desc')->paginate(7);
+        $items = DealerAcademyContent::query()
+            ->when($request->search, function ($q, $search) {
+                $q->where('title', 'like', "%{$search}%");
+            })
+            ->when($request->content_type, function ($q, $type) {
+                $q->where('content_type', $type);
+            })
+            ->when($request->category, function ($q, $category) {
+                $q->where('category', $category);
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(7)
+            ->withQueryString();
         return view('admin.dealer-academy.index', compact('items'));
     }
 

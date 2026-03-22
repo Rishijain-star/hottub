@@ -8,12 +8,22 @@ use Illuminate\Http\Request;
 
 class UserManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $users = User::where('role', User::ROLE_USER)
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->select(['id', 'name', 'email', 'phone', 'postcode', 'status', 'created_at'])
             ->orderBy('created_at', 'desc')
-            ->paginate(7);
+            ->paginate(7)
+            ->withQueryString();
 
         return view('admin.users.index', compact('users'));
     }

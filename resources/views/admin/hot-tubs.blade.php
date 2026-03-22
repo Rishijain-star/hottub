@@ -23,6 +23,37 @@
     <div class="alert alert--danger">{{ $errors->first() }}</div>
 @endif
 
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('admin.hot-tubs.index') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Model or Brand..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Brand</label>
+            <select name="brand_id" class="form-input">
+                <option value="">All Brands</option>
+                @foreach($brands as $b)
+                    <option value="{{ $b->id }}" {{ request('brand_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('admin.hot-tubs.index') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 {{-- ─── ADD PRODUCT FORM ─────────────────────────────────────────── --}}
 <div class="card" id="addProductCard" style="display:{{ $errors->any() ? 'block' : 'none' }}">
     <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Add New Product</div>

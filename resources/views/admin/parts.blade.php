@@ -7,7 +7,39 @@
 </div>
 
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
-@if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif
+@if($errors->any()) <div class="alert alert--danger">{{ session('success') }}</div> @endif
+
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('admin.parts') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Name or part number..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Category</label>
+            <select name="category" class="form-input">
+                <option value="">All Categories</option>
+                <option value="Pumps" {{ request('category') === 'Pumps' ? 'selected' : '' }}>Pumps</option>
+                <option value="Heaters" {{ request('category') === 'Heaters' ? 'selected' : '' }}>Heaters</option>
+                <option value="Filters" {{ request('category') === 'Filters' ? 'selected' : '' }}>Filters</option>
+                <option value="Other" {{ request('category') === 'Other' ? 'selected' : '' }}>Other</option>
+            </select>
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('admin.parts') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
 
 <div class="card" id="addPartCard" style="display:none">
     <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Add New Part</div>

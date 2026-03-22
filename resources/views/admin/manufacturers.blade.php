@@ -5,6 +5,32 @@
     <div><h1 class="panel-page-title">Manufacturer Management</h1><p class="panel-page-sub">Approve manufacturers, manage credits, and edit profile information</p></div>
     <button class="btn btn--primary btn--pill" id="toggleCreateManu">Create Manufacturer</button>
     </div>
+
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('admin.manufacturers') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Name, Email, or Company..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                <option value="revoked" {{ request('status') === 'revoked' ? 'selected' : '' }}>Revoked</option>
+                <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>Paused</option>
+                <option value="frozen" {{ request('status') === 'frozen' ? 'selected' : '' }}>Frozen</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('admin.manufacturers') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
 @if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif
 <div class="card" id="createManuCard" style="display:none">

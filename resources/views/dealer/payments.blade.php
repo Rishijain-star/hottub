@@ -8,6 +8,29 @@
     </div>
 </div>
 
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('dealer.payments') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Invoice #..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>Paid</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>Failed</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('dealer.payments') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 <div class="card" style="padding:0;">
     <div style="padding:1.25rem; border-bottom:1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
         <div class="fw-800" style="color:var(--gray-900)">All Invoices & Payments</div>
@@ -54,5 +77,7 @@
             @endforelse
         </tbody>
     </table>
-</div>
-@endsection
+    @if($invoices->hasPages())
+        <div style="padding:1rem">{{ $invoices->links('components.pagination') }}</div>
+    @endif
+</div>@endsection

@@ -8,11 +8,22 @@ use Illuminate\Http\Request;
 
 class ServiceManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $requests = ServiceRequest::with(['customer', 'dealer'])
+        $requests = ServiceRequest::query()
+            ->with(['customer', 'dealer'])
+            ->when($request->search, function ($q, $search) {
+                $q->whereHas('customer', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->orderBy('created_at', 'desc')
-            ->paginate(7);
+            ->paginate(7)
+            ->withQueryString();
 
         return view('admin.service-management', compact('requests'));
     }

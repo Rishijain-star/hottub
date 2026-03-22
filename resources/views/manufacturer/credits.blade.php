@@ -151,8 +151,20 @@
 
     {{-- Credit History --}}
     <div class="card" style="padding: 0;">
-        <div style="padding: 1.25rem; border-bottom: 1px solid var(--gray-200);">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
             <div class="fw-800" style="color:var(--gray-900)">Request History</div>
+            <form method="GET" action="{{ route('manufacturer.credits') }}" style="display: flex; gap: 0.5rem; align-items: center;">
+                <select name="status" class="form-input" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; width: auto;">
+                    <option value="">All Status</option>
+                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                    <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
+                </select>
+                <button type="submit" class="btn btn--primary btn--sm">Filter</button>
+                @if(request('status'))
+                    <a href="{{ route('manufacturer.credits') }}" class="btn btn--ghost btn--sm">Clear</a>
+                @endif
+            </form>
         </div>
         <table class="table">
             <thead>

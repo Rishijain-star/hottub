@@ -10,12 +10,23 @@ use App\Services\GeocodingService;
 
 class DealerManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $dealers = User::where('role', 'dealer')
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%")
+                       ->orWhere('company_name', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->select(['id', 'name', 'email', 'company_name', 'company_number', 'vat_number', 'phone', 'postcode', 'address', 'website', 'status', 'credits', 'profile_picture', 'type', 'service_offerings', 'created_at'])
             ->orderBy('created_at', 'desc')
-            ->paginate(7);
+            ->paginate(7)
+            ->withQueryString();
 
         return view('admin.dealers.index', compact('dealers'));
     }

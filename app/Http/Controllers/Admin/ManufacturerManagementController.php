@@ -10,12 +10,23 @@ use App\Services\GeocodingService;
 
 class ManufacturerManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $manufacturers = User::where('role', User::ROLE_MANUFACTURER)
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%")
+                       ->orWhere('company_name', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->select(['id', 'name', 'email', 'company_name', 'company_number', 'vat_number', 'phone', 'postcode', 'address', 'website', 'status', 'credits', 'profile_picture', 'created_at'])
             ->orderBy('created_at','desc')
-            ->paginate(7);
+            ->paginate(7)
+            ->withQueryString();
         return view('admin.manufacturers', compact('manufacturers'));
     }
 

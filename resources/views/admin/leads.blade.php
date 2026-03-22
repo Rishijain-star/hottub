@@ -7,6 +7,32 @@
 </div>
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
 @if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif
+
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('admin.leads') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Name, Email, Phone..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="new" {{ request('status') === 'new' ? 'selected' : '' }}>New</option>
+                <option value="contacted" {{ request('status') === 'contacted' ? 'selected' : '' }}>Contacted</option>
+                <option value="converted" {{ request('status') === 'converted' ? 'selected' : '' }}>Converted</option>
+                <option value="closed" {{ request('status') === 'closed' ? 'selected' : '' }}>Closed</option>
+            </select>
+        </div>
+      
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('admin.leads') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 <div class="panel-stats-grid">
     <div class="panel-stat-card"><div class="panel-stat-card__label">Total Leads</div><div class="panel-stat-card__value">{{ $total }}</div></div>
     <div class="panel-stat-card"><div class="panel-stat-card__label">Converted</div><div class="panel-stat-card__value">{{ $converted }}</div></div>

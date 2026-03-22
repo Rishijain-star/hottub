@@ -27,8 +27,15 @@ class LeadController extends Controller
             });
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('source')) {
+            $query->where('source', $request->source);
+        }
+
         // Show all leads, including private ones
-        $items = $query->orderBy('created_at', 'desc')->paginate(7);
+        $items = $query->orderBy('created_at', 'desc')->paginate(7)->withQueryString();
 
         $buyers = \App\Models\LeadPurchase::select('lead_id', 'dealer_id')
             ->join('users', 'users.id', '=', 'lead_purchases.dealer_id')

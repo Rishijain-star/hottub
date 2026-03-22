@@ -9,9 +9,19 @@ use Illuminate\Support\Str;
 
 class BrandController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $brands = Brand::orderBy('name')->paginate(7);
+        $brands = Brand::query()
+            ->when($request->search, function ($q, $search) {
+                $q->where('name', 'like', "%{$search}%");
+            })
+            ->when($request->type, function ($q, $type) {
+                $q->where('type', $type);
+            })
+            ->orderBy('name')
+            ->paginate(7)
+            ->withQueryString();
+
         return view('admin.brands', compact('brands'));
     }
 

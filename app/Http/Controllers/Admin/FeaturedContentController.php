@@ -12,9 +12,22 @@ use Illuminate\Support\Facades\Storage;
 
 class FeaturedContentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = FeaturedContent::with(['hotTub', 'brand'])->orderBy('created_at','desc')->paginate(7);
+        $items = FeaturedContent::query()
+            ->with(['hotTub', 'brand'])
+            ->when($request->search, function ($q, $search) {
+                $q->where('title', 'like', "%{$search}%");
+            })
+            ->when($request->content_type, function ($q, $type) {
+                $q->where('content_type', $type);
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
+            ->orderBy('created_at','desc')
+            ->paginate(7)
+            ->withQueryString();
         $brands = Brand::orderBy('name')->get();
         $products = HotTub::orderBy('brand')->orderBy('model')->get();
         return view('admin.featured', compact('items','brands','products'));

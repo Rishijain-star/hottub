@@ -12,9 +12,25 @@ use Illuminate\Support\Str;
 
 class HotTubController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = HotTub::orderBy('created_at', 'desc')->paginate(7);
+        $items = HotTub::query()
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->where('model', 'like', "%{$search}%")
+                       ->orWhere('brand', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
+            ->when($request->brand_id, function ($q, $brandId) {
+                $q->where('brand_id', $brandId);
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(7)
+            ->withQueryString();
+
         $brands = Schema::hasTable('brands') ? Brand::orderBy('name')->get() : collect();
         return view('admin.hot-tubs', compact('items', 'brands'));
     }

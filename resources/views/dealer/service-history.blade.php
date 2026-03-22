@@ -5,6 +5,20 @@
     <div><h1 class="panel-page-title">Service History</h1><p class="panel-page-sub">View all completed service checklists and customer signatures</p></div>
 </div>
 
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('dealer.service-history') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('dealer.service-history') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 <div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Digital Service Checklists</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
@@ -87,6 +101,9 @@
             @endforelse
         </tbody>
     </table>
+    @if($completedRequests->hasPages())
+        <div style="padding:1rem">{{ $completedRequests->appends(request()->except('request_page'))->links('components.pagination') }}</div>
+    @endif
 </div>
 
 {{-- History Detail Modal --}}

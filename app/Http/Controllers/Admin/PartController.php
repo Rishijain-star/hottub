@@ -11,9 +11,24 @@ use Illuminate\Support\Facades\Storage;
 
 class PartController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = Part::orderBy('created_at','desc')->paginate(7);
+        $items = Part::query()
+            ->when($request->search, function ($q, $search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('part_number', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->category, function ($q, $category) {
+                $q->where('category', $category);
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
+            ->orderBy('created_at','desc')
+            ->paginate(7)
+            ->withQueryString();
         $brands = Brand::orderBy('name')->get();
         return view('admin.parts', compact('items','brands'));
     }

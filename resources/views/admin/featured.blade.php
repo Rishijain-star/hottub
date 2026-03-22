@@ -7,7 +7,37 @@
 </div>
 
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
-@if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif
+@if($errors->any()) <div class="alert alert--danger">{{ session('error') }}</div> @endif
+
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('admin.featured') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Title..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Type</label>
+            <select name="content_type" class="form-input">
+                <option value="">All Types</option>
+                <option value="product_of_month" {{ request('content_type') === 'product_of_month' ? 'selected' : '' }}>Product of the Month</option>
+                <option value="delivery_of_week" {{ request('content_type') === 'delivery_of_week' ? 'selected' : '' }}>Delivery of the Week</option>
+            </select>
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('admin.featured') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
 
 <div class="card" id="addFeaturedCard" style="display:none">
     <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Add Featured Content</div>

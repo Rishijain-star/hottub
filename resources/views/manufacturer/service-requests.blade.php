@@ -5,6 +5,29 @@
     <div><h1 class="panel-page-title">Service Requests</h1><p class="panel-page-sub">Manage incoming service and parts requests from your customers</p></div>
 </div>
 
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('manufacturer.service-requests') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="processing" {{ request('status') === 'processing' ? 'selected' : '' }}>Processing</option>
+                <option value="under_review" {{ request('status') === 'under_review' ? 'selected' : '' }}>Under Review</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('manufacturer.service-requests') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
 
 <div class="card" style="padding:0">
@@ -64,6 +87,9 @@
             @endforelse
         </tbody>
     </table>
+    @if($requests->hasPages())
+        <div style="padding:1rem">{{ $requests->links('components.pagination') }}</div>
+    @endif
 </div>
 
 {{-- View Modal --}}

@@ -5,6 +5,68 @@
     <div><h1 class="panel-page-title">Service History</h1><p class="panel-page-sub">View all completed service records and customer signatures</p></div>
 </div>
 
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('manufacturer.service-history') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('manufacturer.service-history') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
+<div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Digital Service Checklists</div>
+<div class="card" style="padding:0; margin-bottom: 2rem;">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Checklist</th>
+                <th>Notes</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($history as $item)
+            <tr>
+                <td>{{ $item->completed_at ? $item->completed_at->format('d M Y') : $item->created_at->format('d M Y') }}</td>
+                <td>
+                    <div class="fw-700 text-dark">{{ $item->lead->name }}</div>
+                    <div class="text-sm text-muted">{{ $item->lead->email }}</div>
+                </td>
+                <td>
+                    <div style="display:flex; flex-wrap:wrap; gap:4px">
+                        @foreach($item->checklist_data as $key => $val)
+                            @if($val)
+                                <span class="badge" style="font-size:10px;padding:2px 6px">{{ ucwords(str_replace('_',' ',$key)) }}</span>
+                            @endif
+                        @endforeach
+                    </div>
+                </td>
+                <td style="max-width:200px" class="text-sm">{{ $item->dealer_notes ?? '—' }}</td>
+                <td>
+                    @if($item->customer_signature)
+                        <span class="badge badge--success">Signed</span>
+                    @else
+                        <span class="badge badge--warning">Pending Signature</span>
+                    @endif
+                </td>
+            </tr>
+            @empty
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No service records found.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+    @if($history->hasPages())
+        <div style="padding:1rem">{{ $history->appends(request()->except('checklist_page'))->links('components.pagination') }}</div>
+    @endif
+</div>
+
 <div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Service & Part Requests</div>
 <div class="card" style="padding:0">
     <table class="table">
@@ -18,7 +80,7 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($requests as $req)
+            @forelse($completedRequests as $req)
             <tr>
                 <td>{{ $req->completed_at ? $req->completed_at->format('d M Y') : $req->created_at->format('d M Y') }}</td>
                 <td>
@@ -39,6 +101,9 @@
             @endforelse
         </tbody>
     </table>
+    @if($completedRequests->hasPages())
+        <div style="padding:1rem">{{ $completedRequests->appends(request()->except('request_page'))->links('components.pagination') }}</div>
+    @endif
 </div>
 
 {{-- History Detail Modal --}}

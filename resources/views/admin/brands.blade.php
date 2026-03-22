@@ -19,6 +19,29 @@
     <div class="alert alert--danger">{{ $errors->first() }}</div>
 @endif
 
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('admin.brands.index') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Brand Name..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Type</label>
+            <select name="type" class="form-input">
+                <option value="">All Types</option>
+                <option value="hot_tub" {{ request('type') === 'hot_tub' ? 'selected' : '' }}>Hot Tub</option>
+                <option value="swim_spa" {{ request('type') === 'swim_spa' ? 'selected' : '' }}>Swim Spa</option>
+                <option value="both" {{ request('type') === 'both' ? 'selected' : '' }}>Both</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('admin.brands.index') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 <div class="card" id="addBrandCard" style="display:none">
     <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Add New Brand</div>
     <form method="POST" action="{{ route('admin.brands.store') }}" enctype="multipart/form-data">

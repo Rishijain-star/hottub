@@ -36,6 +36,31 @@
     </button>
 </div>
 
+{{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
+<div class="card mb-4" style="padding: 1.25rem;">
+    <form method="GET" action="{{ route('admin.dealers.index') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        <div class="form-group mb-0">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Name, Email, or Company..." value="{{ request('search') }}">
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-input">
+                <option value="">All Status</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                <option value="revoked" {{ request('status') === 'revoked' ? 'selected' : '' }}>Revoked</option>
+                <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>Paused</option>
+                <option value="frozen" {{ request('status') === 'frozen' ? 'selected' : '' }}>Frozen</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <a href="{{ route('admin.dealers.index') }}" class="btn btn--ghost">Clear</a>
+        </div>
+    </form>
+</div>
+
 {{-- Table wrapped in .card from global.css --}}
 <div class="card" style="padding: 0; overflow: hidden;">
     <table class="table">

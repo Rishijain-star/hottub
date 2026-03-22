@@ -84,19 +84,26 @@ class ManufacturerController extends Controller
             });
         }
 
+        // If status is provided
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
         // Available Leads (Marketplace)
         $purchasedLeadIds = LeadPurchase::where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer')->pluck('lead_id');
         $availableLeads = (clone $query)->where('is_private', false)
             ->whereNull('assigned_dealer_id')
             ->whereNotIn('id', $purchasedLeadIds)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(7, ['*'], 'available_page')
+            ->withQueryString();
 
         // Private Leads
         $privateLeads = (clone $query)->where('assigned_dealer_id', $manufacturer->id)
             ->where('is_private', true)
             ->orderBy('created_at', 'desc')
-            ->paginate(7, ['*'], 'private_page');
+            ->paginate(7, ['*'], 'private_page')
+            ->withQueryString();
 
         // Won / Purchased Leads (Excluding Private)
         $myLeads = (clone $query)->whereIn('id', $purchasedLeadIds)
@@ -174,12 +181,16 @@ class ManufacturerController extends Controller
         return view('manufacturer.inventory', compact('inventoryCount'));
     }
 
-    public function credits()
+    public function credits(Request $request)
     {
         $me = Auth::user();
         $creditRequests = \App\Models\CreditRequest::where('user_id', $me->id)
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->orderBy('created_at', 'desc')
-            ->paginate(7);
+            ->paginate(7)
+            ->withQueryString();
         $packages = \App\Models\CreditPackage::orderBy('position')->get();
         $paymentSettings = \App\Models\PaymentProcessorSetting::first();
         return view('manufacturer.credits', compact('me', 'creditRequests', 'packages', 'paymentSettings'));
@@ -359,13 +370,23 @@ class ManufacturerController extends Controller
         return back()->with('success', 'Maintenance package deleted.');
     }
 
-    public function packageRequests()
+    public function packageRequests(Request $request)
     {
         $mfr = Auth::user();
         $requests = \App\Models\PackageRequest::where('dealer_id', $mfr->id)
             ->with(['customer', 'package'])
+            ->when($request->search, function ($q, $search) {
+                $q->whereHas('customer', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(7)
+            ->withQueryString();
         return view('manufacturer.package-requests', compact('requests'));
     }
 
@@ -376,26 +397,56 @@ class ManufacturerController extends Controller
         return back()->with('success', 'Request status updated.');
     }
 
-    public function serviceRequests()
+    public function serviceRequests(Request $request)
     {
         $mfr = Auth::user();
         $requests = \App\Models\ServiceRequest::where('dealer_id', $mfr->id)
             ->where('status', '!=', 'completed')
             ->with('customer')
+            ->when($request->search, function ($q, $search) {
+                $q->whereHas('customer', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(7)
+            ->withQueryString();
         return view('manufacturer.service-requests', compact('requests'));
     }
 
-    public function serviceHistory()
+    public function serviceHistory(Request $request)
     {
         $mfr = Auth::user();
-        $requests = \App\Models\ServiceRequest::where('dealer_id', $mfr->id)
+        $history = \App\Models\ServiceChecklist::where('dealer_id', $mfr->id)
+            ->with('lead')
+            ->when($request->search, function ($q, $search) {
+                $q->whereHas('lead', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('completed_at', 'desc')
+            ->paginate(7, ['*'], 'checklist_page')
+            ->withQueryString();
+
+        $completedRequests = \App\Models\ServiceRequest::where('dealer_id', $mfr->id)
             ->where('status', 'completed')
             ->with('customer')
-            ->orderBy('created_at', 'desc')
-            ->get();
-        return view('manufacturer.service-history', compact('requests'));
+            ->when($request->search, function ($q, $search) {
+                $q->whereHas('customer', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('completed_at', 'desc')
+            ->paginate(7, ['*'], 'request_page')
+            ->withQueryString();
+
+        return view('manufacturer.service-history', compact('history', 'completedRequests'));
     }
 
     public function updateServiceRequestStatus(Request $request, \App\Models\ServiceRequest $serviceRequest)
@@ -784,12 +835,19 @@ class ManufacturerController extends Controller
         return response()->json(['ok' => true, 'stage' => $lead->stage, 'status' => $lead->status, 'details' => $lead->delivery_details]);
     }
 
-    public function payments()
+    public function payments(Request $request)
     {
         $me = Auth::user();
         $invoices = \App\Models\Invoice::where('dealer_id', $me->id)
+            ->when($request->search, function ($q, $search) {
+                $q->where('invoice_number', 'like', "%{$search}%");
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(7)
+            ->withQueryString();
         return view('manufacturer.payments', compact('invoices'));
     }
 

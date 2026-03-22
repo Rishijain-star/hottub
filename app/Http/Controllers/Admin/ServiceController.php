@@ -10,9 +10,18 @@ use Illuminate\Support\Facades\Storage;
 
 class ServiceController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = Service::orderBy('created_at','desc')->paginate(7);
+        $items = Service::query()
+            ->when($request->search, function ($q, $search) {
+                $q->where('name', 'like', "%{$search}%");
+            })
+            ->when($request->status, function ($q, $status) {
+                $q->where('status', $status);
+            })
+            ->orderBy('created_at','desc')
+            ->paginate(7)
+            ->withQueryString();
         return view('admin.services', compact('items'));
     }
 
