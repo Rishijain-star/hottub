@@ -57,7 +57,7 @@
                 <td>
                     <div style="display:flex; align-items:center; gap:10px;">
                         @if($user->profile_image)
-                            <img src="{{ asset('storage/' . $user->profile_image) }}" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                            <img src="{{ url('storage/app/public/' . $user->profile_image) }}" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
                         @else
                             <div style="width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 0.75rem; font-weight: 800;">
                                 {{ substr($user->name, 0, 1) }}

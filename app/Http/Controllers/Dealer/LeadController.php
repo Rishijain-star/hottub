@@ -84,4 +84,15 @@ class LeadController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    public function destroyPrivateLead(Lead $lead)
+    {
+        if ($lead->user_id !== auth()->id() || $lead->type !== 'private') {
+            abort(403);
+        }
+
+        $lead->delete();
+
+        return redirect()->route('dealer.leads')->with('success', 'Private lead deleted successfully.');
+    }
 }

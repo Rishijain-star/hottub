@@ -28,6 +28,8 @@ class Lead extends Model
         'lead_source',
         'is_private',
         'stage',
+        'deposit_confirmed',
+        'deposit_requested_at',
         'assigned_dealer_id',
         'delivery_details',
         'invoice_path',
@@ -39,6 +41,9 @@ class Lead extends Model
         'price' => 'decimal:2',
         'delivery_details' => 'array',
         'is_national' => 'boolean',
+        'is_private' => 'boolean',
+        'deposit_confirmed' => 'boolean',
+        'deposit_requested_at' => 'datetime', 
     ];
 
     public function activities()

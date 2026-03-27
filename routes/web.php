@@ -91,6 +91,7 @@ Route::get('/dashboard', function () {
 // ══ ADMIN PANEL ═══════════════════════════════════════════════════════════════
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'overview'])->name('overview');
+    Route::get('/overview/report', [AdminController::class, 'downloadAnalyticsReport'])->name('overview.report');
     // Hot Tubs CRUD
     Route::get('/hot-tubs', [\App\Http\Controllers\Admin\HotTubController::class, 'index'])->name('hot-tubs.index');
     Route::post('/hot-tubs', [\App\Http\Controllers\Admin\HotTubController::class, 'store'])->name('hot-tubs.store');
@@ -166,6 +167,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/pricing/enquiry', [PricingController::class, 'saveEnquiryPricing'])->name('pricing.enquiry');
     Route::post('/pricing/leads', [PricingController::class, 'saveLeadPricing'])->name('pricing.leads');
     Route::post('/pricing/featured', [PricingController::class, 'saveFeaturedPricing'])->name('pricing.featured');
+    // ── Credit Plans ───────────────────────────────────────────────────
+    Route::get('/plans', [AdminController::class, 'plans'])->name('plans');
+    Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store');
+    Route::put('/plans/{plan}', [AdminController::class, 'updatePlan'])->name('plans.update');
+    Route::delete('/plans/{plan}', [AdminController::class, 'destroyPlan'])->name('plans.destroy');
+
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
 
     // ── Dealer Management ──────────────────────────────────────────────────
@@ -194,6 +201,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // ── Support Requests ──────────────────────────────────────────────────
     Route::get('/support-requests', [\App\Http\Controllers\Admin\AdminController::class, 'supportRequests'])->name('support-requests');
+    Route::post('/support-requests/{message}/approve', [\App\Http\Controllers\Admin\AdminController::class, 'approveSupportRequest'])->name('support-requests.approve');
+    Route::post('/support-requests/{message}/reject', [\App\Http\Controllers\Admin\AdminController::class, 'rejectSupportRequest'])->name('support-requests.reject');
 });
 
 // ══ DEALER PANEL ══════════════════════════════════════════════════════════════
@@ -201,6 +210,7 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::get('/', [DealerController::class, 'overview'])->name('overview');
     Route::get('/leads', [DealerController::class, 'leads'])->name('leads.index');
     Route::post('/leads/private', [DealerController::class, 'storePrivateLead'])->name('leads.private.store');
+    Route::delete('/leads/private/{lead}', [DealerController::class, 'destroyPrivateLead'])->name('leads.private.destroy');
     
     // Maintenance Packages
     Route::get('/maintenance-packages', [DealerController::class, 'maintenancePackages'])->name('maintenance-packages');
@@ -209,9 +219,11 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::put('/maintenance-packages/{package}', [DealerController::class, 'updateMaintenancePackage'])->name('maintenance-packages.update');
     Route::delete('/maintenance-packages/{package}', [DealerController::class, 'destroyMaintenancePackage'])->name('maintenance-packages.destroy');
     
-    Route::get('/package-requests', [DealerController::class, 'packageRequests'])->name('package-requests');
+    Route::get('/package-requests', [DealerController::class, 'packageRequests'])->name('package-requests')->middleware('overdue');
     Route::put('/package-requests/{packageRequest}', [DealerController::class, 'updatePackageRequestStatus'])->name('package-requests.update');
     Route::post('/leads/{lead}/buy', [DealerController::class, 'buyLead'])->name('leads.buy');
+    Route::post('/leads/{lead}/decline', [DealerController::class, 'declineLead'])->name('leads.decline');
+    Route::get('/leads/{lead}/status', [DealerController::class, 'getLeadStatus'])->name('leads.status');
     Route::get('/leads/{lead}/view', [DealerController::class, 'viewLead'])->name('leads.view');
     Route::get('/leads/{lead}/guidance/download', [DealerController::class, 'downloadGuidance'])->name('leads.guidance.download');
     Route::get('/leads/{lead}', [DealerController::class, 'leadDetail'])->name('leads.detail');
@@ -224,14 +236,21 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::post('/leads/{lead}/service-checklist', [DealerController::class, 'storeServiceChecklist'])->name('leads.service-checklist');
     Route::get('/leads/{lead}/service-history', [DealerController::class, 'getServiceHistory'])->name('leads.service-history');
     Route::get('/service-history', [DealerController::class, 'serviceHistory'])->name('service-history');
-    Route::get('/service-requests', [DealerController::class, 'serviceRequests'])->name('service-requests');
+    Route::get('/service-requests', [DealerController::class, 'serviceRequests'])->name('service-requests')->middleware('overdue');
     Route::put('/service-requests/{serviceRequest}', [DealerController::class, 'updateServiceRequestStatus'])->name('service-requests.update');
     Route::get('/quotes', [DealerController::class, 'quotes'])->name('quotes');
     Route::get('/inventory', [DealerController::class, 'inventory'])->name('inventory');
+    
+    // Credits & Plans
     Route::get('/credits', [DealerController::class, 'credits'])->name('credits');
+    Route::post('/credits/purchase', [DealerController::class, 'purchasePlan'])->name('credits.purchase');
+    Route::get('/credits/success', [DealerController::class, 'purchaseSuccess'])->name('credits.success');
+    Route::get('/credits/cancel', [DealerController::class, 'purchaseCancel'])->name('credits.cancel');
+    
     Route::post('/credits/request', [DealerController::class, 'requestCredits'])->name('credits.request');
     Route::get('/profile', [DealerController::class, 'profile'])->name('profile');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [DealerController::class, 'deleteAccount'])->name('profile.delete');
     Route::get('/payments', [DealerController::class, 'payments'])->name('payments');
     Route::get('/invoices/{invoice}', [DealerController::class, 'invoice'])->name('invoice');
     Route::get('/invoices/{invoice}/download', [DealerController::class, 'invoiceDownload'])->name('invoice.download');
@@ -251,7 +270,10 @@ Route::middleware(['auth', 'manufacturer'])->prefix('manufacturer')->name('manuf
     Route::get('/', [ManufacturerController::class, 'overview'])->name('overview');
     Route::get('/leads', [ManufacturerController::class, 'leads'])->name('leads');
     Route::post('/leads/private', [ManufacturerController::class, 'storePrivateLead'])->name('leads.private.store');
+    Route::delete('/leads/private/{lead}', [ManufacturerController::class, 'destroyPrivateLead'])->name('leads.private.destroy');
     Route::post('/leads/{lead}/buy', [ManufacturerController::class, 'buyLead'])->name('leads.buy');
+    Route::post('/leads/{lead}/decline', [ManufacturerController::class, 'declineLead'])->name('leads.decline');
+    Route::get('/leads/{lead}/status', [ManufacturerController::class, 'getLeadStatus'])->name('leads.status');
     Route::get('/leads/{lead}/view', [ManufacturerController::class, 'viewLead'])->name('leads.view');
     Route::get('/leads/{lead}/guidance/download', [ManufacturerController::class, 'downloadGuidance'])->name('leads.guidance.download');
     Route::get('/leads/{lead}', [ManufacturerController::class, 'leadDetail'])->name('leads.detail');
@@ -261,10 +283,17 @@ Route::middleware(['auth', 'manufacturer'])->prefix('manufacturer')->name('manuf
     Route::post('/leads/{lead}/deliver', [ManufacturerController::class, 'deliverLead'])->name('leads.deliver');
     Route::get('/quotes', [ManufacturerController::class, 'quotes'])->name('quotes');
     Route::get('/inventory', [ManufacturerController::class, 'inventory'])->name('inventory');
+    
+    // Credits & Plans
     Route::get('/credits', [ManufacturerController::class, 'credits'])->name('credits');
+    Route::post('/credits/purchase', [ManufacturerController::class, 'purchasePlan'])->name('credits.purchase');
+    Route::get('/credits/success', [ManufacturerController::class, 'purchaseSuccess'])->name('credits.success');
+    Route::get('/credits/cancel', [ManufacturerController::class, 'purchaseCancel'])->name('credits.cancel');
+    
     Route::post('/credits/request', [ManufacturerController::class, 'requestCredits'])->name('credits.request');
     Route::get('/profile', [ManufacturerController::class, 'profile'])->name('profile');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ManufacturerController::class, 'deleteAccount'])->name('profile.delete');
     Route::get('/payments', [ManufacturerController::class, 'payments'])->name('payments');
     Route::get('/invoices/{invoice}', [ManufacturerController::class, 'invoice'])->name('invoice');
     Route::get('/invoices/{invoice}/download', [ManufacturerController::class, 'invoiceDownload'])->name('invoice.download');
@@ -309,7 +338,10 @@ Route::middleware(['auth', 'customer'])->prefix('customer')->name('customer.')->
     Route::get('/api/conversations', [\App\Http\Controllers\MessageController::class, 'getConversations'])->name('api.conversations');
     Route::get('/api/messages/{user}', [\App\Http\Controllers\MessageController::class, 'getMessages'])->name('api.messages');
     Route::post('/api/messages/{user}', [\App\Http\Controllers\MessageController::class, 'sendMessage'])->name('api.send_message');
+    Route::post('/deposit/confirm', [\App\Http\Controllers\Customer\CustomerController::class, 'confirmDeposit'])->name('deposit.confirm');
+    Route::post('/notifications/read', [\App\Http\Controllers\Customer\CustomerController::class, 'markNotificationRead'])->name('notifications.read');
     Route::get('/profile', [\App\Http\Controllers\Customer\CustomerController::class, 'profile'])->name('profile');
     Route::put('/profile', [\App\Http\Controllers\Customer\CustomerController::class, 'updateProfile'])->name('profile.update');
+    Route::delete('/profile', [\App\Http\Controllers\Customer\CustomerController::class, 'deleteAccount'])->name('profile.delete');
     Route::post('/profile/image', [\App\Http\Controllers\Customer\CustomerController::class, 'updateProfileImage'])->name('profile.update-image');
 });

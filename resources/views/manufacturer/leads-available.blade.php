@@ -30,10 +30,14 @@
                 <td>@if(!is_null($it->price)) £{{ number_format($it->price, 2) }} @else — @endif</td>
                 <td>{{ $it->purchases->count() }} manufacturer(s) purchased</td>
                 <td>
-                    <form action="{{ route('manufacturer.leads.purchase', $it) }}" method="POST">
-                        @csrf
-                        <button type="submit" class="btn btn--primary btn--sm">Buy</button>
-                    </form>
+                    @if($it->purchases->count() >= 3)
+                        <span class="badge badge--danger">Sold Out</span>
+                    @else
+                        <form action="{{ route('manufacturer.leads.purchase', $it) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn--primary btn--sm">Buy</button>
+                        </form>
+                    @endif
                 </td>
             </tr>
             @empty

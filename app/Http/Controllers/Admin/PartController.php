@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Part;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PartController extends Controller
 {
@@ -16,8 +16,9 @@ class PartController extends Controller
         $items = Part::query()
             ->when($request->search, function ($q, $search) {
                 $q->where(function ($sq) use ($search) {
-                    $sq->where('name', 'like', "%{$search}%")
-                       ->orWhere('part_number', 'like', "%{$search}%");
+                    $sq
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('part_number', 'like', "%{$search}%");
                 });
             })
             ->when($request->category, function ($q, $category) {
@@ -26,11 +27,11 @@ class PartController extends Controller
             ->when($request->status, function ($q, $status) {
                 $q->where('status', $status);
             })
-            ->orderBy('created_at','desc')
+            ->orderBy('created_at', 'desc')
             ->paginate(7)
             ->withQueryString();
         $brands = Brand::orderBy('name')->get();
-        return view('admin.parts', compact('items','brands'));
+        return view('admin.parts', compact('items', 'brands'));
     }
 
     public function store(Request $request)
@@ -38,7 +39,7 @@ class PartController extends Controller
         $data = $this->validateData($request);
         $data['compatible_brand_ids'] = $request->input('compatible_brand_ids', []);
         $data['slug'] = $data['slug'] ?: $this->uniqueSlug($data['name']);
-        $images = $this->storeImages($request, 'parts/'.$data['slug']);
+        $images = $this->storeImages($request, 'parts/' . $data['slug']);
         if ($images) {
             $data['images'] = $images;
         }
@@ -48,9 +49,9 @@ class PartController extends Controller
 
     public function edit(Part $part)
     {
-        $items = Part::orderBy('created_at','desc')->paginate(7);
+        $items = Part::orderBy('created_at', 'desc')->paginate(7);
         $brands = Brand::orderBy('name')->get();
-        return view('admin.parts-edit', ['item'=>$part,'items'=>$items,'brands'=>$brands]);
+        return view('admin.parts-edit', ['item' => $part, 'items' => $items, 'brands' => $brands]);
     }
 
     public function update(Request $request, Part $part)
@@ -62,7 +63,7 @@ class PartController extends Controller
             $slug = $data['slug'] = $this->uniqueSlug($data['name'], $part->id);
         }
         $existing = $part->images ?? [];
-        $new = $this->storeImages($request, 'parts/'.$slug);
+        $new = $this->storeImages($request, 'parts/' . $slug);
         if ($new) {
             $data['images'] = array_values(array_slice(array_merge($existing, $new), 0, 4));
         }
@@ -79,15 +80,15 @@ class PartController extends Controller
     private function validateData(Request $request): array
     {
         return $request->validate([
-            'name' => ['required','string','max:255'],
-            'slug' => ['nullable','string','max:255'],
-            'part_number' => ['nullable','string','max:255'],
-            'category' => ['nullable','string','max:100'],
-            'price' => ['nullable','numeric','min:0'],
-            'description' => ['nullable','string'],
-            'images.*' => ['nullable','file','image','max:5120'],
-            'compatible_brand_ids' => ['nullable','array'],
-            'status' => ['required','in:active,inactive'],
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => ['nullable', 'string', 'max:255'],
+            'part_number' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'description' => ['nullable', 'string'],
+            'images.*' => ['nullable', 'file', 'image', 'max:5120'],
+            'compatible_brand_ids' => ['nullable', 'array'],
+            'status' => ['required', 'in:active,inactive'],
         ]);
     }
 
@@ -96,23 +97,24 @@ class PartController extends Controller
         $stored = [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $idx => $file) {
-                if (!$file) continue;
-                $name = time().'_'.$idx.'_'.$file->getClientOriginalName();
+                if (!$file)
+                    continue;
+                $name = time() . '_' . $idx . '_' . $file->getClientOriginalName();
                 $path = $file->storeAs($folder, $name, 'public');
-                $stored[] = Storage::disk('public')->url($path);
+                $stored[] = $path;
             }
         }
         return array_slice($stored, 0, 4);
     }
 
-    private function uniqueSlug(string $name, ?int $ignoreId=null): string
+    private function uniqueSlug(string $name, ?int $ignoreId = null): string
     {
         $slug = Str::slug($name);
-        $try = $slug; $i=1;
-        while (Part::where('slug',$try)->when($ignoreId, fn($q)=>$q->where('id','!=',$ignoreId))->exists()) {
-            $try = $slug.'-'.$i++;
+        $try = $slug;
+        $i = 1;
+        while (Part::where('slug', $try)->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+            $try = $slug . '-' . $i++;
         }
         return $try;
     }
 }
-

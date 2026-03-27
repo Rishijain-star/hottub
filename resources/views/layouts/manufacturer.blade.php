@@ -43,7 +43,7 @@
                             <button type="submit" id="btnSendSupport" class="btn btn--danger btn--full" style="padding:0.8rem;">Send Request ({{ $requestCount }}/3)</button>
                         </form>
                         <div id="supportSuccessMsg" style="display:none; margin-top:1rem; padding:0.75rem; background:#dcfce7; color:#166534; border-radius:8px; font-size:0.9rem; text-align:center; font-weight:600;">
-                            Request sent successfully.
+                            Your request has been submitted successfully.
                         </div>
                     @else
                         <div style="padding:1rem; background:#fee2e2; color:#b91c1c; border-radius:8px; font-weight:600; font-size:0.9rem; text-align:center;">
@@ -68,10 +68,39 @@
     @endif
 
     @yield('modals')
+
+    <div class="modal-backdrop" id="confirmModal">
+        <div class="modal modal--sm">
+            <div class="modal-header">
+                <div class="modal-title" id="confirmModalTitle">Are you sure?</div>
+            </div>
+            <div class="text-sm text-muted" style="margin-top:-0.5rem; margin-bottom:1.25rem;" id="confirmModalDesc">This action cannot be undone.</div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn--ghost" style="background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;" onclick="document.getElementById('confirmModal').classList.remove('active')">No, Cancel</button>
+                <button type="button" class="btn btn--danger" id="confirmModalYes">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
     @if(file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif
     @yield('scripts')
+
+    <script>
+    function showConfirmationModal(form, title, desc, buttonText) {
+        document.getElementById('confirmModalTitle').textContent = title || 'Are you sure?';
+        document.getElementById('confirmModalDesc').textContent = desc || 'This action cannot be undone.';
+        const yesBtn = document.getElementById('confirmModalYes');
+        yesBtn.textContent = buttonText || 'Yes, Delete';
+
+        document.getElementById('confirmModal').classList.add('active');
+
+        yesBtn.onclick = function() {
+            form.submit();
+        }
+    }
+    </script>
     
     @if(isset($isAccountRestricted) && $isAccountRestricted)
     <script>

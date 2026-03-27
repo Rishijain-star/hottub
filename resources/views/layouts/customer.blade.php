@@ -1,3 +1,7 @@
+@php
+    $customer = auth()->user();
+    $totalNotifications = \App\Models\Notification::where('user_id', $customer->id)->where('read', false)->count();
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,7 +18,7 @@
 
     @yield('styles')
     </head>
-<body class="panel-body">
+<body class="panel-body" style="{{ (isset($isAccountRestricted) && $isAccountRestricted) ? 'overflow:hidden' : '' }}">
     @include('layouts.header')
 
     @if(isset($isAccountRestricted) && $isAccountRestricted)
@@ -32,15 +36,30 @@
                         Send Support Request
                     </h3>
                     @php
+                        $hasSupportStatusColumn = \Illuminate\Support\Facades\Schema::hasColumn('messages', 'support_status');
                         $requestCount = \App\Models\Message::where('sender_id', auth()->id())->where('receiver_id', 1)->count();
+                        $hasPendingSupportRequest = false;
+                        if ($hasSupportStatusColumn) {
+                            $hasPendingSupportRequest = \App\Models\Message::where('sender_id', auth()->id())
+                                ->where('receiver_id', 1)
+                                ->where('support_status', 'pending')
+                                ->exists();
+                        }
                     @endphp
                     
-                    @if($requestCount < 3)
-                        <form action="{{ route('api.send_message', 1) }}" method="POST">
+                    @if($hasPendingSupportRequest)
+                        <div style="display:flex;justify-content:center;">
+                            <button type="button" class="btn btn--sm" style="min-width:170px;height:38px;padding:0 16px;border:1px solid #0ea5a3;background:#ecfeff;color:#0f172a;font-weight:800;border-radius:8px;cursor:not-allowed;opacity:1;" disabled>Requested</button>
+                        </div>
+                    @elseif($requestCount < 3)
+                        <form id="restrictedSupportForm">
                             @csrf
-                            <textarea name="content" class="form-input" rows="3" placeholder="Explain your situation or request reactivation..." required style="margin-bottom:1rem; border-color:#d1d5db;"></textarea>
-                            <button type="submit" class="btn btn--danger btn--full" style="padding:0.8rem;">Send Request ({{ $requestCount }}/3)</button>
+                            <textarea name="content" id="supportContent" class="form-input" rows="3" placeholder="Explain your situation or request reactivation..." required style="margin-bottom:1rem; border-color:#d1d5db;"></textarea>
+                            <button type="submit" id="btnSendSupport" class="btn btn--danger btn--full" style="padding:0.8rem;">Send Request ({{ $requestCount }}/3)</button>
                         </form>
+                        <div id="supportSuccessMsg" style="display:none; margin-top:1rem; padding:0.75rem; background:#dcfce7; color:#166534; border-radius:8px; font-size:0.9rem; text-align:center; font-weight:600;">
+                            Your request has been submitted successfully.
+                        </div>
                     @else
                         <div style="padding:1rem; background:#fee2e2; color:#b91c1c; border-radius:8px; font-weight:600; font-size:0.9rem; text-align:center;">
                             Maximum of 3 support requests reached.
@@ -65,13 +84,85 @@
     </div>
     @endif
     @include('layouts.footer')
+
+    @yield('modals')
+
+    <div class="modal-backdrop" id="confirmModal">
+        <div class="modal modal--sm">
+            <div class="modal-header">
+                <div class="modal-title" id="confirmModalTitle">Are you sure?</div>
+            </div>
+            <div class="text-sm text-muted" style="margin-top:-0.5rem; margin-bottom:1.25rem;" id="confirmModalDesc">This action cannot be undone.</div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn--ghost" style="background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;" onclick="document.getElementById('confirmModal').classList.remove('active')">No, Cancel</button>
+                <button type="button" class="btn btn--danger" id="confirmModalYes">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
     @yield('scripts')
     <script>
+        function showConfirmationModal(form, title, desc, buttonText) {
+            document.getElementById('confirmModalTitle').textContent = title || 'Are you sure?';
+            document.getElementById('confirmModalDesc').textContent = desc || 'This action cannot be undone.';
+            const yesBtn = document.getElementById('confirmModalYes');
+            yesBtn.textContent = buttonText || 'Yes, Delete';
+
+            document.getElementById('confirmModal').classList.add('active');
+
+            yesBtn.onclick = function() {
+                form.submit();
+            }
+        }
+
         document.querySelectorAll('.panel-nav-link').forEach(link => {
             if (link.getAttribute('href') === window.location.pathname) {
                 link.classList.add('active');
             }
         });
+
+        @if(isset($isAccountRestricted) && $isAccountRestricted)
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('restrictedSupportForm');
+            if (!form) return;
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('btnSendSupport');
+                const content = document.getElementById('supportContent').value;
+                const successMsg = document.getElementById('supportSuccessMsg');
+
+                btn.disabled = true;
+                btn.textContent = 'Sending...';
+
+                try {
+                    const response = await fetch('{{ route("customer.api.send_message", 1) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ content: content })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                    form.innerHTML = '<div style="display:flex;justify-content:center;"><button type="button" class="btn btn--sm" style="min-width:170px;height:38px;padding:0 16px;border:1px solid #0ea5a3;background:#ecfeff;color:#0f172a;font-weight:800;border-radius:8px;cursor:not-allowed;opacity:1;" disabled>Requested</button></div>';
+                    successMsg.style.display = 'block';
+                    } else {
+                        alert(data.msg || 'Error sending request');
+                        btn.disabled = false;
+                        btn.textContent = 'Send Request';
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                    btn.disabled = false;
+                    btn.textContent = 'Send Request';
+                }
+            });
+        });
+        @endif
     </script>
 </body>
 </html>

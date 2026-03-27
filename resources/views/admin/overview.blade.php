@@ -1,11 +1,20 @@
 @extends('layouts.admin')
 @section('title', 'Dashboard Overview – Admin Panel')
 @section('content')
-<div class="panel-page-header">
+<div class="panel-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
     <div>
         <h1 class="panel-page-title">Dashboard Overview</h1>
         <p class="panel-page-sub">Platform performance at a glance</p>
     </div>
+    <form method="GET" action="{{ route('admin.overview') }}" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+        <select name="month" class="form-input" style="min-width:180px;">
+            @foreach($monthOptions as $value => $label)
+                <option value="{{ $value }}" {{ $selectedMonth === $value ? 'selected' : '' }}>{{ $label }}</option>
+            @endforeach
+        </select>
+        <button type="submit" class="btn btn--ghost btn--sm">Apply</button>
+        <a href="{{ route('admin.overview.report', ['month' => $selectedMonth]) }}" class="btn btn--primary btn--sm">Download Analytics Report</a>
+    </form>
 </div>
 
 <style>

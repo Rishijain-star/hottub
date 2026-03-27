@@ -39,4 +39,9 @@ class ServiceRequest extends Model
         }
         return null;
     }
+
+    public function getOverdueAttribute()
+    {
+        return $this->status === 'pending' && $this->created_at->diffInHours(now()) >= 3;
+    }
 }

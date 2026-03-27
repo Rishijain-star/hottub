@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'dealer' => \App\Http\Middleware\DealerMiddleware::class,
             'customer' => \App\Http\Middleware\CustomerMiddleware::class,
             'manufacturer' => \App\Http\Middleware\ManufacturerMiddleware::class,
+            'overdue' => \App\Http\Middleware\CheckOverdueRequests::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

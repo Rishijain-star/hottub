@@ -68,7 +68,7 @@
                     <div><div style="font-size:12px;color:#6b7280">Power</div><div style="font-weight:700">{{ $item->power_requirements ?? '—' }}</div></div>
                 </div>
             </div>
-            <a href="#quote" class="ht-get-quote-btn" style="display:inline-block;text-align:center">Get Free Quote</a>
+            <button onclick="window.__openEnquiryModal({ title: 'Quote: {{ addslashes($item->brand) }} {{ addslashes($item->model) }}', type: 'swim_spa', product_id: '{{ $item->id }}' })" class="ht-get-quote-btn" style="display:block; width:100%; text-align:center;">Get Free Quote</button>
             <p style="margin-top: 1rem; font-size: 0.82rem; color: #6b7280; text-align: center; line-height: 1.4;">
                 Buying a hot tub is exciting. Our platform connects you with trusted dealers who will support you from purchase to installation and long-term ownership.
             </p>

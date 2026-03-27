@@ -40,12 +40,18 @@ class DealerAcademyController extends Controller
             'content_type' => 'required|in:video,pdf,article,link',
             'category' => 'required|string|max:255',
             'file' => 'nullable|file|max:51200', // 50MB max
+            'thumbnail' => 'nullable|image|max:10240', // 10MB max
             'external_link' => 'nullable|url',
         ]);
 
         if ($request->hasFile('file')) {
             $path = $request->file('file')->store('academy', 'public');
             $data['file_path'] = $path;
+        }
+
+        if ($request->hasFile('thumbnail')) {
+            $path = $request->file('thumbnail')->store('academy/thumbnails', 'public');
+            $data['thumbnail_path'] = $path;
         }
 
         DealerAcademyContent::create($data);
@@ -66,6 +72,7 @@ class DealerAcademyController extends Controller
             'content_type' => 'required|in:video,pdf,article,link',
             'category' => 'required|string|max:255',
             'file' => 'nullable|file|max:51200',
+            'thumbnail' => 'nullable|image|max:10240',
             'external_link' => 'nullable|url',
         ]);
 
@@ -77,6 +84,14 @@ class DealerAcademyController extends Controller
             $data['file_path'] = $path;
         }
 
+        if ($request->hasFile('thumbnail')) {
+            if ($dealer_academy->thumbnail_path) {
+                Storage::disk('public')->delete($dealer_academy->thumbnail_path);
+            }
+            $path = $request->file('thumbnail')->store('academy/thumbnails', 'public');
+            $data['thumbnail_path'] = $path;
+        }
+
         $dealer_academy->update($data);
 
         return redirect()->route('admin.dealer-academy.index')->with('success', 'Academy content updated.');
@@ -86,6 +101,9 @@ class DealerAcademyController extends Controller
     {
         if ($dealer_academy->file_path) {
             Storage::disk('public')->delete($dealer_academy->file_path);
+        }
+        if ($dealer_academy->thumbnail_path) {
+            Storage::disk('public')->delete($dealer_academy->thumbnail_path);
         }
         $dealer_academy->delete();
 

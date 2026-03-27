@@ -190,9 +190,13 @@
             @forelse($items as $it)
                 <tr>
                     <td class="fw-700 text-dark" style="display:flex;align-items:center;gap:8px">
-                        @php $thumb = ($it->images && count($it->images)) ? asset('storage/'.$it->images[0]) : null; @endphp
+                        @php 
+                            $thumb = ($it->images && count($it->images)) ? url('storage/app/public/'.$it->images[0]) : null; 
+                        @endphp
                         @if($thumb)
                             <img src="{{ $thumb }}" alt="{{ $it->model }}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--gray-200)">
+                        @else
+                            <div style="width:42px;height:42px;border-radius:6px;border:1px dashed var(--gray-300);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--gray-400)">📷</div>
                         @endif
                         <span>{{ $it->model }}</span>
                     </td>

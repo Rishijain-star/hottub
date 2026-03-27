@@ -43,7 +43,7 @@
         </thead>
         <tbody>
             @forelse($requests as $req)
-            <tr>
+            <tr class="{{ $req->overdue ? 'overdue' : '' }}">
                 <td>
                     <div class="fw-700 text-dark">{{ $req->customer->name }}</div>
                     <div class="text-sm text-muted">{{ $req->customer->email }}</div>
@@ -53,8 +53,12 @@
                 </td>
                 <td class="fw-700 text-primary">£{{ number_format($req->package->price, 2) }}</td>
                 <td>
-                    @if($req->status === 'pending')
+                    @if($req->overdue)
+                        <span class="badge badge--danger">Overdue</span>
+                    @elseif($req->status === 'pending')
                         <span class="badge badge--warning">Urgent Follow-Up</span>
+                    @elseif($req->status === 'active')
+                        <span class="badge badge--success">Active</span>
                     @elseif($req->status === 'responded')
                         <span class="badge badge--success">Responded</span>
                     @else
@@ -69,8 +73,8 @@
                         @if($req->status === 'pending')
                         <form method="POST" action="{{ route('dealer.package-requests.update', $req) }}" style="display:inline">
                             @csrf @method('PUT')
-                            <input type="hidden" name="status" value="responded">
-                            <button class="btn btn--primary btn--xs">Mark Responded</button>
+                            <input type="hidden" name="status" value="active">
+                            <button class="btn btn--primary btn--xs">Activate Plan</button>
                         </form>
                         @endif
                     </div>

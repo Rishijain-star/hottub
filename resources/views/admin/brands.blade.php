@@ -111,7 +111,7 @@
             <tr>
                 <td>
                     @if($b->logo_path)
-                        <img src="{{ asset('storage/'.$b->logo_path) }}" alt="{{ $b->name }}" style="width:40px;height:40px;object-fit:contain;border-radius:4px">
+                        <img src="{{ url('storage/app/public/'.$b->logo_path) }}" alt="{{ $b->name }}" style="width:40px;height:40px;object-fit:contain;border-radius:4px">
                     @else
                         —
                     @endif

@@ -60,7 +60,10 @@ class AuthController extends Controller
             'password' => 'required|min:8|confirmed',
             'role' => 'required|in:customer,dealer,manufacturer',
             'postcode' => 'required|string|max:20',
-            'phone' => 'nullable|string|max:255',
+            'phone' => 'required_if:role,dealer,manufacturer|nullable|string|max:255',
+            'company_number' => 'required_if:role,dealer,manufacturer|nullable|string|max:255',
+            'vat_number' => 'required_if:role,dealer,manufacturer|nullable|string|max:255',
+            'address' => 'required_if:role,dealer,manufacturer|nullable|string|max:1000',
             'terms' => 'accepted',
         ]);
 
@@ -77,6 +80,9 @@ class AuthController extends Controller
             'role' => $dbRole,
             'postcode' => $request->postcode,
             'phone' => $request->phone,
+            'company_number' => $request->company_number,
+            'vat_number' => $request->vat_number,
+            'address' => $request->address,
             'status' => ($dbRole === 'user') ? 'active' : 'pending',
         ];
 

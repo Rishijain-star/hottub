@@ -1,6 +1,79 @@
 @extends('layouts.dealer')
 @section('title', 'Maintenance Packages – Dealer Panel')
 @section('content')
+<style>
+    .pkg-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        background: var(--white);
+        border: 1.5px solid var(--gray-200);
+        border-radius: 16px;
+        padding: 1.75rem;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    .pkg-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(0, 168, 150, 0.1);
+        border-color: var(--teal);
+    }
+    .pkg-card .pkg-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    .pkg-card .pkg-name {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: var(--gray-900);
+        line-height: 1.2;
+    }
+    .pkg-card .pkg-price {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--teal);
+        margin-bottom: 0.5rem;
+    }
+    .pkg-card .pkg-price span {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--gray-400);
+        margin-left: 2px;
+    }
+    .pkg-card .pkg-desc {
+        color: var(--gray-500);
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+    }
+    .pkg-card .pkg-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 1.5rem 0;
+        flex-grow: 1;
+    }
+    .pkg-card .pkg-features li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        color: var(--gray-600);
+        font-size: 0.9rem;
+    }
+    .pkg-card .pkg-features li svg {
+        color: var(--teal);
+        flex-shrink: 0;
+    }
+    .pkg-card .pkg-footer {
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
 <div class="panel-page-header">
     <div><h1 class="panel-page-title">Maintenance Packages</h1><p class="panel-page-sub">Create and manage your service subscription tiers</p></div>
     <button class="btn btn--primary btn--pill" onclick="showAddForm()">+ Add Package</button>
@@ -32,26 +105,36 @@
 
 <div class="grid grid--3">
     @forelse($packages as $pkg)
-    <div class="card" style="display:flex; flex-direction:column;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div class="fw-800" style="font-size:1.25rem; color:var(--gray-900)">{{ $pkg->name }}</div>
+    <div class="pkg-card">
+        <div class="pkg-header">
+            <div class="pkg-name">{{ $pkg->name }}</div>
             <div style="display:flex; gap:8px;">
-                <button class="icon-btn" onclick="editPackage({{ $pkg->id }})" title="Edit">✎</button>
-                <form method="POST" action="{{ route('dealer.maintenance-packages.destroy', $pkg) }}" onsubmit="return confirm('Delete this package?')">
+                <button class="icon-btn" onclick="editPackage({{ $pkg->id }})" title="Edit">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
+                <form method="POST" action="{{ route('dealer.maintenance-packages.destroy', $pkg) }}" onsubmit="event.preventDefault(); showConfirmationModal(this, 'Delete Package?', 'Are you sure you want to delete this package?');">
                     @csrf @method('DELETE')
-                    <button class="icon-btn" style="color:var(--danger-600)">✕</button>
+                    <button class="icon-btn" style="color:#ef4444; border-color: #fee2e2; background: #fef2f2;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
                 </form>
             </div>
         </div>
-        <div class="fw-700 mt-1" style="font-size:1.5rem; color:var(--primary-600)">£{{ number_format($pkg->price, 2) }}</div>
-        <p class="text-sm text-muted mt-2">{{ $pkg->description }}</p>
-        <ul style="margin:15px 0; padding-left:20px; font-size:0.88rem; color:var(--gray-600); flex-grow:1;">
+        <div class="pkg-price">£{{ number_format($pkg->price, 2) }}<span>/year</span></div>
+        <div class="pkg-desc">{{ $pkg->description }}</div>
+        
+        <ul class="pkg-features">
             @foreach($pkg->features ?? [] as $f)
-                <li>{{ $f }}</li>
+                <li>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    {{ $f }}
+                </li>
             @endforeach
         </ul>
-        <div class="mt-auto pt-3 border-top">
+
+        <div class="pkg-footer">
             <span class="badge badge--{{ $pkg->status === 'active' ? 'success' : 'dark' }}">{{ ucfirst($pkg->status) }}</span>
+            <div class="text-xs text-muted fw-600">ID: #{{ str_pad($pkg->id, 4, '0', STR_PAD_LEFT) }}</div>
         </div>
     </div>
     @empty

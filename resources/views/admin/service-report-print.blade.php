@@ -95,7 +95,7 @@
         </div>
         <div class="checklist-item" style="margin-top: 20px;">
             <div class="label">Digital Signature</div>
-            <div class="signature">{{ $req->customer_signature ?: 'PENDING SIGNATURE' }}</div>
+            <img src="{{ asset('storage/' . $req->customer_signature) }}" alt="Signature" style="max-width: 200px; border: 1px solid #eee;"/>
             <div style="font-size: 11px; color: #999; margin-top: 5px;">
                 Electronically confirmed on: {{ $req->completed_at ? $req->completed_at->format('d M Y H:i:s') : 'N/A' }}
             </div>

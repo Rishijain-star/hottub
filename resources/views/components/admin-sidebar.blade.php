@@ -26,6 +26,17 @@
                 <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
             </svg>
             Support Requests
+            @php
+                $hasSupportStatusCol = \Illuminate\Support\Facades\Schema::hasColumn('messages', 'support_status');
+                $pendingSupportRequests = \App\Models\Message::where('receiver_id', 1)
+                    ->when($hasSupportStatusCol, function ($q) {
+                        $q->where('support_status', 'pending');
+                    })
+                    ->count();
+            @endphp
+            @if($pendingSupportRequests > 0)
+                <span style="background:#ef4444;color:#fff;min-width:18px;height:18px;padding:0 5px;border-radius:10px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:auto;">{{ $pendingSupportRequests }}</span>
+            @endif
         </a>
 
         <a href="{{ route('admin.hot-tubs.index') }}"
@@ -77,6 +88,14 @@
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
             </svg>
             Parts
+        </a>
+
+        <a href="{{ route('admin.plans') }}"
+           class="panel-nav-link {{ request()->routeIs('admin.plans*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            Credit Plans
         </a>
 
         <a href="{{ route('admin.featured') }}"

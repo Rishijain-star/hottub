@@ -62,9 +62,18 @@ class ForgotPasswordController extends Controller
             ->first();
 
         if (!$otpRecord || $otpRecord->expires_at->isPast()) {
+            $attempts = Session::get('otp_attempts', 0) + 1;
+            Session::put('otp_attempts', $attempts);
+
+            if ($attempts >= 3) {
+                Session::forget('otp_attempts');
+                return back()->withErrors(['otp' => 'You have exceeded the maximum number of OTP attempts.']);
+            }
+
             return back()->withErrors(['otp' => 'The OTP is invalid or has expired.']);
         }
 
+        Session::forget('otp_attempts');
         Session::put('otp_verified', true);
 
         return redirect()->route('password.reset.form');
@@ -84,6 +93,14 @@ class ForgotPasswordController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
+        $attempts = Session::get('reset_attempts', 0) + 1;
+        Session::put('reset_attempts', $attempts);
+
+        if ($attempts > 3) {
+            Session::forget('reset_attempts');
+            return back()->with('error', 'You have exceeded the maximum number of password reset attempts.');
+        }
+
         $email = Session::get('reset_email');
         if (!$email || !Session::get('otp_verified')) {
             return redirect()->route('password.request');
@@ -98,7 +115,7 @@ class ForgotPasswordController extends Controller
         // Invalidate OTP
         PasswordResetOtp::where('email', $email)->delete();
 
-        Session::forget(['reset_email', 'otp_verified']);
+        Session::forget(['reset_email', 'otp_verified', 'reset_attempts']);
 
         return redirect()->route('password.success');
     }

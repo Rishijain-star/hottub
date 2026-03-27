@@ -33,6 +33,10 @@
                     <option @selected(old('category',$item->category)=='Pumps')>Pumps</option>
                     <option @selected(old('category',$item->category)=='Heaters')>Heaters</option>
                     <option @selected(old('category',$item->category)=='Filters')>Filters</option>
+                    <option @selected(old('category',$item->category)=='Controls')>Controls</option>
+                    <option @selected(old('category',$item->category)=='Jets')>Jets</option>
+                    <option @selected(old('category',$item->category)=='Covers')>Covers</option>
+                    <option @selected(old('category',$item->category)=='Chemicals')>Chemicals</option>
                     <option @selected(old('category',$item->category)=='Other')>Other</option>
                 </select>
             </div>

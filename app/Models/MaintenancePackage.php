@@ -20,4 +20,9 @@ class MaintenancePackage extends Model
     {
         return $this->belongsTo(User::class, 'dealer_id');
     }
+
+    public function requests()
+    {
+        return $this->hasMany(PackageRequest::class, 'package_id');
+    }
 }

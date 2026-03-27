@@ -18,6 +18,18 @@
             <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-input"></div>
             <div class="form-group"><label class="form-label">Postcode</label><input name="postcode" class="form-input"></div>
         </div>
+        <div class="form-group"><label class="form-label">Address</label><textarea name="address" class="form-input" rows="2"></textarea></div>
+        <div class="form-group">
+            <label class="form-label">Lead Source</label>
+            <select name="source" class="form-input">
+                <option value="">Select Source</option>
+                <option value="Email">Email</option>
+                <option value="Social Media">Social Media</option>
+                <option value="Show">Show</option>
+                <option value="Phone">Phone</option>
+                <option value="Walk-in">Walk-in</option>
+            </select>
+        </div>
         <div class="modal-actions" style="justify-content: flex-start;">
             <button class="btn btn--primary">Save Lead</button>
             <button type="button" class="btn btn--ghost" onclick="document.getElementById('addLeadCard').style.display='none'">Cancel</button>
@@ -28,76 +40,58 @@
 {{-- Search Bar --}}
 <div class="card mb-4">
     <form method="GET" action="{{ route('dealer.leads.index') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+        @if(request('lead_status'))
+            <input type="hidden" name="lead_status" value="{{ request('lead_status') }}">
+        @endif
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Name, Email, Phone..." value="{{ request('search') }}">
         </div>
-        <div class="form-group mb-0">
-            <label class="form-label">Status</label>
-            <select name="status" class="form-input">
-                <option value="">All Status</option>
-                <option value="new" {{ request('status') === 'new' ? 'selected' : '' }}>New</option>
-                <option value="contacted" {{ request('status') === 'contacted' ? 'selected' : '' }}>Contacted</option>
-                <option value="converted" {{ request('status') === 'converted' ? 'selected' : '' }}>Converted</option>
-                <option value="closed" {{ request('status') === 'closed' ? 'selected' : '' }}>Closed</option>
-            </select>
-        </div>
         <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+            <button type="submit" class="btn btn--primary" style="flex: 1;">Search</button>
             <a href="{{ route('dealer.leads.index') }}" class="btn btn--ghost">Clear</a>
         </div>
     </form>
 </div>
 
-<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">My Private Leads</div>
+
+
+<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">Private Leads</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>
             <tr>
                 <th>CUSTOMER</th>
                 <th>POSTCODE</th>
-                <th>INTERESTS</th>
+                <th>SOURCE</th>
+                <th>CREATED ON</th>
                 <th>STATUS</th>
                 <th>ACTIONS</th>
             </tr>
         </thead>
         <tbody>
             @forelse($privateLeads as $it)
-            @php
-                $status = 'ACTIVE';
-                $statusClass = ''; 
-                if ($it->stage === 'Delivered') {
-                    $status = 'WON';
-                    $statusClass = 'text-success';
-                }
-            @endphp
             <tr>
                 <td>
                     <div class="fw-700 text-dark">{{ $it->name }}</div>
                     <div class="text-sm text-muted">{{ $it->email }}</div>
                 </td>
                 <td>{{ $it->postcode ?: '—' }}</td>
+                <td><span class="badge" style="background: #f1f5f9; color: #475569;">{{ $it->source ?: 'Direct' }}</span></td>
+                <td class="text-sm text-muted">{{ $it->created_at->format('d M Y') }}</td>
                 <td>
-                    <div style="display:flex; flex-direction:column; gap:2px">
-                        @if(is_array($it->interests) && count($it->interests))
-                            @foreach($it->interests as $tag)
-                                <div class="fw-700 text-dark" style="font-size:0.85rem">{{ ucwords(str_replace('_',' ',$tag)) }}</div>
-                                <div class="text-xs text-muted">HOT TUB</div>
-                            @endforeach
-                        @else
-                            —
-                        @endif
-                    </div>
+                    <span class="fw-800" style="font-size:0.85rem; color: var(--primary-600);">{{ strtoupper($it->status) }}</span>
                 </td>
                 <td>
-                    <span class="fw-800 {{ $statusClass }}" style="font-size:0.85rem">{{ $status }}</span>
-                </td>
-                <td>
-                    <a href="{{ route('dealer.leads.view', $it->id) }}" class="fw-700 text-dark" style="text-decoration:none">View</a>
+                    @if(strtolower($it->status) !== 'closed')
+                        <a href="{{ route('dealer.leads.view', $it->id) }}" class="fw-700 text-dark" style="text-decoration:none">View</a>
+                    @else
+                        —
+                    @endif
                 </td>
             </tr>
             @empty
-            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No private leads found.</td></tr>
+            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">No private leads found.</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -109,7 +103,22 @@
     </div>
 @endif
 
-<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)"> Leads</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="fw-800" style="font-size:1.1rem; color:var(--gray-900)">Won / Purchased Leads</div>
+    <div>
+        <form method="GET" action="{{ route('dealer.leads.index') }}" id="statusFilterForm">
+            @if(request('search'))
+                <input type="hidden" name="search" value="{{ request('search') }}">
+            @endif
+            <select name="lead_status" class="form-input" style="width: 150px; padding: 0.5rem;" onchange="document.getElementById('statusFilterForm').submit()">
+                <option value="">All Leads</option>
+                <option value="active" {{ request('lead_status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="won" {{ request('lead_status') === 'won' ? 'selected' : '' }}>Won</option>
+                <option value="closed" {{ request('lead_status') === 'closed' ? 'selected' : '' }}>Closed</option>
+            </select>
+        </form>
+    </div>
+</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>

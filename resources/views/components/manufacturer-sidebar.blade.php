@@ -1,4 +1,10 @@
 <aside class="panel-sidebar" id="manufacturerSidebar">
+    @php
+        $hasUnreadAvailableLeadsDot = \App\Models\Notification::where('user_id', auth()->id())
+            ->where('type', 'available_leads')
+            ->where('read', false)
+            ->exists();
+    @endphp
 
     <div class="panel-sidebar__head">
         <div>
@@ -28,6 +34,9 @@
                 <path d="M1 1h4l2.68 12.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
             </svg>
             Available Leads
+            @if($hasUnreadAvailableLeadsDot)
+                <span style="width:10px;height:10px;border-radius:999px;background:#ef4444;display:inline-block;margin-left:auto;"></span>
+            @endif
         </a>
 
         <a href="{{ route('manufacturer.leads') }}"
@@ -105,13 +114,18 @@
 
         <a href="{{ route('manufacturer.messages') }}"
            class="panel-nav-link {{ request()->routeIs('manufacturer.messages*') ? 'active' : '' }}">
-            <div style="position: relative;">
-                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-14.7 8.38 8.38 0 0 1 3.8.9L21 3z"/>
-                </svg>
-                <div id="msg-badge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; width: 14px; height: 14px; border-radius: 50%; font-size: 0.6rem; display: none; align-items: center; justify-content: center; font-weight: 800;"></div>
-            </div>
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-14.7 8.38 8.38 0 0 1 3.8.9L21 3z"/>
+            </svg>
             Messages
+            @php
+                $unreadMessages = \App\Models\Message::where('receiver_id', auth()->id())
+                    ->whereNull('read_at')
+                    ->count();
+            @endphp
+            @if($unreadMessages > 0)
+                <span style="background:#ef4444;color:#fff;min-width:18px;height:18px;padding:0 5px;border-radius:10px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:auto;">{{ $unreadMessages }}</span>
+            @endif
         </a>
 
         <a href="{{ route('manufacturer.payments') }}"

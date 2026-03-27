@@ -65,6 +65,10 @@
                     <option>Pumps</option>
                     <option>Heaters</option>
                     <option>Filters</option>
+                    <option>Controls</option>
+                    <option>Jets</option>
+                    <option>Covers</option>
+                    <option>Chemicals</option>
                     <option>Other</option>
                 </select>
             </div>
@@ -119,11 +123,16 @@
         @forelse($items as $it)
             <tr>
                 <td style="width:60px">
-                    @php $img = (is_array($it->images) && count($it->images)) ? $it->images[0] : null; @endphp
+                    @php 
+                        $img = (is_array($it->images) && count($it->images)) ? $it->images[0] : null; 
+                        if ($img && !Str::startsWith($img, ['http://', 'https://'])) {
+                            $img = url('storage/app/public/' . $img);
+                        }
+                    @endphp
                     @if($img)
                         <img src="{{ $img }}" alt="{{ $it->name }}" style="width:48px;height:48px;object-fit:cover;border-radius:6px">
                     @else
-                        <div style="width:48px;height:48px;border:1px dashed var(--gray-300);border-radius:6px;display:flex;align-items:center;justify-content:center">📷</div>
+                        <div style="width:48px;height:48px;border:1px dashed var(--gray-300);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--gray-400)">📷</div>
                     @endif
                 </td>
                 <td><div class="fw-700 text-dark">{{ $it->name }}</div><div class="text-sm text-muted">{{ $it->slug }}</div></td>
@@ -132,9 +141,16 @@
                 <td>@if(!is_null($it->price)) £{{ number_format($it->price, 2) }} @else — @endif</td>
                 <td>
                     @if(is_array($it->compatible_brand_ids) && count($it->compatible_brand_ids))
-                        {{ count($it->compatible_brand_ids) }} brands
+                        <div style="display:flex; flex-wrap:wrap; gap:4px; max-width:200px">
+                            @foreach($it->compatible_brand_ids as $bid)
+                                @php $bname = $brands->firstWhere('id', $bid)->name ?? null; @endphp
+                                @if($bname)
+                                    <span class="badge" style="font-size:10px; padding:2px 6px">{{ $bname }}</span>
+                                @endif
+                            @endforeach
+                        </div>
                     @else
-                        All brands
+                        <span class="text-muted">All brands</span>
                     @endif
                 </td>
                 <td>

@@ -48,8 +48,36 @@
 
     </div>
 
+    @yield('modals')
+
+    <div class="modal-backdrop" id="confirmModal">
+        <div class="modal modal--sm">
+            <div class="modal-header">
+                <div class="modal-title" id="confirmModalTitle">Are you sure?</div>
+            </div>
+            <div class="text-sm text-muted" style="margin-top:-0.5rem; margin-bottom:1.25rem;" id="confirmModalDesc">This action cannot be undone.</div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn--ghost" style="background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;" onclick="document.getElementById('confirmModal').classList.remove('active')">No, Cancel</button>
+                <button type="button" class="btn btn--danger" id="confirmModalYes">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
     @yield('scripts')
     <script>
+        function showConfirmationModal(form, title, desc, buttonText) {
+            document.getElementById('confirmModalTitle').textContent = title || 'Are you sure?';
+            document.getElementById('confirmModalDesc').textContent = desc || 'This action cannot be undone.';
+            const yesBtn = document.getElementById('confirmModalYes');
+            yesBtn.textContent = buttonText || 'Yes, Delete';
+
+            document.getElementById('confirmModal').classList.add('active');
+
+            yesBtn.onclick = function() {
+                form.submit();
+            }
+        }
+
         document.querySelectorAll('.panel-nav-link').forEach(link => {
             if (link.getAttribute('href') === window.location.pathname) {
                 link.classList.add('active');

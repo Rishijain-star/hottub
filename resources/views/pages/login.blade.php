@@ -45,7 +45,9 @@
             <div class="form-group" style="margin-bottom:1.5rem;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">
                     <label class="form-label" for="password" style="margin-bottom:0;">Password</label>
-                    <a href="/forgot-password" class="auth-forgot">Forgot password?</a>
+                    <div class="auth-forgot-links">
+                        <a href="{{ route('password.request') }}" class="auth-forgot">Forgot password?</a>
+                    </div>
                 </div>
                 <div class="auth-pw-wrap">
                     <input

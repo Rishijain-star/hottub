@@ -1,61 +1,39 @@
 @extends('layouts.dealer')
 @section('title', 'Available Leads – Dealer Panel')
 @section('content')
-<div class="panel-page-header"><div><h1 class="panel-page-title">Available Leads</h1><p class="panel-page-sub">Leads created by admin, available for purchase</p></div></div>
-<div class="card" style="padding:0;">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Customer</th>
-                <th>Postcode</th>
-                <th>Interests</th>
-                <th>Price</th>
-                <th>Purchased</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($items as $it)
-            @php $cnt = (int) ($counts[$it->id] ?? 0); $iBought = in_array($it->id, $mine ?? []); @endphp
-            <tr data-lead-id="{{ $it->id }}">
-                <td>
-                    <div class="fw-700 text-dark">{{ $iBought ? $it->name : 'Name Hidden' }}</div>
-                    <div class="text-sm text-muted">{{ $iBought ? $it->email : 'Email Hidden' }}</div>
-                </td>
-                <td>{{ $it->postcode }}</td>
-                <td>
-                    @if(is_array($it->interests) && count($it->interests))
-                        @foreach($it->interests as $tag)
-                            <span class="badge">{{ ucwords(str_replace('_',' ',$tag)) }}</span>
-                        @endforeach
-                    @else
-                        —
-                    @endif
-                </td>
-                <td>@if(!is_null($it->price)) £{{ number_format($it->price, 2) }} @else — @endif</td>
-                <td><span class="text-sm">{{ $cnt }} dealer{{ $cnt===1?'':'s' }} purchased</span></td>
-                <td>
-                    @if($iBought)
-                        <a class="btn btn--ghost btn--sm" href="{{ route('dealer.leads.view', $it) }}">View</a>
-                    @elseif($cnt >= 3)
-                        <button class="btn btn--ghost btn--sm" disabled>Sold Out</button>
-                    @else
-                        <button class="btn btn--primary btn--sm js-buy-lead" data-id="{{ $it->id }}">Buy</button>
-                    @endif
-                </td>
-            </tr>
-            @empty
-            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:1rem">No leads available.</td></tr>
-            @endforelse
-        </tbody>
-    </table>
+<div class="panel-page-header" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+    <div>
+        <h1 class="panel-page-title">Available Leads (<span id="availableLeadsCountHeader">{{ $items->total() }}</span>)</h1>
+        <p class="panel-page-sub">Leads created by admin, available for purchase</p>
+    </div>
+    <button type="button" class="btn btn--sm" id="jsRefreshAvailableLeads" style="display:inline-flex;align-items:center;justify-content:center;min-width:96px;height:36px;padding:0 14px;border:1px solid #0ea5a3;background:#ffffff;color:#0f172a;font-weight:700;border-radius:8px;line-height:1;">Refresh</button>
 </div>
-@if($items->hasPages())
-    <div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
-@endif
+<div id="availableLeadsListMount">
+    @include('dealer.partials.quotes-available-list')
+</div>
+@endsection
 
 @section('scripts')
 <script>
+document.getElementById('jsRefreshAvailableLeads')?.addEventListener('click', async function () {
+    const btn = this;
+    btn.disabled = true;
+    const page = new URLSearchParams(window.location.search).get('page') || '1';
+    try {
+        const res = await fetch('{{ route('dealer.quotes') }}?fragment=1&page=' + encodeURIComponent(page), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        const mount = document.getElementById('availableLeadsListMount');
+        if (mount && data.html) mount.innerHTML = data.html;
+        const h = document.getElementById('availableLeadsCountHeader');
+        if (h && typeof data.total !== 'undefined') h.textContent = data.total;
+    } catch (e) {
+        alert('Unable to refresh list.');
+    } finally {
+        btn.disabled = false;
+    }
+});
 document.addEventListener('click', async function(e){
     const btn = e.target.closest('.js-buy-lead');
     if (!btn) return;
@@ -92,6 +70,18 @@ document.addEventListener('click', async function(e){
             }
         } else {
             alert(data.msg || 'Unable to purchase lead.');
+            if (data.msg && data.msg.includes('already been closed by another dealer')) {
+                const row = document.querySelector('tr[data-lead-id="'+id+'"]');
+                if (row) {
+                    row.remove();
+                    // Update header count
+                    const countSpan = document.getElementById('availableLeadsCountHeader');
+                    if (countSpan) {
+                        let count = parseInt(countSpan.textContent) || 0;
+                        if (count > 0) countSpan.textContent = count - 1;
+                    }
+                }
+            }
             btn.disabled = false;
         }
     }catch(err){
@@ -100,5 +90,4 @@ document.addEventListener('click', async function(e){
     }
 });
 </script>
-@endsection
 @endsection

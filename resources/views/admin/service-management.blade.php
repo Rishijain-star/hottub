@@ -102,7 +102,20 @@
     </div>
 </div>
 
+{{-- Image Preview Modal --}}
+<div id="imagePreviewModal" class="modal" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.8);align-items:center;justify-content:center" onclick="this.style.display='none'">
+    <div style="position:relative; max-width:90%; max-height:90%;">
+        <button type="button" style="position:absolute; top:-40px; right:0; background:none; border:none; color:#fff; font-size:30px; cursor:pointer;">&times;</button>
+        <img id="previewImage" src="" style="width:100%; height:auto; border-radius:8px; background:#fff;">
+    </div>
+</div>
+
 <script>
+    function openImagePreview(src) {
+        document.getElementById('previewImage').src = src;
+        document.getElementById('imagePreviewModal').style.display = 'flex';
+    }
+
     function viewServiceDetails(req) {
         document.getElementById('modalTitle').textContent = 'Service Report: ' + req.product_name;
         const data = req.checklist_data || {};
@@ -151,7 +164,12 @@
                 <div class="text-sm text-muted">
                     <div style="margin-bottom:10px"><strong>Review:</strong> ${req.customer_review || 'No review provided.'}</div>
                     <div><strong>Digital Signature:</strong></div>
-                    <div style="font-family:'Dancing Script', cursive; font-size:1.8rem; color:var(--gray-900); margin-top: 5px;">${req.customer_signature || 'Not signed yet'}</div>
+                    ${req.customer_signature ? `
+                        <div style="cursor:pointer;" onclick="openImagePreview('/storage/${req.customer_signature}')">
+                            <img src="/storage/${req.customer_signature}" alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                            <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
+                        </div>
+                    ` : '<div class="text-sm text-muted">N/A</div>'}
                     <div style="font-size: 11px; margin-top: 5px;">Completed On: ${req.completed_at ? new Date(req.completed_at).toLocaleString() : 'Pending'}</div>
                 </div>
             </div>

@@ -103,38 +103,51 @@
         <button type="button" class="icon-btn" 
                 style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
                 onclick="document.getElementById('viewModal').style.display='none'">&times;</button>
-        <h3 id="modalTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">Request Details</h3>
-        <div id="modalBody" style="margin-bottom:20px"></div>
+        <h3 id="viewModalTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">Request Details</h3>
+        <div id="viewModalBody" style="margin-bottom:20px"></div>
         <div class="modal-actions" style="justify-content: flex-end;"><button class="btn btn--ghost btn--sm" onclick="document.getElementById('viewModal').style.display='none'">Close</button></div>
     </div>
 </div>
 
+{{-- Image Preview Modal --}}
+<div id="imagePreviewModal" class="modal" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.8);align-items:center;justify-content:center" onclick="this.style.display='none'">
+    <div style="position:relative; max-width:90%; max-height:90%;">
+        <button type="button" style="position:absolute; top:-40px; right:0; background:none; border:none; color:#fff; font-size:30px; cursor:pointer;">&times;</button>
+        <img id="previewImage" src="" style="width:100%; height:auto; border-radius:8px; background:#fff;">
+    </div>
+</div>
+
 {{-- Confirmation Modal --}}
-<div id="confirmationModal" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
-    <div class="card" style="width:600px;background:#fff;padding:25px;border-radius:12px;position:relative">
+<div id="confirmationModal" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:15px;">
+    <div class="card" style="width:100%; max-width:600px; max-height:95vh; background:#fff; padding:25px; border-radius:12px; position:relative; overflow-y:auto; display:flex; flex-direction:column;">
         <button type="button" class="icon-btn" 
-                style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
+                style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none;z-index:10;" 
                 onclick="document.getElementById('confirmationModal').style.display='none'">&times;</button>
-        <h3 style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800;">Service Confirmation</h3>
+        
+        <h3 style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">Service Confirmation</h3>
         
         <div id="checklistDetails" style="background:#f8fafb; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e5e7eb">
             <h4 style="margin-top:0; font-size:0.95rem; color:var(--gray-900)">Work Completed:</h4>
             <div id="checklistContent" class="text-sm text-muted"></div>
         </div>
 
-        <form id="confirmationForm" method="POST">
+        <form id="confirmationForm" method="POST" style="display:flex; flex-direction:column; gap:15px;">
             @csrf @method('PUT')
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom:0;">
                 <label class="form-label">Review / Feedback (Optional)</label>
                 <textarea name="customer_review" class="form-input" rows="2" placeholder="How was the service?"></textarea>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Digital Signature (Type your full name) *</label>
-                <input name="customer_signature" class="form-input" required placeholder="Your full name as signature">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Digital Signature *</label>
+                <div id="signature-pad-container" style="border: 1px solid #ccc; border-radius: 0.25rem; height: 180px; width: 100%; overflow: hidden; background:#fff;">
+                    <canvas id="signature-pad" style="width: 100%; height: 100%; cursor: crosshair; touch-action: none;"></canvas>
+                </div>
+                <input type="hidden" name="customer_signature">
+                <button type="button" id="clear-signature" class="btn btn--sm btn--ghost mt-2">Clear</button>
             </div>
 
-            <div class="modal-actions" style="justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <div class="modal-actions" style="justify-content: flex-end; gap: 10px; margin-top: 5px; padding-bottom: 5px;">
                 <button type="button" class="btn btn--ghost" onclick="document.getElementById('confirmationModal').style.display='none'">Cancel</button>
                 <button type="submit" class="btn btn--primary">Confirm & Mark Completed</button>
             </div>
@@ -142,9 +155,52 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
     const parts = @json($parts);
     const services = @json($services);
+    function openImagePreview(src) {
+        document.getElementById('previewImage').src = src;
+        document.getElementById('imagePreviewModal').style.display = 'flex';
+    }
+
+    let signaturePad;
+
+    function resizeCanvas() {
+        const canvas = document.getElementById('signature-pad');
+        if (!canvas) return;
+        const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+        if (signaturePad) signaturePad.clear();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const canvas = document.getElementById('signature-pad');
+        if (!canvas) return;
+
+        signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255, 255, 255)',
+            penColor: 'rgb(0, 0, 0)'
+        });
+
+        window.addEventListener("resize", resizeCanvas);
+        // Initial resize will happen when modal opens
+        
+        document.getElementById('clear-signature').addEventListener('click', function () {
+            signaturePad.clear();
+        });
+
+        document.getElementById('confirmationForm').addEventListener('submit', function (event) {
+            if (signaturePad.isEmpty()) {
+                alert("Please provide your signature.");
+                event.preventDefault();
+            } else {
+                document.querySelector('input[name="customer_signature"]').value = signaturePad.toDataURL('image/png');
+            }
+        });
+    });
 
     document.getElementById('toggleNewRequest')?.addEventListener('click', () => {
         const el = document.getElementById('newRequestCard');
@@ -181,6 +237,11 @@
         `;
         
         document.getElementById('confirmationModal').style.display = 'flex';
+        
+        // Use a small timeout to ensure display:flex is applied before measuring dimensions
+        setTimeout(() => {
+            resizeCanvas();
+        }, 100);
     }
 
     function updateProductList() {
@@ -199,12 +260,21 @@
     }
 
     function viewRequest(req) {
-        document.getElementById('modalTitle').textContent = req.product_name;
-        document.getElementById('modalBody').innerHTML = `
+        document.getElementById('viewModalTitle').textContent = req.product_name;
+        document.getElementById('viewModalBody').innerHTML = `
             <div style="margin-bottom:10px"><span class="fw-700">Type:</span> ${req.type.toUpperCase()}</div>
             <div style="margin-bottom:10px"><span class="fw-700">Status:</span> ${req.status.toUpperCase()}</div>
             <div style="margin-bottom:10px"><span class="fw-700">Submitted:</span> ${new Date(req.created_at).toLocaleDateString()}</div>
             <div style="margin-bottom:10px"><span class="fw-700">Message:</span><br>${req.message || 'No message provided.'}</div>
+            <div style="margin-top:20px">
+                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Your Signature:</h4>
+                ${req.customer_signature ? `
+                    <div style="cursor:pointer;" onclick="openImagePreview('/storage/${req.customer_signature}')">
+                        <img src="/storage/${req.customer_signature}" alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                        <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
+                    </div>
+                ` : '<div class="text-sm text-muted">N/A</div>'}
+            </div>
         `;
         document.getElementById('viewModal').style.display = 'flex';
     }

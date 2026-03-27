@@ -41,11 +41,6 @@
             <label class="form-label">Title</label>
             <input name="title" class="form-input" value="{{ old('title',$item->title) }}">
         </div>
-        <div class="form-group">
-            <label class="form-label">Featured Image</label>
-            <input type="file" name="image" class="form-input" accept="image/*">
-            <div class="text-sm text-muted">Upload a new image to replace existing</div>
-        </div>
         <div class="grid grid--2">
             <div class="form-group">
                 <label class="form-label">Featured From</label>
@@ -77,8 +72,14 @@
         <div class="card">
             <div style="display:flex;gap:14px">
                 <div style="width:160px;height:100px;background:#f3f4f6;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
-                    @if($it->image_url)
-                        <img src="{{ $it->image_url }}" alt="{{ $it->title }}" style="width:100%;height:100%;object-fit:cover">
+                    @php
+                        $img = $it->image_url;
+                        if ($img && !Str::startsWith($img, ['http://', 'https://'])) {
+                            $img = url('storage/app/public/' . $img);
+                        }
+                    @endphp
+                    @if($img)
+                        <img src="{{ $img }}" alt="{{ $it->title }}" style="width:100%;height:100%;object-fit:cover">
                     @else
                         <span>📷</span>
                     @endif

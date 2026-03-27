@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class LeadController extends Controller
 {
@@ -51,9 +53,11 @@ class LeadController extends Controller
 
     public function store(Request $request)
     {
-        $data = $this->validateData($request);
+        $data = $this->validateData($request, true);
         $data['interests'] = $request->input('interests', []);
         $data['is_national'] = $request->boolean('is_national');
+
+        $this->ensureCustomerAccountForLead($data, (string) $request->input('temporary_password'));
 
         // Geocode the postcode
         $geo = app(\App\Services\GeocodingService::class)->geocode($data['postcode']);
@@ -134,9 +138,9 @@ class LeadController extends Controller
         return view('admin.lead-activity', compact('lead', 'activities'));
     }
 
-    private function validateData(Request $request): array
+    private function validateData(Request $request, bool $isCreate = false): array
     {
-        return $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
@@ -146,6 +150,43 @@ class LeadController extends Controller
             'message' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
             'status' => ['required', 'in:new,contacted,converted,closed'],
+        ];
+
+        if ($isCreate) {
+            $rules['temporary_password'] = ['required', 'string', 'min:8', 'max:255'];
+        }
+
+        return $request->validate($rules);
+    }
+
+    private function ensureCustomerAccountForLead(array $data, string $temporaryPassword): void
+    {
+        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        if ($email === '') {
+            return;
+        }
+
+        $existingUser = User::whereRaw('LOWER(email) = ?', [$email])->first();
+        if ($existingUser) {
+            // Keep existing accounts intact; only enrich customer profile if needed.
+            if ($existingUser->role === User::ROLE_USER) {
+                $existingUser->update([
+                    'name' => $existingUser->name ?: ($data['name'] ?? $existingUser->name),
+                    'phone' => $existingUser->phone ?: ($data['phone'] ?? $existingUser->phone),
+                    'postcode' => $existingUser->postcode ?: ($data['postcode'] ?? $existingUser->postcode),
+                ]);
+            }
+            return;
+        }
+
+        User::create([
+            'name' => $data['name'],
+            'email' => $email,
+            'password' => Hash::make($temporaryPassword),
+            'role' => User::ROLE_USER,
+            'status' => 'active',
+            'phone' => $data['phone'] ?? null,
+            'postcode' => $data['postcode'] ?? null,
         ]);
     }
 }

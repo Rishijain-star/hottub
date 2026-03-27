@@ -47,6 +47,7 @@
         <div class="grid grid--2">
             <div class="form-group"><label class="form-label">Name *</label><input name="name" class="form-input" required></div>
             <div class="form-group"><label class="form-label">Email *</label><input name="email" class="form-input" type="email" required></div>
+            <div class="form-group"><label class="form-label">Temporary Password *</label><input name="temporary_password" class="form-input" type="text" minlength="8" required></div>
             <div class="form-group"><label class="form-label">Phone *</label><input name="phone" class="form-input"></div>
             <div class="form-group"><label class="form-label">Postcode *</label><input name="postcode" class="form-input" required></div>
             <div class="form-group"><label class="form-label">Price (£) *</label><input name="price" class="form-input" type="number" step="0.01" min="0" required></div>

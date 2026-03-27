@@ -18,6 +18,18 @@
             <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-input"></div>
             <div class="form-group"><label class="form-label">Postcode</label><input name="postcode" class="form-input"></div>
         </div>
+        <div class="form-group"><label class="form-label">Address</label><textarea name="address" class="form-input" rows="2"></textarea></div>
+        <div class="form-group">
+            <label class="form-label">Lead Source</label>
+            <select name="source" class="form-input">
+                <option value="">Select Source</option>
+                <option value="Email">Email</option>
+                <option value="Social Media">Social Media</option>
+                <option value="Show">Show</option>
+                <option value="Phone">Phone</option>
+                <option value="Walk-in">Walk-in</option>
+            </select>
+        </div>
         <div class="modal-actions" style="justify-content: flex-start;">
             <button class="btn btn--primary">Save Lead</button>
             <button type="button" class="btn btn--ghost" onclick="document.getElementById('addLeadCard').style.display='none'">Cancel</button>
@@ -49,7 +61,7 @@
     </form>
 </div>
 
-<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">My Private Leads</div>
+<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">Available Leads</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>
@@ -62,15 +74,7 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($privateLeads as $it)
-            @php
-                $status = 'ACTIVE';
-                $statusClass = ''; 
-                if ($it->stage === 'Delivered') {
-                    $status = 'WON';
-                    $statusClass = 'text-success';
-                }
-            @endphp
+            @forelse($availableLeads as $it)
             <tr>
                 <td>
                     <div class="fw-700 text-dark">{{ $it->name }}</div>
@@ -89,15 +93,68 @@
                         @endif
                     </div>
                 </td>
+                <td><div class="fw-700 text-dark">£{{ number_format($it->price ?: 0, 2) }}</div></td>
                 <td>
-                    <span class="fw-800 {{ $statusClass }}" style="font-size:0.85rem">{{ $status }}</span>
-                </td>
-                <td>
-                    <a href="{{ route('manufacturer.leads.view', $it->id) }}" class="fw-700 text-dark" style="text-decoration:none">View</a>
+                    <form action="{{ route('manufacturer.leads.buy', $it->id) }}" method="POST" style="display:inline-block;">
+                        @csrf
+                        <button class="btn btn--primary btn--sm">Buy Now</button>
+                    </form>
+                    <form action="{{ route('manufacturer.leads.decline', $it->id) }}" method="POST" style="display:inline-block; margin-left: 6px;" onsubmit="event.preventDefault(); showConfirmationModal(this, 'Decline Lead?', 'Are you sure you want to decline this lead?', 'Yes, Decline');">
+                        @csrf
+                        <button class="btn btn--danger-soft btn--sm">Decline</button>
+                    </form>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No private leads found.</td></tr>
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No available leads found.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
+@if($availableLeads->hasPages())
+    <div class="mt-4 mb-4">
+        {{ $availableLeads->appends(request()->except('available_page'))->links('components.pagination') }}
+    </div>
+@endif
+
+<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">Private Leads</div>
+<div class="card" style="padding:0; margin-bottom: 2rem;">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>CUSTOMER</th>
+                <th>POSTCODE</th>
+                <th>SOURCE</th>
+                <th>CREATED ON</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($privateLeads as $it)
+            <tr>
+                <td>
+                    <div class="fw-700 text-dark">{{ $it->name }}</div>
+                    <div class="text-sm text-muted">{{ $it->email }}</div>
+                </td>
+                <td>{{ $it->postcode ?: '—' }}</td>
+                <td><span class="badge" style="background: #f1f5f9; color: #475569;">{{ $it->source ?: 'Direct' }}</span></td>
+                <td class="text-sm text-muted">{{ $it->created_at->format('d M Y') }}</td>
+                <td>
+                    <span class="fw-800" style="font-size:0.85rem; color: var(--primary-600);">{{ strtoupper($it->status) }}</span>
+                </td>
+                <td>
+                    <a href="{{ route('manufacturer.leads.view', $it->id) }}" class="btn btn--ghost btn--sm">View</a>
+                    <form action="{{ route('manufacturer.leads.private.destroy', $it->id) }}" method="POST" style="display:inline-block; margin-left: 6px;" onsubmit="event.preventDefault(); showConfirmationModal(this, 'Delete Lead?', 'Are you sure you want to delete this private lead? This action cannot be undone.', 'Yes, Delete');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn--danger-soft btn--sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            @empty
+            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">No private leads found.</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -109,7 +166,22 @@
     </div>
 @endif
 
-<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)"> Leads</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="fw-800" style="font-size:1.1rem; color:var(--gray-900)">Won / Purchased Leads</div>
+    <div>
+        <form method="GET" action="{{ route('manufacturer.leads.index') }}" id="statusFilterForm">
+            @if(request('search'))
+                <input type="hidden" name="search" value="{{ request('search') }}">
+            @endif
+            <select name="lead_status" class="form-input" style="width: 150px; padding: 0.5rem;" onchange="document.getElementById('statusFilterForm').submit()">
+                <option value="">All Leads</option>
+                <option value="active" {{ request('lead_status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="won" {{ request('lead_status') === 'won' ? 'selected' : '' }}>Won</option>
+                <option value="closed" {{ request('lead_status') === 'closed' ? 'selected' : '' }}>Closed</option>
+            </select>
+        </form>
+    </div>
+</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>

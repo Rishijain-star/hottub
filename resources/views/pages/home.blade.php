@@ -207,7 +207,7 @@
                         
                         $featuredInfo = $it->featuredContents->first();
                         if ($featuredInfo && $featuredInfo->image_url) {
-                            $img = $featuredInfo->image_url;
+                            $img =  count($imgs) ? url('storage/app/public/' . $imgs[0]) : $featuredInfo->image_url;
                         }
                         $badgeText = $featuredInfo ? $featuredInfo->title : 'Top Rated';
                     @endphp

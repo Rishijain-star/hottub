@@ -44,6 +44,17 @@
             </div>
         </div>
 
+        <div class="form-group">
+            <label class="form-label">Thumbnail Image</label>
+            @if($item->thumbnail_path)
+                <div class="mb-2">
+                    <img src="{{ asset('storage/' . $item->thumbnail_path) }}" style="width:120px; height:80px; object-fit:cover; border-radius:8px; border:1px solid var(--gray-200)">
+                </div>
+            @endif
+            <input type="file" name="thumbnail" class="form-input" accept="image/*">
+            <p class="text-xs text-muted mt-1">Leave empty to keep current thumbnail. Max 10MB.</p>
+        </div>
+
         <div id="fileInputGroup" class="form-group" style="display:none">
             <label class="form-label" id="fileLabel">Upload File</label>
             @if($item->file_path)
@@ -77,6 +88,8 @@ function toggleInputs() {
     const linkGroup = document.getElementById('linkInputGroup');
     const fileLabel = document.getElementById('fileLabel');
 
+    if (!fileGroup || !linkGroup || !fileLabel) return;
+
     fileGroup.style.display = 'none';
     linkGroup.style.display = 'none';
 
@@ -85,7 +98,6 @@ function toggleInputs() {
         fileLabel.textContent = 'Upload PDF Document';
     } else if (type === 'video') {
         fileGroup.style.display = 'block';
-        linkGroup.style.display = 'block';
         fileLabel.textContent = 'Upload Video File';
     } else if (type === 'link') {
         linkGroup.style.display = 'block';

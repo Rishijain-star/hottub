@@ -14,6 +14,7 @@ class DealerAcademyContent extends Model
         'description',
         'content_type',
         'file_path',
+        'thumbnail_path',
         'external_link',
         'category',
     ];

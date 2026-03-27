@@ -74,11 +74,6 @@
             <label class="form-label">Title</label>
             <input name="title" class="form-input" placeholder="Auto-generated from product/dealer if left blank">
         </div>
-        <div class="form-group">
-            <label class="form-label">Featured Image</label>
-            <input type="file" name="image" class="form-input" accept="image/*">
-            <div class="text-sm text-muted">Click to upload image</div>
-        </div>
         <div class="grid grid--2">
             <div class="form-group">
                 <label class="form-label">Featured From</label>
@@ -119,6 +114,9 @@
                 <div style="width:160px;height:100px;background:#f3f4f6;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
                     @php
                         $adminImg = $it->image_url;
+                        if ($adminImg && !Str::startsWith($adminImg, ['http://', 'https://'])) {
+                            $adminImg = url('storage/app/public/' . $adminImg);
+                        }
                         if (!$adminImg && $it->hotTub) {
                             $rawImgs = $it->hotTub->images;
                             if ($rawImgs instanceof \Illuminate\Support\Collection) {

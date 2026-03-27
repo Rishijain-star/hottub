@@ -54,22 +54,24 @@
         border: 1px solid var(--gray-200);
         border-radius: 99px;
         font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--gray-600);
+        font-weight: 700;
+        color: var(--gray-700);
         cursor: pointer;
         transition: all 0.2s ease;
         white-space: nowrap;
         text-decoration: none;
+        display: inline-block;
     }
     .category-tab:hover {
-        border-color: var(--primary-400);
-        color: var(--primary-600);
+        border-color: var(--primary-500);
+        color: var(--primary-700);
+        background: var(--gray-50);
     }
     .category-tab.active {
-        background: var(--primary-600);
-        border-color: var(--primary-600);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(14, 165, 163, 0.2);
+        background: var(--gray-900) !important;
+        border-color: var(--gray-900) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .academy-search-wrap {
@@ -251,11 +253,15 @@
             
             @php
                 $bgImage = '';
-                if($it->category == 'Sales Training') $bgImage = 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80';
-                elseif($it->category == 'Product Info') $bgImage = 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=800&q=80';
-                elseif($it->category == 'Installation') $bgImage = 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=80';
-                elseif($it->category == 'Service') $bgImage = 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&q=80';
-                else $bgImage = 'https://images.unsplash.com/photo-1434031216660-c50938c8f3ef?w=800&q=80';
+                if($it->thumbnail_path) {
+                    $bgImage = asset('storage/' . $it->thumbnail_path);
+                } else {
+                    if($it->category == 'Sales Training') $bgImage = 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80';
+                    elseif($it->category == 'Product Info') $bgImage = 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=800&q=80';
+                    elseif($it->category == 'Installation') $bgImage = 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=80';
+                    elseif($it->category == 'Service') $bgImage = 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&q=80';
+                    else $bgImage = 'https://images.unsplash.com/photo-1434031216660-c50938c8f3ef?w=800&q=80';
+                }
             @endphp
             <img src="{{ $bgImage }}" alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
         </div>

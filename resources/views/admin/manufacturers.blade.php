@@ -70,7 +70,7 @@
                 <td style="width: 70px; text-align: center; vertical-align: middle; padding-left: 1.5rem;">
                     <div style="width: 50px; height: 50px; margin: 0 auto; border-radius: 50%; overflow: hidden; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center;">
                         @if($m->profile_picture)
-                            <img src="{{ asset('storage/' . $m->profile_picture) }}" 
+                            <img src="{{ url('storage/app/public/' . $m->profile_picture) }}" 
                                  alt="Profile Picture" 
                                  loading="lazy"
                                  style="width: 100%; height: 100%; object-fit: cover; display: block;">

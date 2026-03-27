@@ -7,6 +7,48 @@
 
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
 
+<div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Notifications</div>
+<div class="card mb-4" style="padding:0;">
+    <div id="notificationsList">
+        @php
+            $notifications = \App\Models\Notification::where('user_id', auth()->id())->orderBy('created_at', 'desc')->take(10)->get();
+        @endphp
+        @forelse($notifications as $notif)
+            <div class="notification-item" style="padding:1rem; border-bottom:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:center; {{ !$notif->read ? 'background:#f0f9ff;' : '' }}">
+                <div style="flex:1;">
+                    <div class="text-sm {{ !$notif->read ? 'fw-700' : '' }}">{{ $notif->message }}</div>
+                    <div class="text-xs text-muted">{{ $notif->created_at->diffForHumans() }}</div>
+                    
+                    @if($notif->type === 'deposit_confirmation' && isset($notif->data['lead_id']))
+                        @php 
+                            $leadForNotif = \App\Models\Lead::find($notif->data['lead_id'] ?? 0); 
+                            $notifDealerId = (int)($notif->data['dealer_id'] ?? 0);
+                            $assignedDealerId = (int)($leadForNotif->assigned_dealer_id ?? 0);
+                            $isWinner = ($leadForNotif && $leadForNotif->deposit_confirmed && $assignedDealerId === $notifDealerId);
+                            $isLoser = ($leadForNotif && $leadForNotif->deposit_confirmed && $assignedDealerId !== 0 && $assignedDealerId !== $notifDealerId);
+                        @endphp
+                        @if($leadForNotif && !$leadForNotif->deposit_confirmed)
+                            <div class="mt-2 d-flex gap-2">
+                                <button class="btn btn--success btn--sm js-deposit-action" data-id="{{ $notif->id }}" data-lead="{{ $notif->data['lead_id'] }}" data-action="accept">Accept</button>
+                                <button class="btn btn--danger-soft btn--sm js-deposit-action" data-id="{{ $notif->id }}" data-lead="{{ $notif->data['lead_id'] }}" data-action="reject">Reject</button>
+                            </div>
+                        @elseif($isWinner)
+                            <div class="text-xs text-success fw-700 mt-1">✓ Accepted</div>
+                        @elseif($isLoser)
+                            <div class="text-xs text-danger fw-700 mt-1">✗ Rejected</div>
+                        @endif
+                    @endif
+                </div>
+                @if(!$notif->read)
+                    <button class="btn btn--link btn--xs js-mark-read" data-id="{{ $notif->id }}">Mark as read</button>
+                @endif
+            </div>
+        @empty
+            <div class="text-sm text-muted text-center p-4">No notifications.</div>
+        @endforelse
+    </div>
+</div>
+
 <div class="grid" style="display:grid;grid-template-columns:1fr;gap:2rem;align-items:start">
     @forelse($leads as $lead)
     <div class="product-section" style="border-bottom: 2px solid #e5e7eb; padding-bottom: 2rem; margin-bottom: 1rem;">
@@ -47,15 +89,31 @@
         <div class="fw-800 mb-2" style="font-size:1rem;color:var(--gray-900)">Maintenance Packages from {{ $lead->dealer->company_name ?: $lead->dealer->name }}</div>
         <div class="grid grid--3 mb-4">
             @foreach($lead->packages as $pkg)
-            <div class="card" style="display:flex; flex-direction:column; margin-bottom: 0;">
-                <div class="fw-800" style="font-size:1.05rem; color:var(--gray-900)">{{ $pkg->name }}</div>
+            @php
+                $requestStatus = ($pkg->requests ?? collect())->where('user_id', auth()->id())->first();
+                $isActive = $requestStatus && $requestStatus->status === 'active';
+                $isRequested = $requestStatus && $requestStatus->status === 'pending';
+            @endphp
+            <div class="card {{ $isActive ? 'plan--active' : '' }}" style="display:flex; flex-direction:column; margin-bottom: 0; position: relative;">
+                @if($isActive)
+                    <div style="position: absolute; top: 0; left: 0; background: #10b981; color: white; font-size: 0.65rem; font-weight: 800; padding: 4px 12px; border-radius: 8px 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">Active</div>
+                @endif
+                <div class="fw-800" style="font-size:1.05rem; color:var(--gray-900); {{ $isActive ? 'margin-top: 12px;' : '' }}">{{ $pkg->name }}</div>
                 <div class="fw-700 mt-1" style="font-size:1.2rem; color:var(--primary-600)">£{{ number_format($pkg->price, 2) }}</div>
                 <ul style="margin:10px 0; padding-left:18px; font-size:0.75rem; color:var(--gray-600); flex-grow:1">
                     @foreach($pkg->features ?? [] as $f)
                         <li>{{ $f }}</li>
                     @endforeach
                 </ul>
-                <button class="btn btn--primary btn--sm w-100 mt-2" onclick='openPackageModal(@json($pkg), @json($lead->id))'>Select Plan</button>
+                @if($isActive)
+                    <div class="d-flex flex-column gap-2 mt-2">
+                        <a href="{{ route('customer.messages') }}?dealer={{$lead->dealer->id}}" class="btn btn--primary btn--sm w-100">Chat</a>
+                    </div>
+                @elseif($isRequested)
+                    <button class="btn btn--secondary btn--sm w-100 mt-2" disabled>Requested</button>
+                @else
+                    <button class="btn btn--primary btn--sm w-100 mt-2" onclick='openPackageModal(@json($pkg), @json($lead->id))'>Select Plan</button>
+                @endif
             </div>
             @endforeach
         </div>
@@ -90,6 +148,34 @@
     </table>
 </div>
 
+<div class="card mt-4">
+    <div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Recent Activity</div>
+    <table class="table" id="recentActivity">
+        <thead>
+            <tr>
+                <th>Activity</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($recentActivity as $activity)
+                <tr>
+                    <td>{{ $activity->message }}</td>
+                    <td>{{ $activity->created_at->format('M d, Y') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="2" class="text-center text-muted py-4">No recent activity.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+    <div class="d-flex justify-content-center mt-3">
+        <button class="btn btn--outline btn--sm" id="seeMoreRecentActivity">See More</button>
+        <button class="btn btn--outline btn--sm" id="seeLessRecentActivity" style="display: none;">See Less</button>
+    </div>
+</div>
+
 {{-- Package Request Modal --}}
 <div id="packageModal" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
     <div class="card" style="width:500px;background:#fff;padding:25px;border-radius:12px;position:relative">
@@ -119,5 +205,98 @@ function openPackageModal(pkg, leadId) {
     document.getElementById('leadIdInput').value = leadId;
     document.getElementById('packageModal').style.display = 'flex';
 }
+</script>
+
+@endsection
+
+@section('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    document.querySelectorAll('.js-deposit-action').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const id = this.getAttribute('data-id');
+            const lead = this.getAttribute('data-lead');
+            const action = this.getAttribute('data-action');
+            
+            if (!confirm(`Are you sure you want to ${action} this deposit request?`)) return;
+            
+            try {
+                const res = await fetch('{{ route('customer.deposit.confirm') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ notification_id: id, action: action })
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    alert(data.msg);
+                    window.location.reload();
+                } else {
+                    alert(data.msg || 'Something went wrong');
+                }
+            } catch(e) { alert('Network error'); }
+        });
+    });
+
+    document.querySelectorAll('.js-mark-read').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const id = this.getAttribute('data-id');
+            try {
+                const res = await fetch('{{ route('customer.notifications.read') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ id: id })
+                });
+                if (res.ok) {
+                    this.closest('.notification-item').style.background = 'transparent';
+                    this.remove();
+                }
+            } catch(e) {}
+        });
+    });
+
+    $(document).ready(function(){
+        var recentActivityPage = 1;
+        var recentActivityInitialItems = 5;
+        var recentActivityTotalItems = 0;
+
+        function loadRecentActivity(){
+            $.ajax({
+                url: "{{ route('customer.overview') }}" + "?page=" + recentActivityPage,
+                type: 'get',
+                success: function(response){
+                    var items = $(response).find('#recentActivity tbody tr');
+                    recentActivityTotalItems += items.length;
+                    $('#recentActivity tbody').append(items);
+
+                    if(recentActivityTotalItems >= recentActivityInitialItems * 2){
+                        $('#seeMoreRecentActivity').hide();
+                        $('#seeLessRecentActivity').show();
+                    } else if (items.length < recentActivityInitialItems) {
+                        $('#seeMoreRecentActivity').hide();
+                    }
+                }
+            });
+        }
+
+        $('#seeMoreRecentActivity').on('click', function(){
+            recentActivityPage++;
+            loadRecentActivity();
+        });
+
+        $('#seeLessRecentActivity').on('click', function(){
+            recentActivityPage = 1;
+            recentActivityTotalItems = 0;
+            $('#recentActivity tbody').html('');
+            loadRecentActivity();
+            $('#seeMoreRecentActivity').show();
+            $('#seeLessRecentActivity').hide();
+        });
+    });
 </script>
 @endsection

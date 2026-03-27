@@ -44,6 +44,12 @@
             </div>
         </div>
 
+        <div class="form-group">
+            <label class="form-label">Thumbnail Image</label>
+            <input type="file" name="thumbnail" class="form-input" accept="image/*">
+            <p class="text-xs text-muted mt-1">Recommended size: 800x450px. Max 10MB. If left empty, a default image will be used.</p>
+        </div>
+
         <div id="fileInputGroup" class="form-group" style="display:none">
             <label class="form-label" id="fileLabel">Upload File</label>
             <input type="file" name="file" class="form-input" accept=".pdf,.mp4,.avi,.mov">
@@ -72,6 +78,8 @@ function toggleInputs() {
     const linkGroup = document.getElementById('linkInputGroup');
     const fileLabel = document.getElementById('fileLabel');
 
+    if (!fileGroup || !linkGroup || !fileLabel) return;
+
     fileGroup.style.display = 'none';
     linkGroup.style.display = 'none';
 
@@ -80,8 +88,7 @@ function toggleInputs() {
         fileLabel.textContent = 'Upload PDF Document *';
     } else if (type === 'video') {
         fileGroup.style.display = 'block';
-        linkGroup.style.display = 'block';
-        fileLabel.textContent = 'Upload Video File';
+        fileLabel.textContent = 'Upload Video File *';
     } else if (type === 'link') {
         linkGroup.style.display = 'block';
     }

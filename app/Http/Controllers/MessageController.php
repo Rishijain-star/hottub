@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class MessageController extends Controller
 {
@@ -81,12 +82,39 @@ class MessageController extends Controller
             'content' => 'required|string',
         ]);
 
-        $message = Message::create([
+        $isSupportRequest = ((int) $user->id === 1);
+        $hasSupportStatusColumn = Schema::hasColumn('messages', 'support_status');
+        if ($isSupportRequest) {
+            $hasPendingSupportRequest = false;
+            if ($hasSupportStatusColumn) {
+                $hasPendingSupportRequest = Message::where('sender_id', $me->id)
+                    ->where('receiver_id', 1)
+                    ->where('support_status', 'pending')
+                    ->exists();
+            }
+
+            if ($hasPendingSupportRequest) {
+                return response()->json([
+                    'ok' => false,
+                    'msg' => 'Your request is already submitted and awaiting admin review.',
+                ], 422);
+            }
+        }
+
+        $payload = [
             'sender_id' => $me->id,
             'receiver_id' => $user->id,
             'content' => $data['content'],
-        ]);
+        ];
+        if ($isSupportRequest && $hasSupportStatusColumn) {
+            $payload['support_status'] = 'pending';
+        }
 
-        return response()->json(['message' => $message]);
+        $message = Message::create($payload);
+
+        return response()->json([
+            'message' => $message,
+            'msg' => 'Your request has been submitted successfully.',
+        ]);
     }
 }

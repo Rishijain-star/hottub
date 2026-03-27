@@ -28,7 +28,7 @@
         <div style="display: flex; align-items: center; gap: 2.5rem; margin-bottom: 4rem;">
             <div style="position: relative; width: 150px; height: 150px; flex-shrink: 0; border-radius: 50%; overflow: hidden; border: 4px solid #f3f4f6; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center;">
                 @if($dealer->profile_picture)
-                    <img id="profile_picture_preview" src="{{ asset('storage/' . $dealer->profile_picture) }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                    <img id="profile_picture_preview" src="{{ url('storage/app/public/' . $dealer->profile_picture) }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;">
                 @else
                     <div id="profile_picture_preview_container" class="letter-avatar" style="width: 100%; height: 100%; font-size: 4rem;">
                         {{ substr($dealer->name, 0, 1) }}
@@ -81,11 +81,28 @@
         </div>
     </form>
 </div>
-@endsection
 
-@section('scripts')
-<script>
-    document.getElementById('profile_picture').addEventListener('change', function(event) {
+<div class="card" style="margin-top: 2rem;">
+    <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Delete Account</div>
+    <p class="text-sm text-muted">Permanently delete your account and all associated data. This action is irreversible.</p>
+    <div style="text-align: right; margin-top: 1rem;">
+        <form method="POST" action="{{ route('dealer.profile.delete') }}" onsubmit="event.preventDefault(); showConfirmationModal(this, 'Delete Account?', 'You are about to request permanent account deletion. This will be finalized in 30 days. Are you sure?', 'Yes, Request Deletion');"> 
+            @csrf 
+            @method('DELETE') 
+            <button type="submit" class="btn btn--danger">Delete My Account</button> 
+        </form> 
+    </div> 
+</div> 
+@endsection 
+
+@section('scripts') 
+<script> 
+    function showConfirmationModal(form, title, message, buttonText) {
+        if (confirm(message)) {
+            form.submit();
+        }
+    }
+    document.getElementById('profile_picture')?.addEventListener('change', function(event) {
         const [file] = event.target.files;
         if (file) {
             const preview = document.getElementById('profile_picture_preview');

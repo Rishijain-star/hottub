@@ -74,6 +74,22 @@
                         Dashboard
                     </a>
                 @else
+                    {{-- ── Customer Notification Icon ── --}}
+                    @php
+                        $unreadCount = \App\Models\Notification::where('user_id', auth()->id())->where('read', false)->count();
+                    @endphp
+                    <a href="{{ url('/customer') }}" class="btn-login" style="padding: 0.5rem; position: relative; margin-right: 0.5rem;" title="Notifications">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        @if($unreadCount > 0)
+                            <span style="position: absolute; top: 2px; right: 2px; background: #ef4444; color: white; font-size: 10px; font-weight: 800; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border: 2px solid white;">
+                                {{ $unreadCount > 9 ? '9+' : $unreadCount }}
+                            </span>
+                        @endif
+                    </a>
+
                     <a href="{{ url('/customer') }}" class="btn-login {{ request()->is('customer*') ? 'active' : '' }}">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                         My Account

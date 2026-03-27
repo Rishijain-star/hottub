@@ -3,6 +3,49 @@
 @section('styles')
 <style>.steps{display:flex;flex-direction:column;gap:.6rem}.step{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;border:1px solid #e3edff;background:#f5f9ff;border-radius:var(--r-lg);font-weight:600;color:#1e3a8a}.step__num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#2563eb;color:#fff;font-size:.8rem}.step__text{flex:1}</style>
 @endsection
+@section('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function(){
+        var recentActivityPage = 1;
+        var recentActivityInitialItems = 5;
+        var recentActivityTotalItems = 0;
+
+        function loadRecentActivity(){
+            $.ajax({
+                url: "{{ route('dealer.overview') }}" + "?page=" + recentActivityPage,
+                type: 'get',
+                success: function(response){
+                    var items = $(response).find('#recentActivity tbody tr');
+                    recentActivityTotalItems += items.length;
+                    $('#recentActivity tbody').append(items);
+
+                    if(recentActivityTotalItems >= recentActivityInitialItems * 2){
+                        $('#seeMoreRecentActivity').hide();
+                        $('#seeLessRecentActivity').show();
+                    } else if (items.length < recentActivityInitialItems) {
+                        $('#seeMoreRecentActivity').hide();
+                    }
+                }
+            });
+        }
+
+        $('#seeMoreRecentActivity').on('click', function(){
+            recentActivityPage++;
+            loadRecentActivity();
+        });
+
+        $('#seeLessRecentActivity').on('click', function(){
+            recentActivityPage = 1;
+            recentActivityTotalItems = 0;
+            $('#recentActivity tbody').html('');
+            loadRecentActivity();
+            $('#seeMoreRecentActivity').show();
+            $('#seeLessRecentActivity').hide();
+        });
+    });
+</script>
+@endsection
 @section('content')
 <div class="panel-page-header">
     <div><h1 class="panel-page-title">Dashboard</h1><p class="panel-page-sub">Welcome back. Track your credits, leads and performance</p></div>
@@ -46,11 +89,64 @@
     </div>
 </div>
 <div class="card">
-    <div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Quick Actions</div>
-    <div class="steps">
-        <a class="step" href="{{ route('dealer.payments') }}"><div class="step__num">1</div><div class="step__text">Purchase Credits</div></a>
-        <a class="step" href="{{ route('dealer.quotes') }}"><div class="step__num">2</div><div class="step__text">Browse Available Leads</div></a>
-        <a class="step" href="{{ route('dealer.leads.index') }}"><div class="step__num">3</div><div class="step__text">Manage My Leads</div></a>
+    <div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Recent Activity</div>
+    <table class="table" id="recentActivity">
+        <thead>
+            <tr>
+                <th>Activity</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($recentActivity as $activity)
+                <tr>
+                    <td>{{ $activity->message }}</td>
+                    <td>{{ $activity->created_at->format('M d, Y') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="2" class="text-center text-muted py-4">No recent activity.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+    <div class="d-flex justify-content-center mt-3">
+        <button class="btn btn--outline btn--sm" id="seeMoreRecentActivity">See More</button>
+        <button class="btn btn--outline btn--sm" id="seeLessRecentActivity" style="display: none;">See Less</button>
     </div>
+</div>
+
+<div class="card mt-4">
+    <div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Recent Requests from Customers
+        @if($recentRequests->count() > 0)
+            <span class="notification-badge">{{ $recentRequests->count() }}</span>
+        @endif
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Request</th>
+                <th>Customer</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($recentRequests as $request)
+                <tr>
+                    <td>{{ $request->product_name }}</td>
+                    <td>{{ $request->customer->name }}</td>
+                    <td>{{ $request->created_at->format('M d, Y') }}</td>
+                    <td><span class="badge {{ $request->status === 'completed' ? 'badge--success' : '' }}">{{ ucfirst($request->status) }}</span></td>
+                    <td><a href="{{ route('dealer.service-requests') }}" class="btn btn--ghost btn--sm">View</a></td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">No recent requests.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
 </div>
 @endsection

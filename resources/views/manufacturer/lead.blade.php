@@ -2,7 +2,7 @@
 @section('title', 'Lead – Manufacturer Panel')
 @section('content')
 @php 
-    $stages = ['New Lead','Contacted','Nurturing','Sale Pending','Site Visit','Delivered','Lost']; 
+    $stages = ['New Lead','Contacted','Nurturing','Site Visit','Deposit','Delivered','Lost']; 
     $purchase = \App\Models\LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', auth()->id())->where('buyer_role', 'manufacturer')->first();
     $isLost = ($purchase && $purchase->stage === 'Lost') || ($lead->status === 'converted' && $lead->assigned_dealer_id && $lead->assigned_dealer_id !== auth()->id());
     
@@ -11,7 +11,7 @@
     } elseif ($lead->assigned_dealer_id === auth()->id()) {
         $currentStage = $lead->stage ?: 'New Lead';
     } else {
-        $currentStage = ($purchase && $purchase->stage) ? $purchase->stage : ($lead->stage ?: 'New Lead');
+        $currentStage = ($purchase && $purchase->stage) ? $purchase->stage : 'New Lead';
     }
 @endphp
 <div class="panel-page-header">
@@ -119,15 +119,31 @@
                     @endif
                 </div>
             </div>
-            <div id="customerGuidanceBox" style="display:{{ ($currentStage==='Sale Pending') ? '' : 'none' }};border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin-bottom:12px">
-                <div class="fw-700 text-dark" style="margin-bottom:8px">Customer Guidance</div>
-                <div class="modal-actions" style="justify-content:flex-start;margin-bottom:8px">
-                    <a id="btnDownloadGuidance" href="{{ route('manufacturer.leads.guidance.download', $lead) }}" class="btn btn--primary btn--sm">Download Customer Guidance</a>
+            <div id="siteVisitBox" style="display:{{ ($currentStage==='Site Visit') ? '' : 'none' }};border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin-bottom:12px">
+                <div class="fw-700 text-dark" style="margin-bottom:8px">Site Visit Details</div>
+                <div class="form-group">
+                    <label class="form-label">Site Visit Required?</label>
+                    <div style="display:flex;gap:12px;margin-top:4px">
+                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="sv_required" value="Yes"> Yes</label>
+                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="sv_required" value="No" checked> No</label>
+                    </div>
                 </div>
-                <label class="text-sm" style="display:flex;align-items:center;gap:8px">
-                    <input type="checkbox" id="cgConfirm">
-                    <span>I confirm I have sent these documents to the customer</span>
-                </label>
+                <div id="svNotesBox" style="display:none;margin-top:10px">
+                    <label class="form-label">Site Visit Notes</label>
+                    <textarea id="svNotes" class="form-input" rows="2" placeholder="Enter details about the site visit..."></textarea>
+                </div>
+            </div>
+            <div id="depositBox" style="display:{{ ($currentStage==='Deposit') ? '' : 'none' }};border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin-bottom:12px">
+                <div class="fw-700 text-dark" style="margin-bottom:8px">Deposit Confirmation</div>
+                @if($lead->deposit_confirmed)
+                    <div style="color:#16a34a;font-weight:600;display:flex;align-items:center;gap:6px">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        Customer has confirmed the deposit.
+                    </div>
+                @else
+                    <div style="color:#6b7280;font-style:italic">Waiting for customer confirmation...</div>
+                    <div class="text-xs text-muted" style="margin-top:4px">A request was sent on {{ $lead->deposit_requested_at ? $lead->deposit_requested_at->format('M d, Y H:i') : 'N/A' }}</div>
+                @endif
             </div>
             <div class="modal-actions" style="justify-content:flex-start;margin-bottom:6px;display:{{ ($currentStage==='Delivered') ? 'none' : 'flex' }}">
                 <button id="btnNextStage" class="btn btn--primary btn--sm">Next Step</button>
@@ -423,13 +439,34 @@
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const STAGES = ['New Lead','Contacted','Nurturing','Sale Pending','Site Visit','Delivered','Lost'];
+    // --- Real-time check for deposit confirmation ---
+    const leadId = {{ $lead->id }};
+    const currentStage = '{{ $currentStage }}';
+    const isAlreadyConfirmed = {{ $lead->deposit_confirmed ? 'true' : 'false' }};
+    
+    if (currentStage === 'Deposit' && !isAlreadyConfirmed) {
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/manufacturer/leads/${leadId}/status`);
+                const data = await res.json();
+                if (data.deposit_confirmed) {
+                    clearInterval(interval);
+                    alert('Customer has confirmed the deposit. The page will now reload to reflect the changes.');
+                    window.location.reload();
+                }
+            } catch (e) {
+                // Stop on error
+                clearInterval(interval);
+            }
+        }, 10000); // Check every 10 seconds
+    }
+    const STAGES = ['New Lead','Contacted','Nurturing','Site Visit','Deposit','Delivered','Lost'];
     const STAGE_MSG = {
         'New Lead': 'A new lead is assigned. Reach out as soon as possible.',
         'Contacted': 'You have contacted the lead. Best of luck!',
         'Nurturing': 'Continue nurturing with helpful info and follow-ups.',
-        'Sale Pending': 'Sale pending — prepare paperwork and confirm terms.',
         'Site Visit': 'Site visit scheduled — confirm time and address.',
+        'Deposit': 'Waiting for customer deposit confirmation.',
         'Delivered': 'Delivery complete. Warranty registered and customer onboarded.',
         'Lost': 'Lead marked as lost. Record remains for history.',
     };
@@ -449,12 +486,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (stageMsgEl) stageMsgEl.textContent = STAGE_MSG[stage] || '';
         const nextStageBtn = document.getElementById('btnNextStage');
         if (nextStageBtn) nextStageBtn.style.display = (stage === 'Delivered' || stage === 'Lost') ? 'none' : '';
-        const cgBox = document.getElementById('customerGuidanceBox');
-        if (cgBox) cgBox.style.display = (stage === 'Sale Pending') ? '' : 'none';
-        const ck = document.getElementById('cgConfirm');
-        if (nextStageBtn) nextStageBtn.disabled = (stage === 'Sale Pending' && !(ck && ck.checked));
+        
+        // Disable next button if at Deposit and not confirmed
+        @if($currentStage === 'Deposit' && !$lead->deposit_confirmed)
+            if (nextStageBtn) nextStageBtn.disabled = true;
+        @endif
     }
     setProgress(getCurrentStage());
+
+    // --- Site Visit Required Radio Toggle ---
+    document.querySelectorAll('input[name="sv_required"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const notesBox = document.getElementById('svNotesBox');
+            if (notesBox) notesBox.style.display = (this.value === 'Yes') ? 'block' : 'none';
+        });
+    });
 
     // --- Next Step Button ---
     document.getElementById('btnNextStage')?.addEventListener('click', async function(){
@@ -463,21 +509,30 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         @endif
         const cur = getCurrentStage();
-        if (cur === 'Sale Pending' && !document.getElementById('cgConfirm')?.checked) {
-            alert('Please confirm you have sent the customer guidance documents.');
-            return;
-        }
         const i = STAGES.indexOf(cur);
         const next = STAGES[Math.min(i+1, STAGES.length-1)];
         if (next === cur) return;
+
+        let body = { stage: next };
+
+        if (cur === 'Site Visit') {
+            const svRequired = document.querySelector('input[name="sv_required"]:checked')?.value;
+            const svNotes = document.getElementById('svNotes')?.value;
+            body.site_visit_required = svRequired;
+            body.site_visit_notes = svNotes;
+        }
+
         try{
             const res = await fetch('{{ route("manufacturer.leads.stage", $lead) }}', {
                 method: 'POST',
                 headers: { 'X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json' },
-                body: JSON.stringify({ stage: next })
+                body: JSON.stringify(body)
             });
             const data = await res.json();
             if (res.ok && data.ok){
+                if (data.msg) {
+                    alert(data.msg);
+                }
                 window.location.reload();
             } else {
                 alert(data.msg || 'Unable to update stage');

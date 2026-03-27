@@ -104,70 +104,9 @@
     </div>
 </div>
 
-{{-- ══ QUOTE MODAL ══════════════════════════════════════════════════════════ --}}
-<div class="ht-modal-overlay" id="quoteOverlay" style="display:none;" onclick="closeQuoteModal(event)">
-    <div class="ht-quote-modal" id="quoteModal">
-        <button class="ht-modal__close" onclick="closeQuote()">&times;</button>
-        <h2 class="ht-quote-modal__title">Get Your Best Price</h2>
-        <p class="ht-quote-modal__sub" id="quoteSubtitle">Request a free, no-obligation quote from authorised dealers near you.</p>
+@endsection
 
-        <div class="ht-quote__email-notice">
-            <div class="ht-quote__email-icon">📧</div>
-            <div>
-                <div class="ht-quote__email-title">
-                    <span class="ht-quote__email-dot"></span>
-                    Quotes sent within 2 hours
-                </div>
-                <p class="ht-quote__email-text">Up to 3 local dealers will respond with their best pricing, current promotions, and availability.</p>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Full Name</label>
-            <input class="form-input" type="text" placeholder="Jane Smith" id="quoteName">
-        </div>
-        <div class="form-group">
-            <label class="form-label">Email Address</label>
-            <input class="form-input" type="email" placeholder="jane@example.com" id="quoteEmail">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-            <div class="form-group">
-                <label class="form-label">Phone (optional)</label>
-                <input class="form-input" type="tel" placeholder="+1 (555) 000-0000" id="quotePhone">
-            </div>
-            <div class="form-group">
-                <label class="form-label">ZIP / Postcode</label>
-                <input class="form-input" type="text" placeholder="90210" id="quoteZip">
-            </div>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Additional Notes</label>
-            <textarea class="form-input" rows="3" placeholder="e.g. interested in financing, need installation quote…" id="quoteNotes" style="resize:vertical;"></textarea>
-        </div>
-
-        <div class="ht-quote__terms">
-            <input type="checkbox" id="quoteTerms">
-            <label for="quoteTerms">I agree to be contacted by up to 3 authorised dealers. My details will not be shared with third parties. I can unsubscribe at any time.</label>
-        </div>
-
-        <button class="ht-get-quote-btn" onclick="submitQuote()">
-            🔒 Send Quote Request — It's Free
-        </button>
-    </div>
-</div>
-
-{{-- ══ SUCCESS MODAL ═══════════════════════════════════════════════════════ --}}
-<div class="ht-modal-overlay" id="successOverlay" style="display:none;">
-    <div class="ht-success-modal">
-        <button class="ht-modal__close" onclick="closeSuccess()" style="position:absolute;top:1.25rem;right:1.25rem;">&times;</button>
-        <div class="ht-success__icon">✅</div>
-        <h2>Quote Request Sent!</h2>
-        <p>We've forwarded your request to up to 3 dealers near you. Expect to hear back within 2 business hours.</p>
-        <button class="btn btn--primary btn--pill btn--lg btn--full" onclick="closeSuccess()">Done — Back to Browsing</button>
-    </div>
-</div>
-
-{{-- ══ JAVASCRIPT ══════════════════════════════════════════════════════════ --}}
+@section('scripts')
 <script>
 /* ── DATA ─────────────────────────────────────────────────────────────────── */
 const swimSpas = [
@@ -444,7 +383,7 @@ function renderCards(list) {
                 </div>
                 <div style="display:flex;gap:.5rem;">
                     <button class="btn btn--outline btn--sm" style="flex:1;" onclick="openDetail(${s.id})">View Details</button>
-                    <button class="ht-quote-btn" style="flex:1;" onclick="openQuote(${s.id})">Get Quote</button>
+                    <button class="ht-quote-btn" style="flex:1;" onclick="window.__openEnquiryModal({ title: 'Quote: ' + s.brand + ' ' + s.name, type: 'swim_spa', product_id: s.id })">Get Quote</button>
                 </div>
             </div>
         </div>
@@ -549,7 +488,7 @@ function openDetail(id) {
                         <div style="font-size:1.1rem;font-weight:800;color:#157a50;">Up to 15% off</div>
                     </div>
                 </div>
-                <button class="ht-get-quote-btn" onclick="openQuote(${s.id})">
+                <button class="ht-get-quote-btn" onclick="window.__openEnquiryModal({ title: 'Quote: ' + s.brand + ' ' + s.name, type: 'swim_spa', product_id: s.id })">
                     🔒 Get My Free Quote — No Obligation
                 </button>
             </div>
@@ -566,50 +505,6 @@ function closeDetail() {
 
 function closeDetailModal(e) {
     if (e.target === document.getElementById('detailOverlay')) closeDetail();
-}
-
-/* ── QUOTE MODAL ──────────────────────────────────────────────────────────── */
-let activeQuoteId = null;
-function openQuote(id) {
-    activeQuoteId = id;
-    const s = swimSpas.find(x => x.id === id);
-    document.getElementById('quoteSubtitle').textContent =
-        `Request a free quote for the ${s.brand} ${s.name}.`;
-    document.getElementById('quoteOverlay').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeQuote() {
-    document.getElementById('quoteOverlay').style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-function closeQuoteModal(e) {
-    if (e.target === document.getElementById('quoteOverlay')) closeQuote();
-}
-
-function submitQuote() {
-    const name  = document.getElementById('quoteName').value.trim();
-    const email = document.getElementById('quoteEmail').value.trim();
-    const terms = document.getElementById('quoteTerms').checked;
-
-    if (!name)  { alert('Please enter your name.');    return; }
-    if (!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
-    if (!terms) { alert('Please agree to the terms to continue.'); return; }
-
-    closeQuote();
-    document.getElementById('successOverlay').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeSuccess() {
-    document.getElementById('successOverlay').style.display = 'none';
-    document.body.style.overflow = '';
-    ['quoteName','quoteEmail','quotePhone','quoteZip','quoteNotes'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    document.getElementById('quoteTerms').checked = false;
 }
 
 /* ── INIT ─────────────────────────────────────────────────────────────────── */

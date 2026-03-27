@@ -122,7 +122,20 @@
     </div>
 </div>
 
+{{-- Image Preview Modal --}}
+<div id="imagePreviewModal" class="modal" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.8);align-items:center;justify-content:center" onclick="this.style.display='none'">
+    <div style="position:relative; max-width:90%; max-height:90%;">
+        <button type="button" style="position:absolute; top:-40px; right:0; background:none; border:none; color:#fff; font-size:30px; cursor:pointer;">&times;</button>
+        <img id="previewImage" src="" style="width:100%; height:auto; border-radius:8px; background:#fff;">
+    </div>
+</div>
+
 <script>
+    function openImagePreview(src) {
+        document.getElementById('previewImage').src = src;
+        document.getElementById('imagePreviewModal').style.display = 'flex';
+    }
+
     function viewHistoryDetails(req) {
         document.getElementById('historyTitle').textContent = 'Service History: ' + req.product_name;
         const data = req.checklist_data || {};
@@ -134,7 +147,7 @@
                     <div style="margin-bottom:5px"><strong>Date:</strong> ${data.service_date || 'N/A'}</div>
                     <div style="margin-bottom:5px"><strong>Summary:</strong> ${data.work_summary || 'N/A'}</div>
                     <div style="margin-bottom:5px"><strong>Parts:</strong> ${data.parts_replaced || 'None'}</div>
-                    <div style="margin-bottom:5px"><strong>Manufacturer Notes:</strong> ${data.notes || 'None'}</div>
+                    <div style="margin-bottom:5px"><strong>Dealer Notes:</strong> ${data.notes || 'None'}</div>
                 </div>
             </div>
             <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
@@ -143,7 +156,12 @@
             </div>
             <div>
                 <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Customer Signature:</h4>
-                <div style="font-family:'Dancing Script', cursive; font-size:1.5rem; color:var(--gray-900)">${req.customer_signature || 'N/A'}</div>
+                ${req.customer_signature ? `
+                    <div style="cursor:pointer;" onclick="openImagePreview('/storage/${req.customer_signature}')">
+                        <img src="/storage/${req.customer_signature}" alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                        <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
+                    </div>
+                ` : '<div class="text-sm text-muted">N/A</div>'}
             </div>
         `;
         document.getElementById('historyModal').style.display = 'flex';

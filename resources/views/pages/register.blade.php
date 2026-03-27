@@ -134,36 +134,37 @@
             </div>
 
             {{-- Postcode + Phone row --}}
-            <div id="dealerExtraRow" style="display:none;margin-bottom:1.5rem;">
+            <div class="reg-row">
+                <div class="form-group">
+                    <label class="form-label" for="postcode">Postcode *</label>
+                    <input class="form-input auth-input" type="text" id="postcode" name="postcode" placeholder="e.g. SW1A 1AA" value="{{ old('postcode') }}" required>
+                    @error('postcode') <span class="auth-field-error">{{ $message }}</span> @enderror
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="phone">Phone Number</label>
+                    <input class="form-input auth-input" type="text" id="phone" name="phone" placeholder="Your contact number" value="{{ old('phone') }}">
+                    @error('phone') <span class="auth-field-error">{{ $message }}</span> @enderror
+                </div>
+            </div>
+
+            {{-- Extra fields for Dealer/Manufacturer --}}
+            <div id="businessExtraRow" style="display: none; margin-bottom: 1.5rem;">
                 <div class="reg-row">
                     <div class="form-group">
-                        <label class="form-label" for="postcode">Business Postcode *</label>
-                        <input
-                            class="form-input auth-input"
-                            type="text"
-                            id="postcode"
-                            name="postcode"
-                            placeholder="e.g. SW1A 1AA"
-                            value="{{ old('postcode') }}"
-                        >
-                        @error('postcode')
-                            <span class="auth-field-error">{{ $message }}</span>
-                        @enderror
+                        <label class="form-label" for="company_number">Company Number</label>
+                        <input class="form-input auth-input" type="text" id="company_number" name="company_number" placeholder="Your company number" value="{{ old('company_number') }}">
+                        @error('company_number') <span class="auth-field-error">{{ $message }}</span> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="phone">Phone Number</label>
-                        <input
-                            class="form-input auth-input"
-                            type="text"
-                            id="phone"
-                            name="phone"
-                            placeholder="Your contact number"
-                            value="{{ old('phone') }}"
-                        >
-                        @error('phone')
-                            <span class="auth-field-error">{{ $message }}</span>
-                        @enderror
+                        <label class="form-label" for="vat_number">VAT Number</label>
+                        <input class="form-input auth-input" type="text" id="vat_number" name="vat_number" placeholder="Your VAT number" value="{{ old('vat_number') }}">
+                        @error('vat_number') <span class="auth-field-error">{{ $message }}</span> @enderror
                     </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="address">Address</label>
+                    <input class="form-input auth-input" type="text" id="address" name="address" placeholder="Your address" value="{{ old('address') }}">
+                    @error('address') <span class="auth-field-error">{{ $message }}</span> @enderror
                 </div>
             </div>
 
@@ -221,24 +222,18 @@ function selectRole(role) {
         btn.classList.toggle('reg-role-btn--active', btn.dataset.role === role);
     });
 
-    const dealerExtraRow = document.getElementById('dealerExtraRow');
-    const postcodeInput = document.getElementById('postcode');
-    const phoneInput = document.getElementById('phone');
-    
-    // Always show for everyone now as requested
-    dealerExtraRow.style.display = 'block';
-    postcodeInput.required = true;
-    
-    // Postcode label based on role
+    const businessExtraRow = document.getElementById('businessExtraRow');
     const postcodeLabel = document.querySelector('label[for="postcode"]');
     const enquiryNotice = document.getElementById('enquiryNotice');
     const termsLabel = document.getElementById('termsLabel');
-    
+
     if (role === 'customer') {
+        businessExtraRow.style.display = 'none';
         postcodeLabel.textContent = 'Postcode *';
         enquiryNotice.style.display = 'block';
         termsLabel.innerHTML = 'I agree to the <a href="{{ route('privacy') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Privacy Policy</a>';
     } else {
+        businessExtraRow.style.display = 'block';
         postcodeLabel.textContent = 'Business Postcode *';
         enquiryNotice.style.display = 'none';
         termsLabel.innerHTML = 'I agree to the <a href="{{ route('terms') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Terms &amp; Conditions</a>, <a href="{{ route('privacy') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Privacy Policy</a> and <a href="{{ route('dealer-agreement') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Dealer Agreement</a>';

@@ -65,7 +65,17 @@
 @if(isset($items) && count($items))
 @foreach($items as $p)
 @php
-    $img = (is_array($p->images) && count($p->images)) ? $p->images[0] : null;
+    $rawImgs = $p->images;
+    if ($rawImgs instanceof \Illuminate\Support\Collection) {
+        $rawImgs = $rawImgs->all();
+    }
+    $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+    $imgs = array_values(array_filter(array_map(function ($v) {
+        if (is_string($v)) return $v;
+        if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
+        return null;
+    }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+
     $cat = $p->category ?: 'Other';
     $compatible = [];
     if (is_array($p->compatible_brand_ids)) {
@@ -75,9 +85,29 @@
     }
 @endphp
             <div class="parts-card" data-cat="{{ $cat }}">
-                <div class="parts-card__img" @if($img) style="background-image:url('{{ $img }}');background-size:cover;background-position:center" @endif>
-                    @if(!$img)
-                    <svg width="56" height="56" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="1.4" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                <div class="parts-card__img-container" style="position:relative; width:100%; height:200px; overflow:hidden; border-radius:12px 12px 0 0; background:#f8fafb; display:flex; align-items:center; justify-content:center;">
+                    @if(count($imgs) > 0)
+                        @foreach($imgs as $idx => $img)
+                            <img src="{{ url('storage/app/public/' . $img) }}" 
+                                 class="part-img-{{ $p->id }}" 
+                                 data-index="{{ $idx }}"
+                                 style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; transition: opacity 0.3s; {{ $idx === 0 ? 'opacity:1; z-index:1;' : 'opacity:0; z-index:0;' }}">
+                        @endforeach
+                        
+                        @if(count($imgs) > 1)
+                            <div class="img-dots" style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:2;">
+                                @foreach($imgs as $idx => $img)
+                                    <div class="img-dot-{{ $p->id }} {{ $idx === 0 ? 'active' : '' }}" 
+                                         onclick="showPartImage({{ $p->id }}, {{ $idx }})"
+                                         style="width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.6); cursor:pointer; border:1px solid rgba(0,0,0,0.1);"></div>
+                                @endforeach
+                            </div>
+                            <style>
+                                .img-dot-{{ $p->id }}.active { background:#fff !important; transform:scale(1.2); box-shadow:0 0 4px rgba(0,0,0,0.2); }
+                            </style>
+                        @endif
+                    @else
+                        <svg width="56" height="56" fill="none" stroke="var(--gray-300)" stroke-width="1.4" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     @endif
                 </div>
                 <div class="parts-card__body">
@@ -247,6 +277,21 @@ function submitPartFinder() {
 }
 
 /* ── INIT ─────────────────────────────────────────────────────────────────── */
+function showPartImage(partId, index) {
+    const images = document.querySelectorAll('.part-img-' + partId);
+    const dots = document.querySelectorAll('.img-dot-' + partId);
+    
+    images.forEach(img => {
+        const isTarget = parseInt(img.dataset.index) === index;
+        img.style.opacity = isTarget ? '1' : '0';
+        img.style.zIndex = isTarget ? '1' : '0';
+    });
+    
+    dots.forEach(dot => {
+        dot.classList.toggle('active', parseInt(dot.getAttribute('onclick').split(',')[1]) === index);
+    });
+}
+
 applyCategoryFilter('all');
 </script>
 

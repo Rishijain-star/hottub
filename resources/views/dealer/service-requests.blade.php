@@ -43,7 +43,7 @@
         </thead>
         <tbody>
             @forelse($requests as $req)
-            <tr>
+            <tr class="{{ $req->overdue ? 'overdue' : '' }}">
                 <td>
                     <div class="fw-700 text-dark">{{ $req->customer->name }}</div>
                     <div class="text-sm text-muted">{{ $req->customer->email }}</div>
@@ -53,7 +53,9 @@
                     <div class="text-sm text-muted">{{ ucwords($req->type) }} Request</div>
                 </td>
                 <td>
-                    @if($req->status === 'pending')
+                    @if($req->overdue)
+                        <span class="badge badge--danger">Overdue</span>
+                    @elseif($req->status === 'pending')
                         <span class="badge">Pending</span>
                     @elseif($req->status === 'processing')
                         <span class="badge badge--warning">Processing</span>
@@ -77,7 +79,10 @@
                         @endif
 
                         @if($req->status === 'processing')
-                        <button class="btn btn--success btn--sm" onclick="openChecklistModal({{ json_encode($req) }})">Complete</button>
+                        <button class="btn btn--success btn--sm" onclick="openChecklistModal({{ json_encode($req) }})">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            <span>Complete</span>
+                        </button>
                         @endif
                     </div>
                 </td>
@@ -99,8 +104,17 @@
                 style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
                 onclick="document.getElementById('viewModal').style.display='none'">&times;</button>
         <h3 id="modalTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">Request Details</h3>
-        <div id="modalBody" style="margin-bottom:20px"></div>
+        <div id="modalBody"></div>
+        <div id="modalSignature"></div>
         <div class="modal-actions" style="justify-content: flex-end;"><button class="btn btn--ghost btn--sm" onclick="document.getElementById('viewModal').style.display='none'">Close</button></div>
+    </div>
+</div>
+
+{{-- Image Preview Modal --}}
+<div id="imagePreviewModal" class="modal" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.8);align-items:center;justify-content:center" onclick="this.style.display='none'">
+    <div style="position:relative; max-width:90%; max-height:90%;">
+        <button type="button" style="position:absolute; top:-40px; right:0; background:none; border:none; color:#fff; font-size:30px; cursor:pointer;">&times;</button>
+        <img id="previewImage" src="" style="width:100%; height:auto; border-radius:8px; background:#fff;">
     </div>
 </div>
 
@@ -157,15 +171,31 @@
         document.getElementById('checklistModal').style.display = 'flex';
     }
 
+    function openImagePreview(src) {
+        document.getElementById('previewImage').src = src;
+        document.getElementById('imagePreviewModal').style.display = 'flex';
+    }
+
     function viewRequest(req) {
         document.getElementById('modalTitle').textContent = req.product_name;
         document.getElementById('modalBody').innerHTML = `
-            <div style="margin-bottom:10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Customer:</span> ${req.customer.name}</div>
+            <div style="margin-bottom:10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Customer:</span> ${req.customer ? req.customer.name : 'Unknown'}</div>
             <div style="margin-bottom:10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Type:</span> ${req.type.toUpperCase()}</div>
             <div style="margin-bottom:10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Status:</span> ${req.status.toUpperCase()}</div>
             <div style="margin-bottom:10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Submitted:</span> ${new Date(req.created_at).toLocaleDateString()}</div>
             <div style="margin-bottom:10px;"><span class="fw-700 text-dark">Message:</span><br><p class="text-sm text-muted" style="margin-top: 5px;">${req.message || 'No message provided.'}</p></div>
         `;
+        if (req.customer_signature) {
+            document.getElementById('modalSignature').innerHTML = `
+                <div class="fw-700 text-dark">Signature:</div>
+                <div style="cursor:pointer; margin-top:5px;" onclick="openImagePreview('/storage/${req.customer_signature}')">
+                    <img src="/storage/${req.customer_signature}" alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                    <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
+                </div>
+            `;
+        } else {
+            document.getElementById('modalSignature').innerHTML = '';
+        }
         document.getElementById('viewModal').style.display = 'flex';
     }
 </script>

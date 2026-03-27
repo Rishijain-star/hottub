@@ -4,7 +4,7 @@
 <div class="panel-page-header">
     <div>
         <h1 class="panel-page-title">Support Requests</h1>
-        <p class="panel-page-sub">Messages from paused or frozen manufacturer/dealer accounts</p>
+        <p class="panel-page-sub">Messages from paused or frozen customer/manufacturer/dealer accounts</p>
     </div>
 </div>
 
@@ -46,10 +46,27 @@
                     <div class="text-xs text-muted">{{ $req->created_at->format('H:i') }}</div>
                 </td>
                 <td>
-                    @if($req->sender_role === 'manufacturer')
+                    @if(($hasSupportStatusColumn ?? false) && (($req->support_status ?? 'pending') === 'pending'))
+                        <div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
+                            <form method="POST" action="{{ route('admin.support-requests.approve', $req->id) }}">
+                                @csrf
+                                <button type="submit" class="btn btn--primary btn--sm">Approve</button>
+                            </form>
+                            <form method="POST" action="{{ route('admin.support-requests.reject', $req->id) }}">
+                                @csrf
+                                <button type="submit" class="btn btn--ghost btn--sm">Reject</button>
+                            </form>
+                        </div>
+                    @elseif(($hasSupportStatusColumn ?? false) && (($req->support_status ?? null) === 'approved'))
+                        <span class="badge badge--success">Approved</span>
+                    @elseif(($hasSupportStatusColumn ?? false) && (($req->support_status ?? null) === 'rejected'))
+                        <span class="badge badge--danger">Rejected</span>
+                    @elseif($req->sender_role === 'manufacturer')
                         <a href="{{ route('admin.manufacturers') }}?search={{ $req->sender_email }}" class="btn btn--ghost btn--sm">Manage Account</a>
                     @elseif($req->sender_role === 'dealer')
                         <a href="{{ route('admin.dealers.index') }}?search={{ $req->sender_email }}" class="btn btn--ghost btn--sm">Manage Account</a>
+                    @elseif($req->sender_role === 'user')
+                        <a href="{{ route('admin.users.index') }}?search={{ $req->sender_email }}" class="btn btn--ghost btn--sm">Manage Account</a>
                     @endif
                 </td>
             </tr>

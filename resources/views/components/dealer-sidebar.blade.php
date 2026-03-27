@@ -1,4 +1,14 @@
 <aside class="panel-sidebar" id="dealerSidebar">
+    @php
+        $hasUnreadAvailableLeadsDot = \App\Models\Notification::where('user_id', auth()->id())
+            ->where('type', 'available_leads')
+            ->where('read', false)
+            ->exists();
+        $hasUnreadDealerAcademyDot = \App\Models\Notification::where('user_id', auth()->id())
+            ->where('type', 'dealer_academy')
+            ->where('read', false)
+            ->exists();
+    @endphp
 
     <div class="panel-sidebar__head">
         <div>
@@ -28,6 +38,9 @@
                 <path d="M1 1h4l2.68 12.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
             </svg>
             Available Leads
+            @if($hasUnreadAvailableLeadsDot)
+                <span style="width:10px;height:10px;border-radius:999px;background:#ef4444;display:inline-block;margin-left:auto;"></span>
+            @endif
         </a>
 
         <a href="{{ route('dealer.leads.index') }}"
@@ -63,7 +76,10 @@
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
         Service Requests
-        @if(isset($pendingServices) && $pendingServices > 0)
+        @php
+            $pendingServices = \App\Models\ServiceRequest::where('dealer_id', auth()->id())->where('status', 'pending')->count();
+        @endphp
+        @if($pendingServices > 0)
             <span class="notification-badge">{{ $pendingServices }}</span>
         @endif
     </a>
@@ -74,7 +90,10 @@
             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
         </svg>
         Follow-Up / Requests
-        @if(isset($pendingPackages) && $pendingPackages > 0)
+        @php
+            $pendingPackages = \App\Models\PackageRequest::where('dealer_id', auth()->id())->where('status', 'pending')->count();
+        @endphp
+        @if($pendingPackages > 0)
             <span class="notification-badge">{{ $pendingPackages }}</span>
         @endif
     </a>
@@ -87,6 +106,9 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/>
         </svg>
         Dealer Academy
+        @if($hasUnreadDealerAcademyDot)
+            <span style="width:10px;height:10px;border-radius:999px;background:#ef4444;display:inline-block;margin-left:auto;"></span>
+        @endif
     </a>
 
         <a href="{{ route('dealer.credits') }}"
@@ -113,8 +135,13 @@
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-14.7 8.38 8.38 0 0 1 3.8.9L21 3z"/>
             </svg>
             Messages
-            @if(isset($unreadMessages) && $unreadMessages > 0)
-                <span class="notification-badge">{{ $unreadMessages }}</span>
+            @php
+                $unreadDealerMessages = \App\Models\Message::where('receiver_id', auth()->id())
+                    ->whereNull('read_at')
+                    ->count();
+            @endphp
+            @if($unreadDealerMessages > 0)
+                <span class="notification-badge">{{ $unreadDealerMessages }}</span>
             @endif
         </a>
 

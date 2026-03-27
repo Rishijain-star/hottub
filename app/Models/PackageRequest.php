@@ -25,4 +25,9 @@ class PackageRequest extends Model
     {
         return $this->belongsTo(MaintenancePackage::class, 'package_id');
     }
+
+    public function getOverdueAttribute()
+    {
+        return $this->status === 'pending' && $this->created_at->diffInHours(now()) >= 3;
+    }
 }

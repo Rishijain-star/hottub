@@ -21,6 +21,14 @@
         <a href="{{ route('customer.service-requests') }}" class="panel-nav-link {{ request()->routeIs('customer.service-requests') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Service Requests
+            @php
+                $pendingServiceRequests = \App\Models\ServiceRequest::where('user_id', auth()->id())
+                    ->where('status', 'pending')
+                    ->count();
+            @endphp
+            @if($pendingServiceRequests > 0)
+                <span style="background:#ef4444;color:#fff;min-width:18px;height:18px;padding:0 5px;border-radius:10px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:auto;">{{ $pendingServiceRequests }}</span>
+            @endif
         </a>
         <a href="{{ route('customer.request-history') }}" class="panel-nav-link {{ request()->routeIs('customer.request-history') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9M3 20h4M7 4h10M12 4v16M7 8h10M7 12h10M7 16h10"/></svg>
@@ -29,6 +37,14 @@
         <a href="{{ route('customer.messages') }}" class="panel-nav-link {{ request()->routeIs('customer.messages') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
             Messages
+            @php
+                $unreadCustomerMessages = \App\Models\Message::where('receiver_id', auth()->id())
+                    ->whereNull('read_at')
+                    ->count();
+            @endphp
+            @if($unreadCustomerMessages > 0)
+                <span style="background:#ef4444;color:#fff;min-width:18px;height:18px;padding:0 5px;border-radius:10px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:auto;">{{ $unreadCustomerMessages }}</span>
+            @endif
         </a>
         <a href="{{ route('customer.profile') }}" class="panel-nav-link {{ request()->routeIs('customer.profile') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
