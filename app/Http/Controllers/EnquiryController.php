@@ -33,8 +33,22 @@ class EnquiryController extends Controller
         }
 
         $settings = PricingSetting::query()->first();
-        $prices = $settings?->enquiry_prices ?? [];
-        $price = isset($prices[$type]) ? (float) $prices[$type] : 0.0;
+        $enquiryPrices = $settings?->enquiry_prices ?? [];
+        $leadCreditCosts = $settings?->lead_credit_costs ?? [];
+
+        $priceRaw = null;
+        if ($type === 'service') {
+            // Service enquiries must use Admin > Lead Credit Costs (Legacy) > Service Enquiries.
+            $priceRaw = $leadCreditCosts['service'] ?? null;
+        } elseif ($type === 'part') {
+            // Parts enquiries must use Admin > Lead Credit Costs (Legacy) > Parts Enquiries.
+            $priceRaw = $leadCreditCosts['parts'] ?? null;
+        } else {
+            // Keep existing pricing behavior for all other enquiry types.
+            $priceRaw = $enquiryPrices[$type] ?? null;
+        }
+
+        $price = $priceRaw !== null ? (float) $priceRaw : 0.0;
 
         // If it's a "part" enquiry, it's national level (no postcode restriction logic needed here, 
         // as the actual restriction is usually in the lead matching/purchase logic)

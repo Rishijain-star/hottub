@@ -17,12 +17,22 @@
         <div class="ht-filters-panel">
         <form class="ht-filters" method="GET" action="{{ route('outdoor-products') }}" id="filterForm">
             <div class="ht-filter-group">
+                <label class="ht-filter-label">Tier</label>
+                <select class="ht-filter-select" name="tier" id="filter-tier">
+                    @php $tierSel = request('tier'); @endphp
+                    <option value="">All Tiers</option>
+                    @foreach(($tierFilters ?? ['entry-level' => 'Entry Level', 'luxury' => 'Luxury', 'mid-range' => 'Mid-range']) as $val => $label)
+                        <option value="{{ $val }}" @selected($tierSel == $val)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="ht-filter-group">
                 <label class="ht-filter-label">Brand</label>
                 <select class="ht-filter-select" name="brand" id="filter-brand">
                     <option value="">All Brands</option>
                     @if(isset($brands) && count($brands))
                         @foreach($brands as $b)
-                            <option value="{{ $b->name }}" @selected(request('brand') == $b->name)>
+                            <option value="{{ $b->slug }}" @selected(request('brand') == $b->slug)>
                                 {{ $b->name }}
                             </option>
                         @endforeach
@@ -78,8 +88,10 @@ const form = document.getElementById('filterForm');
 const selBrand = document.getElementById('filter-brand');
 const selModel = document.getElementById('filter-model');
 const modelsByBrand = @json($modelsByBrand ?? []);
+const slugMap = @json(($brands ?? collect())->mapWithKeys(fn($b) => [$b->slug => $b->name]));
 
-function populateModels(brandName, keepSelected=true){
+function populateModels(brandSlug, keepSelected=true){
+    const brandName = slugMap[brandSlug] || '';
     const list = brandName && modelsByBrand[brandName] ? modelsByBrand[brandName] : [];
     const current = keepSelected ? '{{ request('model','') }}' : '';
     selModel.innerHTML = '<option value="">All Models</option>';
@@ -97,6 +109,7 @@ selBrand.addEventListener('change', function(){
     form.submit();
 });
 selModel.addEventListener('change', function(){ form.submit(); });
+const ft = document.getElementById('filter-tier'); if(ft){ ft.addEventListener('change', ()=>form.submit()); }
 
 populateModels(selBrand.value, true);
 

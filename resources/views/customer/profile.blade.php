@@ -10,8 +10,8 @@
     <div class="card" style="text-align: center;">
         <div class="fw-800 mb-4" style="font-size:1.05rem;color:var(--gray-900)">Profile Picture</div>
         <div style="margin-bottom: 1.5rem;">
-            @if($user->profile_image)
-                <img src="{{ asset('storage/' . $user->profile_image) }}" alt="Profile" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #f1f5f9;">
+            @if($user->profile_picture)
+                <img src="{{ \App\Support\PublicMedia::url($user->profile_picture) }}" alt="Profile" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #f1f5f9;">
             @else
                 <div style="width: 150px; height: 150px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; margin: 0 auto; color: #64748b; font-size: 3rem; font-weight: 800; border: 4px solid #f1f5f9;">
                     {{ substr($user->name, 0, 1) }}
@@ -47,6 +47,10 @@
                 <div class="form-group">
                     <label class="form-label">Postcode</label>
                     <input type="text" name="postcode" class="form-input" value="{{ $user->postcode }}">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Address</label>
+                    <textarea name="address" class="form-input" rows="2" placeholder="Street, city, county">{{ $user->address }}</textarea>
                 </div>
             </div>
             <div class="mt-4" style="text-align: right;">

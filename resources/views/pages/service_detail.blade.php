@@ -3,11 +3,19 @@
 @section('content')
 
 <div class="container" style="margin-top:24px;margin-bottom:24px">
+    @php
+        $detailImage = null;
+        if (!empty($item->image_url)) {
+            $detailImage = (str_starts_with($item->image_url, 'http://') || str_starts_with($item->image_url, 'https://'))
+                ? $item->image_url
+                : \App\Support\PublicMedia::url(ltrim($item->image_url, '/'));
+        }
+    @endphp
     <a href="{{ route('services') }}" style="display:inline-block;color:#0ea5a3;text-decoration:none;font-weight:700">← Back to Services</a>
     <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:28px;margin-top:16px;align-items:start">
         <div>
             <div class="ht-detail__img-wrap" style="aspect-ratio:4/3">
-                <img src="{{ $item->image_url ?: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=80&auto=format&fit=crop' }}" class="ht-detail__img" alt="{{ $item->name }}">
+                <img src="{{ $detailImage ?: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=80&auto=format&fit=crop' }}" class="ht-detail__img" alt="{{ $item->name }}">
             </div>
         </div>
         <div style="background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:24px">

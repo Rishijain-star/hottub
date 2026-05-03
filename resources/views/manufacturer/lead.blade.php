@@ -5,6 +5,9 @@
     $stages = ['New Lead','Contacted','Nurturing','Site Visit','Deposit','Delivered','Lost']; 
     $purchase = \App\Models\LeadPurchase::where('lead_id', $lead->id)->where('dealer_id', auth()->id())->where('buyer_role', 'manufacturer')->first();
     $isLost = ($purchase && $purchase->stage === 'Lost') || ($lead->status === 'converted' && $lead->assigned_dealer_id && $lead->assigned_dealer_id !== auth()->id());
+    $canEditCrm = !$isLost;
+        $checklistData = is_array($serviceChecklist->checklist_data ?? null) ? $serviceChecklist->checklist_data : [];
+        $isChecklistLocked = !empty($serviceChecklist?->completed_at);
     
     if ($isLost) {
         $currentStage = 'Lost';
@@ -45,6 +48,13 @@
                     <h3 style="font-size:1.05rem; font-weight:800; color:#92400e; margin:0;">Lead Closed</h3>
                     <p style="color:#b45309; font-size:0.95rem; margin:0.25rem 0 0; font-weight:600;">This lead has been completed by another dealer. Don’t worry — new opportunities are on the way. Keep going and stay focused! 💪✨</p>
                 </div>
+            </div>
+        @endif
+
+        @if(!$customerAccount && !empty($lead->email))
+            <div style="margin-top:1rem;background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:1rem 1.25rem;">
+                <h3 style="font-size:1rem; font-weight:800; color:#1d4ed8; margin:0;">Customer account reminder</h3>
+                <p style="color:#1e40af; font-size:0.92rem; margin:0.35rem 0 0;">Ask the customer to create an account using <strong>{{ $lead->email }}</strong> so chat, reminders, and aftercare updates stay synced.</p>
             </div>
         @endif
     </div>
@@ -108,6 +118,12 @@
                     <label class="form-label">Postcode</label>
                     <div class="text-sm">{{ $lead->postcode }}</div>
                 </div>
+                @if(!empty($lead->address))
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Address</label>
+                    <div class="text-sm">{{ $lead->address }}</div>
+                </div>
+                @endif
             </div>
             <div class="form-group">
                 <label class="form-label">Message</label>
@@ -153,8 +169,11 @@
                 <div class="fw-700 text-dark" style="margin-bottom:6px">Delivery Details</div>
                 <form id="deliverForm">
                     <div class="grid grid--2">
-                        @php 
-                            $delivery_details = $lead->delivery_details ?: ($purchase->delivery_details ?? []); 
+                        @php
+                            $purchaseDetails = optional($purchase)->delivery_details;
+                            $delivery_details = is_array($lead->delivery_details) && !empty($lead->delivery_details)
+                                ? $lead->delivery_details
+                                : (is_array($purchaseDetails) ? $purchaseDetails : []);
                         @endphp
                         <div class="form-group">
                             <label class="form-label">Product Make *</label>
@@ -184,14 +203,14 @@
                             <div class="form-group"><label class="form-label">Invoice Upload</label><input name="invoice" class="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
                             <div class="form-group"><label class="form-label">Warranty Upload</label><input name="warranty" class="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
                         @else
-                            @php 
-                                $invoice_path = $lead->invoice_path ?: ($purchase->invoice_path ?? '');
-                                $warranty_path = $lead->warranty_path ?: ($purchase->warranty_path ?? '');
+                            @php
+                                $invoice_path = $lead->invoice_path ?: (optional($purchase)->invoice_path ?? '');
+                                $warranty_path = $lead->warranty_path ?: (optional($purchase)->warranty_path ?? '');
                             @endphp
                             <div class="form-group">
                                 <label class="form-label">Invoice</label>
                                 @if(!empty($invoice_path))
-                                    <div class="text-sm"><a href="{{ asset('storage/' . $invoice_path) }}" target="_blank" class="text-teal fw-700">View Uploaded Invoice</a></div>
+                                    <div class="text-sm"><a href="{{ \App\Support\PublicMedia::url($invoice_path) }}" target="_blank" class="text-teal fw-700">View Uploaded Invoice</a></div>
                                 @else
                                     <div class="text-sm text-muted italic">No invoice uploaded</div>
                                 @endif
@@ -199,7 +218,7 @@
                             <div class="form-group">
                                 <label class="form-label">Warranty</label>
                                 @if(!empty($warranty_path))
-                                    <div class="text-sm"><a href="{{ asset('storage/' . $warranty_path) }}" target="_blank" class="text-teal fw-700">View Uploaded Warranty</a></div>
+                                    <div class="text-sm"><a href="{{ \App\Support\PublicMedia::url($warranty_path) }}" target="_blank" class="text-teal fw-700">View Uploaded Warranty</a></div>
                                 @else
                                     <div class="text-sm text-muted italic">No warranty uploaded</div>
                                 @endif
@@ -211,13 +230,35 @@
                     @endif
                 </form>
             </div>
+
+            <div id="serviceChecklistBox" style="display:{{ ($currentStage==='Delivered') ? '' : 'none' }};margin-top:20px;padding-top:20px;border-top:1px solid #e5e7eb">
+                <div class="fw-700 text-dark" style="margin-bottom:12px">Delivery check list</div>
+                <form id="serviceChecklistForm">
+                    <div class="grid grid--2">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:14px"><input type="checkbox" name="checklist[levelled]" value="1" @checked(!empty($checklistData['levelled'])) @disabled($isChecklistLocked)> Levelled properly</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:14px"><input type="checkbox" name="checklist[electrical]" value="1" @checked(!empty($checklistData['electrical'])) @disabled($isChecklistLocked)> Electrical connected</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:14px"><input type="checkbox" name="checklist[filled]" value="1" @checked(!empty($checklistData['filled'])) @disabled($isChecklistLocked)> Filled & Tested</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:14px"><input type="checkbox" name="checklist[chemicals]" value="1" @checked(!empty($checklistData['chemicals'])) @disabled($isChecklistLocked)> Chemical starter kit</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:14px"><input type="checkbox" name="checklist[tutorial]" value="1" @checked(!empty($checklistData['tutorial'])) @disabled($isChecklistLocked)> Customer tutorial done</label>
+                    </div>
+                    <div class="form-group" style="margin-top:10px">
+                        <label class="form-label">Service Notes</label>
+                        <textarea name="notes" class="form-input" rows="2" @disabled($isChecklistLocked)>{{ $serviceChecklist->dealer_notes ?? '' }}</textarea>
+                    </div>
+                    @if($isChecklistLocked)
+                        <div class="text-xs text-muted">Checklist saved on {{ $serviceChecklist->completed_at?->format('M d, Y H:i') }} and is now locked.</div>
+                    @else
+                        <div class="modal-actions"><button type="submit" class="btn btn--success btn--sm">Save Checklist</button></div>
+                    @endif
+                </form>
+            </div>
         </div>
 
         {{-- Notes Section --}}
         <div class="card" style="margin-top:1.5rem;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                 <div class="fw-800" style="font-size:1.125rem;color:var(--gray-900)">Notes</div>
-                @if($currentStage !== 'Lost' && $currentStage !== 'Delivered')
+                @if($canEditCrm)
                     <button id="addNoteBtn" class="btn btn--primary btn--sm">+ Add Note</button>
                 @endif
             </div>
@@ -251,6 +292,12 @@
                             <div class="text-sm" style="margin-top:.25rem;color:var(--gray-700);">
                                 {!! nl2br(e($note->content)) !!}
                             </div>
+                            @if($canEditCrm)
+                                <div class="text-xs" style="margin-top:0.35rem;display:flex;gap:0.65rem;flex-wrap:wrap;">
+                                    <button type="button" class="btn btn--link btn--sm js-edit-crm-activity" style="padding:0;min-height:auto;" data-type="note" data-id="{{ $note->id }}" data-json="{{ htmlspecialchars(json_encode(['content' => $note->content]), ENT_QUOTES, 'UTF-8') }}">Edit</button>
+                                    <button type="button" class="btn btn--link btn--sm js-delete-crm-activity text-danger" style="padding:0;min-height:auto;" data-type="note" data-id="{{ $note->id }}">Delete</button>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @empty
@@ -266,7 +313,7 @@
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                 <div class="fw-800" style="font-size:1.125rem;color:var(--gray-900)">Tasks</div>
-                @if($currentStage !== 'Lost' && $currentStage !== 'Delivered')
+                @if($canEditCrm)
                     <button id="addTaskBtn" class="btn btn--primary btn--sm">+ Add Task</button>
                 @endif
             </div>
@@ -279,12 +326,18 @@
                 <div id="pendingTasksContainer">
                     @forelse($pendingTasks as $index => $task)
                         <div class="task-item js-task-item {{ $index >= 5 ? 'd-none' : '' }}" style="display:{{ $index >= 5 ? 'none' : 'flex' }};align-items:flex-start;gap:1rem;padding:.75rem 0;border-bottom:1px solid #f3f4f6;">
-                            <input type="checkbox" class="js-toggle-task" data-id="{{ $task->id }}" style="margin-top:4px;" @if($currentStage === 'Lost' || $currentStage === 'Delivered') disabled @endif>
+                            <input type="checkbox" class="js-toggle-task" data-id="{{ $task->id }}" style="margin-top:4px;" @if(!$canEditCrm) disabled @endif>
                             <div style="flex:1;">
                                 <div class="fw-700 text-dark">{{ $task->content }}</div>
                                 @if($task->due_date)
                                     <div class="text-xs {{ $task->due_date->isPast() ? 'text-danger' : 'text-muted' }}">
                                         Due {{ $task->due_date->diffForHumans() }}
+                                    </div>
+                                @endif
+                                @if($canEditCrm)
+                                    <div class="text-xs" style="margin-top:0.35rem;display:flex;gap:0.65rem;flex-wrap:wrap;">
+                                        <button type="button" class="btn btn--link btn--sm js-edit-crm-activity" style="padding:0;min-height:auto;" data-type="task" data-id="{{ $task->id }}" data-json="{{ htmlspecialchars(json_encode(['content' => $task->content, 'due' => $task->due_date ? $task->due_date->format('Y-m-d') : '']), ENT_QUOTES, 'UTF-8') }}">Edit</button>
+                                        <button type="button" class="btn btn--link btn--sm js-delete-crm-activity text-danger" style="padding:0;min-height:auto;" data-type="task" data-id="{{ $task->id }}">Delete</button>
                                     </div>
                                 @endif
                             </div>
@@ -686,7 +739,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Deliver Form ---
     document.getElementById('deliverForm')?.addEventListener('submit', async function(e){
         e.preventDefault();
-        const fd = new FormData(e.target);
+        const form = e.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+        }
+        const fd = new FormData(form);
         try{
             const res = await fetch('{{ route("manufacturer.leads.deliver", $lead) }}', {
                 method: 'POST',
@@ -699,8 +758,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.reload();
             } else {
                 alert(data.msg || 'Unable to save delivery');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Delivery & Convert';
+                }
             }
-        }catch(err){ alert('Network error'); }
+        }catch(err){
+            alert('Network error');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Delivery & Convert';
+            }
+        }
+    });
+
+    const checklistForm = document.getElementById('serviceChecklistForm');
+    checklistForm?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const fd = new FormData(this);
+        try {
+            const res = await fetch('{{ route("manufacturer.leads.service-checklist", $lead) }}', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: fd
+            });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                alert('Service checklist saved successfully.');
+                window.location.reload();
+            } else {
+                alert(data.msg || 'Unable to save checklist.');
+            }
+        } catch (err) { alert('Network error'); }
     });
 
     // --- Activity Modal Functions ---
@@ -715,6 +804,65 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === modal) {
             closeActivityModal();
         }
+    });
+
+    const crmActivityUrl = (id) => '{{ url('/manufacturer/leads/'.$lead->id.'/activities') }}/' + id;
+    document.querySelectorAll('.js-edit-crm-activity').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const id = this.getAttribute('data-id');
+            const type = this.getAttribute('data-type');
+            let payload = {};
+            try { payload = JSON.parse(this.getAttribute('data-json') || '{}'); } catch (e) {}
+            if (type === 'task') {
+                const content = window.prompt('Task', payload.content || '');
+                if (content === null) return;
+                const dueInput = window.prompt('Due date (YYYY-MM-DD, optional)', payload.due || '');
+                if (dueInput === null) return;
+                const res = await fetch(crmActivityUrl(id), {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ content: content, due_date: dueInput.trim() || null })
+                });
+                const data = await res.json().catch(function () { return {}; });
+                if (res.ok && data.ok) window.location.reload(); else alert(data.msg || 'Could not update');
+            } else {
+                const content = window.prompt('Note', payload.content || '');
+                if (content === null) return;
+                const res = await fetch(crmActivityUrl(id), {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ content: content })
+                });
+                const data = await res.json().catch(function () { return {}; });
+                if (res.ok && data.ok) window.location.reload(); else alert(data.msg || 'Could not update');
+            }
+        });
+    });
+    document.querySelectorAll('.js-delete-crm-activity').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            if (!window.confirm('Delete this item?')) return;
+            const id = this.getAttribute('data-id');
+            const res = await fetch(crmActivityUrl(id), {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await res.json().catch(function () { return {}; });
+            if (res.ok && data.ok) window.location.reload(); else alert(data.msg || 'Could not delete');
+        });
     });
 });
 </script>

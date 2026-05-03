@@ -5,7 +5,7 @@
 <div class="panel-page-header">
     <div>
         <h1 class="panel-page-title">Hot Tubs & Swim Spas</h1>
-        <p class="panel-page-sub">Create and manage all product listings</p>
+        <p class="panel-page-sub">Manage product listings for both hot tubs and swim spas</p>
     </div>
     <button class="btn btn--primary btn--pill" id="toggleAddProduct">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -25,7 +25,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('admin.hot-tubs.index') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('admin.hot-tubs.index') }}" class="panel-filter-form panel-filter-form--4">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Model or Brand..." value="{{ request('search') }}">
@@ -47,9 +47,12 @@
                 <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('admin.hot-tubs.index') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -66,7 +69,7 @@
             <div class="form-group">
                 <label class="form-label">Brand *</label>
                 @if(isset($brands) && count($brands))
-                    <select name="brand_id" class="form-input @error('brand_id') is-invalid @enderror" required>
+                    <select name="brand_id" id="hotTubBrandSelect" class="form-input @error('brand_id') is-invalid @enderror" required>
                         <option value="">Select a brand...</option>
                         @foreach($brands as $b)
                             <option value="{{ $b->id }}" {{ old('brand_id') == $b->id ? 'selected' : '' }}>
@@ -89,7 +92,7 @@
             {{-- Product Type + Tier --}}
             <div class="form-group">
                 <label class="form-label">Product Type *</label>
-                <select name="product_type" class="form-input" required>
+                <select name="product_type" id="hotTubProductTypeSelect" class="form-input" required>
                     <option value="hot_tub"  {{ old('product_type', 'hot_tub') === 'hot_tub'  ? 'selected' : '' }}>Hot Tub</option>
                     <option value="swim_spa" {{ old('product_type') === 'swim_spa' ? 'selected' : '' }}>Swim Spa</option>
                 </select>
@@ -138,6 +141,13 @@
                     <option value="active"   {{ old('status', 'active') === 'active'   ? 'selected' : '' }}>Active</option>
                     <option value="inactive" {{ old('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
                 </select>
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Homepage</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:600;">
+                    <input type="checkbox" name="featured_on_homepage" value="1" {{ old('featured_on_homepage') ? 'checked' : '' }}>
+                    Featured product (show in Featured Products on homepage when active)
+                </label>
             </div>
         </div>
 
@@ -301,7 +311,7 @@
                                 if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
                                 return null;
                             }, $imgs), fn ($v) => is_string($v) && $v !== ''));
-                            $thumb = count($imgs) ? url('storage/app/public/'.$imgs[0]) : null; 
+                            $thumb = count($imgs) ? \App\Support\PublicMedia::url($imgs[0]) : null; 
                         @endphp
                         @if($thumb)
                             <img src="{{ $thumb }}" alt="{{ $it->model }}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--gray-200)">
@@ -330,15 +340,15 @@
                                     <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
                                 </svg>
                             </a>
-                            <form method="POST" action="{{ route('admin.hot-tubs.destroy', $it) }}"
-                                  onsubmit="return confirm('Delete this product?')">
-                                @csrf @method('DELETE')
-                                <button class="icon-btn" title="Delete">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                                        <path d="M3 6h18M8 6v14m8-14v14M5 6l1-2h12l1 2"/>
-                                    </svg>
-                                </button>
-                            </form>
+                            <button type="button"
+                                    class="icon-btn js-open-delete"
+                                    title="Delete"
+                                    data-action="{{ route('admin.hot-tubs.destroy', $it) }}"
+                                    data-entity="product">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path d="M3 6h18M8 6v14m8-14v14M5 6l1-2h12l1 2"/>
+                                </svg>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -366,6 +376,48 @@
     function closeForm() {
         addCard.style.display = 'none';
     }
+
+    // ── Brand filtering by product type (Hot Tub vs Swim Spa) ─────────
+    (function () {
+        const brandSelect = document.getElementById('hotTubBrandSelect');
+        const typeSelect = document.getElementById('hotTubProductTypeSelect');
+        if (!brandSelect || !typeSelect) return;
+
+        const BRAND_TYPE_MAP = @php
+            $map = [];
+            foreach ($brands as $b) {
+                $types = (array) ($b->types ?? []);
+                $legacy = $b->type ?? null;
+                $forHot = in_array('hot_tub', $types, true) || in_array('both', $types, true) || in_array($legacy, ['hot_tub', 'both'], true);
+                $forSwim = in_array('swim_spa', $types, true) || in_array('both', $types, true) || in_array($legacy, ['swim_spa', 'both'], true);
+                $map[$b->id] = [
+                    'hot_tub' => $forHot,
+                    'swim_spa' => $forSwim,
+                ];
+            }
+            echo json_encode($map);
+        @endphp;
+
+        function applyBrandFilter() {
+            const type = typeSelect.value || 'hot_tub';
+            const current = brandSelect.value;
+            Array.from(brandSelect.options).forEach(opt => {
+                if (!opt.value) {
+                    opt.hidden = false;
+                    return;
+                }
+                const meta = BRAND_TYPE_MAP[opt.value] || null;
+                const allowed = !meta || meta[type] || opt.value === current;
+                opt.hidden = !allowed;
+            });
+            if (current && brandSelect.selectedOptions[0] && brandSelect.selectedOptions[0].hidden) {
+                brandSelect.value = '';
+            }
+        }
+
+        typeSelect.addEventListener('change', applyBrandFilter);
+        applyBrandFilter();
+    })();
 
     // ── Auto-calculate overall score ─────────────────────────────────
     const scoreFields = document.querySelectorAll('.score-field');
@@ -423,6 +475,30 @@
         });
     }
 
+    function publicMediaUrl(rel) {
+        if (!rel) return '';
+        var s = (typeof rel === 'object' && rel && rel.path) ? rel.path : rel;
+        s = String(s).replace(/\\/g, '/').trim();
+        s = s.replace(/\/storage\/app\/public\//gi, '/uploads/app/public/').replace(/\/storage\//gi, '/uploads/app/public/');
+        s = s.replace(/\/uploads\/(?!app\/public\/)/gi, '/uploads/app/public/');
+        if (/^https?:\/\//i.test(s)) return s;
+        if (s.startsWith('/uploads/') || s.startsWith('/images/')) return s;
+        s = s.replace(/^\/+/, '');
+        var low = s.toLowerCase();
+        while (low.indexOf('storage/app/public/') === 0) {
+            s = s.substring(19);
+            low = s.toLowerCase();
+        }
+        if (low.indexOf('public/storage/') === 0) s = s.substring(15);
+        low = s.toLowerCase();
+        if (low.indexOf('storage/') === 0 && low.indexOf('storage/app/') !== 0) s = s.substring(8);
+        low = s.toLowerCase();
+        while (low.indexOf('uploads/') === 0) { s = s.substring(8); low = s.toLowerCase(); }
+        while (low.indexOf('app/public/') === 0) { s = s.substring(11); low = s.toLowerCase(); }
+        if (low.indexOf('images/') === 0) return '/' + s;
+        return '/uploads/app/public/' + s;
+    }
+
     const addForm = document.getElementById('addProductForm');
     const progressWrap = document.getElementById('uploadProgress');
     const progressBar = document.getElementById('uploadProgressBar');
@@ -469,7 +545,7 @@
                     const data = JSON.parse(xhr.responseText);
                     if (data && data.ok && data.item) {
                         const it = data.item;
-                        const img = Array.isArray(it.images) && it.images.length ? ('{{ asset('storage') }}/' + it.images[0]) : '';
+                        const img = Array.isArray(it.images) && it.images.length ? publicMediaUrl(it.images[0]) : '';
                         const badge = it.status === 'active' ? '<span class=\"badge badge--success\">Active</span>' : '<span class=\"badge badge--dark\">Inactive</span>';
                         const row = `
                         <tr>
@@ -612,5 +688,7 @@
 
     
 </script>
+
+@include('components.delete-confirm-modal')
 
 @endsection

@@ -43,8 +43,8 @@
             </div>
         </div>
         <div class="form-group">
-            <label class="form-label">Details / Message</label>
-            <textarea name="message" class="form-input" rows="3" placeholder="Describe your issue or inquiry..."></textarea>
+            <label class="form-label">Additional Details *</label>
+            <textarea name="message" class="form-input" rows="3" placeholder="Describe your issue or inquiry..." required minlength="3"></textarea>
         </div>
         <div class="modal-actions" style="justify-content:flex-start">
             <button class="btn btn--primary">Submit Request</button>
@@ -169,11 +169,17 @@
     function resizeCanvas() {
         const canvas = document.getElementById('signature-pad');
         if (!canvas) return;
-        const ratio =  Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext("2d").scale(ratio, ratio);
-        if (signaturePad) signaturePad.clear();
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const w = canvas.offsetWidth;
+        const h = canvas.offsetHeight;
+        canvas.width = w * ratio;
+        canvas.height = h * ratio;
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(ratio, ratio);
+        if (signaturePad) {
+            signaturePad.clear();
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -259,6 +265,29 @@
         });
     }
 
+    function publicMediaUrlClient(rel) {
+        if (!rel) return '';
+        var s = String(rel).replace(/\\/g, '/').trim();
+        s = s.replace(/\/storage\/app\/public\//gi, '/uploads/app/public/').replace(/\/storage\//gi, '/uploads/app/public/');
+        s = s.replace(/\/uploads\/(?!app\/public\/)/gi, '/uploads/app/public/');
+        if (/^https?:\/\//i.test(s)) return s;
+        if (s.startsWith('/uploads/') || s.startsWith('/images/')) return s;
+        s = s.replace(/^\/+/, '');
+        var low = s.toLowerCase();
+        while (low.indexOf('storage/app/public/') === 0) {
+            s = s.substring(19);
+            low = s.toLowerCase();
+        }
+        if (low.indexOf('public/storage/') === 0) s = s.substring(15);
+        low = s.toLowerCase();
+        if (low.indexOf('storage/') === 0 && low.indexOf('storage/app/') !== 0) s = s.substring(8);
+        low = s.toLowerCase();
+        while (low.indexOf('uploads/') === 0) { s = s.substring(8); low = s.toLowerCase(); }
+        while (low.indexOf('app/public/') === 0) { s = s.substring(11); low = s.toLowerCase(); }
+        if (low.indexOf('images/') === 0) return '/' + s;
+        return '/uploads/app/public/' + s;
+    }
+
     function viewRequest(req) {
         document.getElementById('viewModalTitle').textContent = req.product_name;
         document.getElementById('viewModalBody').innerHTML = `
@@ -269,8 +298,8 @@
             <div style="margin-top:20px">
                 <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Your Signature:</h4>
                 ${req.customer_signature ? `
-                    <div style="cursor:pointer;" onclick="openImagePreview('/storage/${req.customer_signature}')">
-                        <img src="/storage/${req.customer_signature}" alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                    <div style="cursor:pointer;" onclick="openImagePreview(${JSON.stringify(publicMediaUrlClient(req.customer_signature))})">
+                        <img src=${JSON.stringify(publicMediaUrlClient(req.customer_signature))} alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
                         <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
                     </div>
                 ` : '<div class="text-sm text-muted">N/A</div>'}

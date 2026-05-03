@@ -26,7 +26,23 @@
                 <select name="brand_id" class="form-input">
                     <option value="">Select a brand...</option>
                     @foreach($brands as $b)
+                        @php
+                            $types = (array) ($b->types ?? []);
+                            $legacy = $b->type ?? null;
+                            $allowed = (
+                                in_array('outdoor_kitchen', $types, true) ||
+                                in_array('sauna', $types, true) ||
+                                in_array('other', $types, true) ||
+                                in_array('outdoor_products', $types, true) ||
+                                in_array($legacy, ['outdoor_kitchen','sauna','other','outdoor_products'], true) ||
+                                (empty($types) && empty($legacy)) ||
+                                // Always keep currently selected brand visible for editing
+                                ((int) $b->id === (int) $item->brand_id)
+                            );
+                        @endphp
+                        @if($allowed)
                         <option value="{{ $b->id }}" @selected(old('brand_id',$item->brand_id)==$b->id)>{{ $b->name }}</option>
+                        @endif
                     @endforeach
                 </select>
                 @else

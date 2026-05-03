@@ -48,49 +48,6 @@
         </div>
     </div>
 
-    @section('scripts')
-    <script src="https://js.stripe.com/v3/"></script>
-    <script>
-        const stripe = Stripe('{{ env('STRIPE_PUBLISHABLE_KEY') }}');
-
-        document.querySelectorAll('.js-buy-plan').forEach(btn => {
-            btn.addEventListener('click', async function() {
-                const planId = this.getAttribute('data-id');
-                const originalText = this.innerText;
-                
-                this.disabled = true;
-                this.innerText = 'Redirecting...';
-
-                try {
-                    const res = await fetch('{{ route('manufacturer.credits.purchase') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({ plan_id: planId })
-                    });
-                    
-                    const data = await res.json();
-                    
-                    if (data.id) {
-                        stripe.redirectToCheckout({ sessionId: data.id });
-                    } else {
-                        alert(data.error || 'Failed to initialize payment');
-                        this.disabled = false;
-                        this.innerText = originalText;
-                    }
-                } catch (e) {
-                    alert('Connection error');
-                    this.disabled = false;
-                    this.innerText = originalText;
-                }
-            });
-        });
-    </script>
-    @endsection
-
     {{-- Credit History --}}
     <div class="card" style="padding: 0;">
         <div style="padding: 1.25rem; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
@@ -141,4 +98,55 @@
     <div class="mt-4" style="padding:1rem">{{ $creditRequests->links('components.pagination') }}</div>
 </div>
 </div>
+@endsection
+
+@section('scripts')
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    const stripeKey = @json($stripePublishableKey ?? '');
+    if (!stripeKey) {
+        console.error('Stripe publishable key is missing.');
+    }
+    const stripe = stripeKey ? Stripe(stripeKey) : null;
+
+    document.querySelectorAll('.js-buy-plan').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!stripe) {
+                alert('Stripe is not configured. Please contact support.');
+                return;
+            }
+            const planId = this.getAttribute('data-id');
+            const originalText = this.innerText;
+            
+            this.disabled = true;
+            this.innerText = 'Redirecting...';
+
+            try {
+                const res = await fetch('{{ route('manufacturer.credits.purchase') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ plan_id: planId })
+                });
+                
+                const data = await res.json();
+                
+                if (data.id) {
+                    stripe.redirectToCheckout({ sessionId: data.id });
+                } else {
+                    alert(data.error || 'Failed to initialize payment');
+                    this.disabled = false;
+                    this.innerText = originalText;
+                }
+            } catch (e) {
+                alert('Connection error');
+                this.disabled = false;
+                this.innerText = originalText;
+            }
+        });
+    });
+</script>
 @endsection

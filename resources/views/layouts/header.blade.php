@@ -123,6 +123,7 @@
         <ul class="mobile-menu-list">
             <li><a href="{{ url('/hot-tubs') }}"    class="mobile-menu-link">Hot Tubs</a></li>
             <li><a href="{{ url('/swim-spas') }}"   class="mobile-menu-link">Swim Spas</a></li>
+            <li><a href="{{ url('/outdoor-products') }}" class="mobile-menu-link">Outdoor Products</a></li>
             <li><a href="{{ url('/services') }}"    class="mobile-menu-link">Services</a></li>
             <li><a href="{{ url('/parts') }}"       class="mobile-menu-link">Parts</a></li>
             <li><a href="{{ url('/brands') }}"      class="mobile-menu-link">Brands</a></li>

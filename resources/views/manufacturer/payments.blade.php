@@ -10,7 +10,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('manufacturer.payments') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('manufacturer.payments') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Invoice #..." value="{{ request('search') }}">
@@ -24,9 +24,12 @@
                 <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>Failed</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('manufacturer.payments') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -65,7 +68,11 @@
                         <span class="badge badge--danger">{{ ucfirst($inv->status) }}</span>
                     @endif
                 </td>
-                <td><a href="{{ route('manufacturer.invoice.download', $inv->invoice_number) }}" class="text-teal fw-700">Download</a></td>
+                <td style="white-space:nowrap;">
+                    <a href="{{ route('manufacturer.invoice', $inv->invoice_number) }}" class="text-teal fw-700">View</a>
+                    <span class="text-muted" style="margin:0 6px;">|</span>
+                    <a href="{{ route('manufacturer.invoice.download', $inv->invoice_number) }}" class="text-teal fw-700">Download</a>
+                </td>
             </tr>
             @empty
             <tr>

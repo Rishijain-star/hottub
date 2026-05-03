@@ -18,7 +18,8 @@
                     if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
                     return null;
                 }, $imgs), fn ($v) => is_string($v) && $v !== ''));
-                $img = count($imgs) ? url('storage/app/public/' . $imgs[0]) : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=80&auto=format&fit=crop';
+                $galleryResolved = collect($imgs)->map(fn ($p) => \App\Support\PublicMedia::url($p))->filter()->values()->all();
+                $img = count($galleryResolved) ? $galleryResolved[0] : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=80&auto=format&fit=crop';
             @endphp
             <div class="ht-gallery__stage ht-detail__img-wrap">
                 <button id="htPrev" class="ht-gallery__nav ht-gallery__nav--prev">‹</button>
@@ -28,7 +29,7 @@
             @if(count($imgs) > 1)
             <div class="ht-gallery__thumbs">
                 @foreach($imgs as $i => $src)
-                    <img src="{{ url('storage/app/public/' . $src) }}" class="ht-gallery__thumb {{ $i===0 ? 'active' : '' }}" data-idx="{{ $i }}" loading="lazy" decoding="async">
+                    <img src="{{ \App\Support\PublicMedia::url($src) }}" class="ht-gallery__thumb {{ $i===0 ? 'active' : '' }}" data-idx="{{ $i }}" loading="lazy" decoding="async">
                 @endforeach
             </div>
             @endif
@@ -90,9 +91,9 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
             <div class="card" style="background:#fff;border-radius:14px;padding:20px;border:1px solid #e5e7eb">
                 <h3 style="margin:0 0 12px 0">Pros</h3>
-                <ul style="margin:0;padding-left:18px">
+                <ul style="margin:0;padding:0;list-style:none">
                     @forelse($item->pros ?? [] as $p)
-                        <li style="margin-bottom:6px">{{ $p }}</li>
+                        @include('components.icon-list-item', ['text' => $p, 'type' => 'pros'])
                     @empty
                         <li>—</li>
                     @endforelse
@@ -100,9 +101,9 @@
             </div>
             <div class="card" style="background:#fff;border-radius:14px;padding:20px;border:1px solid #e5e7eb">
                 <h3 style="margin:0 0 12px 0">Cons</h3>
-                <ul style="margin:0;padding-left:18px">
+                <ul style="margin:0;padding:0;list-style:none">
                     @forelse($item->cons ?? [] as $c)
-                        <li style="margin-bottom:6px">{{ $c }}</li>
+                        @include('components.icon-list-item', ['text' => $c, 'type' => 'cons'])
                     @empty
                         <li>—</li>
                     @endforelse
@@ -121,14 +122,8 @@
 @section('scripts')
 <script>
 (function(){
-    const BASE = '{{ url('') }}';
-    const imgs = @json(collect($item->images ?? [])->map(function ($v) {
-        if (is_string($v)) return $v;
-        if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
-        return null;
-    })->filter()->values());
-    const urls = imgs.map(s => BASE + '/storage/app/public/' + s);
-    if(!imgs || imgs.length === 0) return;
+    const urls = @json(collect($imgs ?? [])->map(fn ($p) => \App\Support\PublicMedia::url($p))->filter()->values());
+    if (!urls || urls.length === 0) return;
     let idx = 0;
     const main = document.getElementById('htMainImg');
     const prev = document.getElementById('htPrev');

@@ -14,12 +14,14 @@ class User extends Authenticatable
     const ROLE_DEALER = 'dealer';
     const ROLE_MANUFACTURER = 'manufacturer';
     const ROLE_ADMIN = 'admin';
+    const ROLE_SUB_ADMIN = 'sub_admin';
 
     protected $fillable = [
         'name',
         'email',
         'password',
         'role',
+        'admin_permissions',
         'status',
         'credits',
         'company_name',
@@ -36,6 +38,9 @@ class User extends Authenticatable
         'dealer_lng',
         'manufacturer_lat',
         'manufacturer_lng',
+        'phone_verified_at',
+        'sms_otp_hash',
+        'sms_otp_expires_at',
     ];
 
     protected $hidden = [
@@ -49,7 +54,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'service_offerings' => 'array',
+            'admin_permissions' => 'array',
             'credits' => 'integer',
+            'phone_verified_at' => 'datetime',
+            'sms_otp_expires_at' => 'datetime',
         ];
     }
 
@@ -71,7 +79,33 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
+        return $this->role === self::ROLE_ADMIN || $this->role === self::ROLE_SUB_ADMIN;
+    }
+
+    public function isFullAdmin(): bool
+    {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isSubAdmin(): bool
+    {
+        return $this->role === self::ROLE_SUB_ADMIN;
+    }
+
+    /**
+     * Dangerous actions: payments, creating dealers/manufacturers — only full admin unless explicitly granted.
+     */
+    public function canAdminPermission(string $key): bool
+    {
+        if ($this->isFullAdmin()) {
+            return true;
+        }
+        if (!$this->isSubAdmin()) {
+            return false;
+        }
+        $perms = $this->admin_permissions ?? [];
+
+        return !empty($perms[$key]);
     }
 
     public function isDealer(): bool

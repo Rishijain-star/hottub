@@ -89,6 +89,20 @@
         <div class="grid grid--2">
             <div class="form-group"><label class="form-label">Package Name *</label><input name="name" id="pkgName" class="form-input" placeholder="e.g., Premium Service" required></div>
             <div class="form-group"><label class="form-label">Price (£) *</label><input name="price" id="pkgPrice" type="number" step="0.01" class="form-input" required></div>
+            <div class="form-group">
+                <label class="form-label">Plan Type *</label>
+                <select name="plan_type" id="pkgPlanType" class="form-input" required>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Highlight</label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">
+                    <input type="checkbox" name="is_most_popular" id="pkgMostPopular" value="1">
+                    Mark as Most Popular
+                </label>
+            </div>
         </div>
         <div class="form-group"><label class="form-label">Description</label><textarea name="description" id="pkgDesc" class="form-input" rows="2"></textarea></div>
         <div class="form-group">
@@ -106,6 +120,9 @@
 <div class="grid grid--3">
     @forelse($packages as $pkg)
     <div class="pkg-card">
+        @if($pkg->is_most_popular)
+            <span class="badge badge--primary" style="position:absolute;top:10px;left:10px;">MOST POPULAR</span>
+        @endif
         <div class="pkg-header">
             <div class="pkg-name">{{ $pkg->name }}</div>
             <div style="display:flex; gap:8px;">
@@ -120,7 +137,7 @@
                 </form>
             </div>
         </div>
-        <div class="pkg-price">£{{ number_format($pkg->price, 2) }}<span>/year</span></div>
+        <div class="pkg-price">£{{ number_format($pkg->price, 2) }}<span>/{{ ($pkg->plan_type ?? 'yearly') === 'monthly' ? 'month' : 'year' }}</span></div>
         <div class="pkg-desc">{{ $pkg->description }}</div>
         
         <ul class="pkg-features">
@@ -151,6 +168,8 @@ function showAddForm() {
     document.getElementById('methodField').innerHTML = '';
     document.getElementById('pkgName').value = '';
     document.getElementById('pkgPrice').value = '';
+    document.getElementById('pkgPlanType').value = 'monthly';
+    document.getElementById('pkgMostPopular').checked = false;
     document.getElementById('pkgDesc').value = '';
     document.getElementById('featuresInput').value = '';
     document.getElementById('packageFormCard').style.display = 'block';
@@ -171,6 +190,8 @@ async function editPackage(id) {
             document.getElementById('methodField').innerHTML = '<input type="hidden" name="_method" value="PUT">';
             document.getElementById('pkgName').value = pkg.name;
             document.getElementById('pkgPrice').value = pkg.price;
+            document.getElementById('pkgPlanType').value = pkg.plan_type || 'monthly';
+            document.getElementById('pkgMostPopular').checked = !!pkg.is_most_popular;
             document.getElementById('pkgDesc').value = pkg.description || '';
             document.getElementById('featuresInput').value = (pkg.features || []).join('\n');
             document.getElementById('packageFormCard').style.display = 'block';

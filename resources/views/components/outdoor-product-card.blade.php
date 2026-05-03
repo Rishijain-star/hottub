@@ -10,7 +10,7 @@ $imgs = array_values(array_filter(array_map(function ($v) {
     return null;
 }, $imgs), fn ($v) => is_string($v) && $v !== ''));
 $img = count($imgs)
-    ? url('storage/app/public/' . $imgs[0])
+    ? (\App\Support\PublicMedia::url($imgs[0]) ?: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400&q=80&auto=format&fit=crop')
     : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400&q=80&auto=format&fit=crop';
 @endphp
 <div class="ht-card" data-brand="{{ strtolower($it->brand) }}">
@@ -27,6 +27,7 @@ $img = count($imgs)
         <h3 class="ht-card__name">
             <a href="{{ route('outdoor-products.detail', $it->slug) }}" style="color:inherit;text-decoration:none">{{ $it->model }}</a>
         </h3>
+        @include('components.card-description', ['text' => $it->description, 'lines' => 3, 'class' => 'ht-card__desc'])
         <div class="ht-card__specs">
             <span class="ht-card__spec">{{ $it->product_type }}</span>
             @if($it->dimensions)

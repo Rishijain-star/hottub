@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
 use App\Services\GeocodingService;
+use Illuminate\Support\Str;
 
 class ManufacturerManagementController extends Controller
 {
@@ -101,6 +101,10 @@ class ManufacturerManagementController extends Controller
 
     public function destroy(User $manufacturer)
     {
+        if ($manufacturer->role !== User::ROLE_MANUFACTURER) {
+            abort(403, 'This account cannot be deleted here.');
+        }
+
         $manufacturer->delete();
         return back()->with('success','Manufacturer deleted.');
     }
@@ -127,5 +131,19 @@ class ManufacturerManagementController extends Controller
         $request->validate(['amount' => 'required|integer|min:1']);
         $manufacturer->increment('credits', $request->amount);
         return back()->with('success', "{$request->amount} credits added.");
+    }
+
+    public function resetPassword(Request $request, User $manufacturer)
+    {
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $manufacturer->update([
+            'password' => $data['password'],
+            'remember_token' => Str::random(60),
+        ]);
+
+        return back()->with('success', "Password updated successfully for {$manufacturer->email}.");
     }
 }

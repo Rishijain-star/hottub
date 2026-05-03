@@ -7,7 +7,7 @@
     <div class="fw-800 mb-3" style="font-size:1.1rem;color:var(--gray-900); display: flex; justify-content: space-between; align-items: center;">
         <span>Unit Information - {{ $lead->delivery_details['make'] ?? 'Product' }} {{ $lead->delivery_details['model'] ?? '' }}</span>
         @if($lead->stage === 'Delivered')
-            <span class="badge badge--success" style="font-size: 0.75rem;">Delivered</span>
+            <span class="badge badge--success" style="font-size: 0.75rem;">Delivery Checklist</span>
         @endif
     </div>
     <div class="grid grid--2">
@@ -22,10 +22,10 @@
             <div class="text-sm text-muted">Documents</div>
             <div class="fw-700" style="display:flex;gap:10px;margin-top:5px">
                 @if($lead->invoice_path)
-                    <a href="{{ asset('storage/' . $lead->invoice_path) }}" target="_blank" class="btn btn--ghost btn--sm">View Invoice</a>
+                    <a href="{{ \App\Support\PublicMedia::url($lead->invoice_path) }}" target="_blank" class="btn btn--ghost btn--sm">View Invoice</a>
                 @endif
                 @if($lead->warranty_path)
-                    <a href="{{ asset('storage/' . $lead->warranty_path) }}" target="_blank" class="btn btn--ghost btn--sm">View Warranty</a>
+                    <a href="{{ \App\Support\PublicMedia::url($lead->warranty_path) }}" target="_blank" class="btn btn--ghost btn--sm">View Warranty</a>
                 @endif
                 @if(!$lead->invoice_path && !$lead->warranty_path)
                     —
@@ -33,10 +33,87 @@
             </div>
         </div>
     </div>
+
+    @php $leadChecks = isset($checklists) ? $checklists->where('lead_id', $lead->id) : collect(); @endphp
+    @if($leadChecks->isNotEmpty())
+    <div class="mt-4 pt-4" style="border-top:1px solid #e5e7eb">
+        <div class="fw-700 mb-2" style="font-size:0.95rem;color:var(--gray-900)">Delivery &amp; service checklist</div>
+        @foreach($leadChecks as $chk)
+        <div class="flex justify-between align-center mb-2" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="text-sm text-muted">Recorded {{ $chk->completed_at ? $chk->completed_at->format('d M Y') : $chk->created_at->format('d M Y') }} — {{ $chk->dealer?->company_name ?: $chk->dealer?->name ?? 'Dealer' }}</div>
+            @if(!$chk->customer_signature)
+                <button type="button" class="btn btn--primary btn--sm" onclick="openHtSignModal({{ $chk->id }})">Sign off</button>
+            @else
+                <span class="badge badge--success">Signed</span>
+            @endif
+        </div>
+        @endforeach
+    </div>
+    @endif
 </div>
 @empty
 <div class="card">
     <div class="text-center text-muted py-4">No ownership details found yet.</div>
 </div>
 @endforelse
+
+<div id="htSignatureModal" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+    <div class="card" style="width:400px;background:#fff;padding:25px;border-radius:12px;position:relative">
+        <button type="button" class="icon-btn" style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" onclick="closeHtSignModal()">&times;</button>
+        <h3 style="margin-top:0;font-weight:800">Sign to confirm</h3>
+        <p class="text-sm text-muted">Sign below to confirm you received the delivery &amp; service checklist.</p>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;background:#f9fafb">
+            <canvas id="htSigCanvas" width="360" height="150" style="cursor:crosshair;max-width:100%;height:auto"></canvas>
+        </div>
+        <div class="modal-actions" style="justify-content:space-between">
+            <button type="button" class="btn btn--ghost btn--sm" onclick="clearHtSig()">Clear</button>
+            <div style="display:flex;gap:10px">
+                <button type="button" class="btn btn--ghost btn--sm" onclick="closeHtSignModal()">Cancel</button>
+                <button type="button" class="btn btn--primary btn--sm" onclick="saveHtSignature()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+let htChecklistId = null;
+const htCanvas = document.getElementById('htSigCanvas');
+const htCtx = htCanvas ? htCanvas.getContext('2d') : null;
+let htDrawing = false;
+
+function openHtSignModal(id) {
+    htChecklistId = id;
+    document.getElementById('htSignatureModal').style.display = 'flex';
+    clearHtSig();
+}
+
+function closeHtSignModal() {
+    document.getElementById('htSignatureModal').style.display = 'none';
+}
+
+function clearHtSig() {
+    if (htCtx && htCanvas) htCtx.clearRect(0, 0, htCanvas.width, htCanvas.height);
+}
+
+htCanvas?.addEventListener('mousedown', (e) => { htDrawing = true; htCtx.beginPath(); htCtx.moveTo(e.offsetX, e.offsetY); });
+htCanvas?.addEventListener('mousemove', (e) => { if(htDrawing) { htCtx.lineTo(e.offsetX, e.offsetY); htCtx.stroke(); } });
+htCanvas?.addEventListener('mouseup', () => htDrawing = false);
+
+async function saveHtSignature() {
+    if (!htChecklistId) return;
+    const signature = htCanvas.toDataURL('image/png');
+    try {
+        const res = await fetch(`/customer/service-history/${htChecklistId}/sign`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ signature })
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) window.location.reload();
+        else alert('Unable to save signature.');
+    } catch (e) { alert('Network error'); }
+}
+</script>
 @endsection

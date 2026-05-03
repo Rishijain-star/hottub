@@ -5,21 +5,24 @@ use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\DealerManagementController;
 use App\Http\Controllers\Admin\FeaturedContentController;
 use App\Http\Controllers\Admin\LeadController;
-use App\Http\Controllers\Admin\ServiceManagementController;
 use App\Http\Controllers\Admin\ManufacturerManagementController;
 use App\Http\Controllers\Admin\PartController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PaymentProcessorController;
 use App\Http\Controllers\Admin\PricingController;
 use App\Http\Controllers\Admin\ServiceController;
+use App\Http\Controllers\Admin\ServiceManagementController;
 use App\Http\Controllers\Dealer\DealerController;
 use App\Http\Controllers\Manufacturer\ManufacturerController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\PageController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\PageController;
+use App\Http\Controllers\PhoneVerificationController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+
+// Storage routes: routes/storage-public.php (loaded in bootstrap/app.php without web middleware).
 
 // ══ PUBLIC PAGES ══════════════════════════════════════════════════════════════
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -60,9 +63,12 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register']);
+    Route::get('/register/verify-otp', [AuthController::class, 'showRegistrationOtpForm'])->name('register.otp.form');
+    Route::post('/register/verify-otp', [AuthController::class, 'verifyRegistrationOtp'])->name('register.otp.verify');
+    Route::post('/register/resend-otp', [AuthController::class, 'resendRegistrationOtp'])->name('register.otp.resend');
 });
 
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // Public enquiry submit (creates a Lead)
 Route::post('/enquiry', [\App\Http\Controllers\EnquiryController::class, 'submit'])->name('enquiry.submit');
@@ -81,12 +87,18 @@ Route::get('/dashboard', function () {
     if (!$u)
         return redirect()->route('login');
     return match ($u->role) {
-        'admin' => redirect()->route('admin.overview'),
+        'admin', 'sub_admin' => redirect()->route('admin.overview'),
         'dealer' => redirect()->route('dealer.overview'),
         'manufacturer' => redirect()->route('manufacturer.overview'),
         default => redirect()->route('customer.overview'),
     };
 })->middleware('auth')->name('dashboard');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/verify-phone', [PhoneVerificationController::class, 'show'])->name('verify.phone');
+    Route::post('/verify-phone', [PhoneVerificationController::class, 'submit'])->name('verify.phone.submit');
+    Route::post('/verify-phone/resend', [PhoneVerificationController::class, 'resend'])->name('verify.phone.resend');
+});
 
 // ══ ADMIN PANEL ═══════════════════════════════════════════════════════════════
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -131,8 +143,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/featured/{featured}/edit', [FeaturedContentController::class, 'edit'])->name('featured.edit');
     Route::put('/featured/{featured}', [FeaturedContentController::class, 'update'])->name('featured.update');
     Route::delete('/featured/{featured}', [FeaturedContentController::class, 'destroy'])->name('featured.destroy');
-    Route::get('/manufacturers', [ManufacturerManagementController::class, 'index'])->name('manufacturers');
-    Route::prefix('manufacturers')->name('manufacturers.')->group(function () {
+    Route::get('/manufacturers', [ManufacturerManagementController::class, 'index'])->name('manufacturers')->middleware('full.admin');
+    Route::prefix('manufacturers')->name('manufacturers.')->middleware('full.admin')->group(function () {
         Route::post('/', [ManufacturerManagementController::class, 'store'])->name('store');
         Route::get('/{manufacturer}/edit', [ManufacturerManagementController::class, 'edit'])->name('edit');
         Route::put('/{manufacturer}', [ManufacturerManagementController::class, 'update'])->name('update');
@@ -141,6 +153,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/{manufacturer}/revoke', [ManufacturerManagementController::class, 'revoke'])->name('revoke');
         Route::get('/{manufacturer}/credits', [ManufacturerManagementController::class, 'credits'])->name('credits');
         Route::post('/{manufacturer}/credits', [ManufacturerManagementController::class, 'addCredits'])->name('credits.add');
+        Route::post('/{manufacturer}/reset-password', [ManufacturerManagementController::class, 'resetPassword'])->name('reset-password');
     });
     // Service Management
     Route::get('/service-management', [ServiceManagementController::class, 'index'])->name('service-management');
@@ -153,30 +166,35 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
     Route::get('/leads/{lead}/activity', [LeadController::class, 'activity'])->name('leads.activity');
     Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->name('leads.destroy');
-    Route::get('/payments', [AdminController::class, 'payments'])->name('payments');
-    Route::post('/credits/{request}/approve', [AdminController::class, 'approveCreditRequest'])->name('credits.approve');
-    Route::post('/credits/{request}/reject', [AdminController::class, 'rejectCreditRequest'])->name('credits.reject');
-    Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
-    Route::get('/payments/{invoice}/edit', [PaymentController::class, 'edit'])->name('payments.edit');
-    Route::put('/payments/{invoice}', [PaymentController::class, 'update'])->name('payments.update');
-    Route::delete('/payments/{invoice}', [PaymentController::class, 'destroy'])->name('payments.destroy');
-    Route::get('/pricing-processor', [PaymentProcessorController::class, 'index'])->name('pricing-processor');
-    Route::post('/pricing-processor', [PaymentProcessorController::class, 'save'])->name('pricing-processor.save');
-    Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
-    Route::post('/pricing/packages', [PricingController::class, 'savePackages'])->name('pricing.packages');
-    Route::post('/pricing/enquiry', [PricingController::class, 'saveEnquiryPricing'])->name('pricing.enquiry');
-    Route::post('/pricing/leads', [PricingController::class, 'saveLeadPricing'])->name('pricing.leads');
-    Route::post('/pricing/featured', [PricingController::class, 'saveFeaturedPricing'])->name('pricing.featured');
+    Route::get('/payments', [AdminController::class, 'payments'])->name('payments')->middleware('full.admin');
+    Route::post('/credits/{request}/approve', [AdminController::class, 'approveCreditRequest'])->name('credits.approve')->middleware('full.admin');
+    Route::post('/credits/{request}/reject', [AdminController::class, 'rejectCreditRequest'])->name('credits.reject')->middleware('full.admin');
+    Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store')->middleware('full.admin');
+    Route::get('/payments/{invoice}/edit', [PaymentController::class, 'edit'])->name('payments.edit')->middleware('full.admin');
+    Route::put('/payments/{invoice}', [PaymentController::class, 'update'])->name('payments.update')->middleware('full.admin');
+    Route::delete('/payments/{invoice}', [PaymentController::class, 'destroy'])->name('payments.destroy')->middleware('full.admin');
+    Route::get('/invoices/{invoice}', [AdminController::class, 'invoice'])->name('invoice')->middleware('full.admin');
+    Route::get('/invoices/{invoice}/download', [AdminController::class, 'invoiceDownload'])->name('invoice.download')->middleware('full.admin');
+    Route::get('/pricing-processor', [PaymentProcessorController::class, 'index'])->name('pricing-processor')->middleware('full.admin');
+    Route::post('/pricing-processor', [PaymentProcessorController::class, 'save'])->name('pricing-processor.save')->middleware('full.admin');
+    Route::middleware('full.admin')->group(function () {
+        Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
+        Route::post('/pricing/packages', [PricingController::class, 'savePackages'])->name('pricing.packages');
+        Route::post('/pricing/enquiry', [PricingController::class, 'saveEnquiryPricing'])->name('pricing.enquiry');
+        Route::post('/pricing/leads', [PricingController::class, 'saveLeadPricing'])->name('pricing.leads');
+        Route::post('/pricing/featured', [PricingController::class, 'saveFeaturedPricing'])->name('pricing.featured');
+    });
     // ── Credit Plans ───────────────────────────────────────────────────
-    Route::get('/plans', [AdminController::class, 'plans'])->name('plans');
-    Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store');
-    Route::put('/plans/{plan}', [AdminController::class, 'updatePlan'])->name('plans.update');
-    Route::delete('/plans/{plan}', [AdminController::class, 'destroyPlan'])->name('plans.destroy');
+    Route::get('/plans', [AdminController::class, 'plans'])->name('plans')->middleware('full.admin');
+    Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store')->middleware('full.admin');
+    Route::put('/plans/{plan}', [AdminController::class, 'updatePlan'])->name('plans.update')->middleware('full.admin');
+    Route::delete('/plans/{plan}', [AdminController::class, 'destroyPlan'])->name('plans.destroy')->middleware('full.admin');
 
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
 
-    // ── Dealer Management ──────────────────────────────────────────────────
-    Route::prefix('dealers')->name('dealers.')->group(function () {
+    // ── Dealer Management (full admin only; sub-admins cannot access) ───────
+    Route::prefix('dealers')->name('dealers.')->middleware('full.admin')->group(function () {
         Route::get('/', [DealerManagementController::class, 'index'])->name('index');
         Route::get('/create', [DealerManagementController::class, 'create'])->name('create');
         Route::post('/', [DealerManagementController::class, 'store'])->name('store');
@@ -187,7 +205,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/{dealer}/revoke', [DealerManagementController::class, 'revoke'])->name('revoke');
         Route::get('/{dealer}/credits', [DealerManagementController::class, 'credits'])->name('credits');
         Route::post('/{dealer}/credits', [DealerManagementController::class, 'addCredits'])->name('credits.add');
-        Route::get('/{dealer}/reset-password', [DealerManagementController::class, 'resetPassword'])->name('reset-password');
+        Route::post('/{dealer}/reset-password', [DealerManagementController::class, 'resetPassword'])->name('reset-password');
     });
 
     // ── Dealer Academy ─────────────────────────────────────────────────────
@@ -195,8 +213,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // ── User Management ──────────────────────────────────────────────────
     Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/create', [\App\Http\Controllers\Admin\UserManagementController::class, 'create'])->name('create')->middleware('full.admin');
+        Route::post('/', [\App\Http\Controllers\Admin\UserManagementController::class, 'store'])->name('store')->middleware('full.admin');
         Route::get('/', [\App\Http\Controllers\Admin\UserManagementController::class, 'index'])->name('index');
         Route::put('/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'update'])->name('update');
+        Route::delete('/{user}', [\App\Http\Controllers\Admin\UserManagementController::class, 'destroy'])->name('destroy')->middleware('full.admin');
+        Route::post('/{user}/reset-password', [\App\Http\Controllers\Admin\UserManagementController::class, 'resetPassword'])->name('reset-password');
     });
 
     // ── Support Requests ──────────────────────────────────────────────────
@@ -207,20 +229,25 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
 // ══ DEALER PANEL ══════════════════════════════════════════════════════════════
 Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(function () {
+    Route::view('/account/pending', 'dealer.account-pending')->name('account.pending');
     Route::get('/', [DealerController::class, 'overview'])->name('overview');
+    Route::get('/overview/recent-activity', [DealerController::class, 'overviewRecentActivityList'])->name('overview.recent-activity');
+    Route::get('/dashboard/tasks', [DealerController::class, 'dashboardTasks'])->name('dashboard.tasks');
+    Route::get('/customers', [DealerController::class, 'myCustomers'])->name('customers.index');
     Route::get('/leads', [DealerController::class, 'leads'])->name('leads.index');
     Route::post('/leads/private', [DealerController::class, 'storePrivateLead'])->name('leads.private.store');
     Route::delete('/leads/private/{lead}', [DealerController::class, 'destroyPrivateLead'])->name('leads.private.destroy');
-    
+
     // Maintenance Packages
     Route::get('/maintenance-packages', [DealerController::class, 'maintenancePackages'])->name('maintenance-packages');
     Route::post('/maintenance-packages', [DealerController::class, 'storeMaintenancePackage'])->name('maintenance-packages.store');
     Route::get('/maintenance-packages/{package}/edit', [DealerController::class, 'editMaintenancePackage'])->name('maintenance-packages.edit');
     Route::put('/maintenance-packages/{package}', [DealerController::class, 'updateMaintenancePackage'])->name('maintenance-packages.update');
     Route::delete('/maintenance-packages/{package}', [DealerController::class, 'destroyMaintenancePackage'])->name('maintenance-packages.destroy');
-    
+
     Route::get('/package-requests', [DealerController::class, 'packageRequests'])->name('package-requests')->middleware('overdue');
     Route::put('/package-requests/{packageRequest}', [DealerController::class, 'updatePackageRequestStatus'])->name('package-requests.update');
+    Route::delete('/package-requests/{packageRequest}', [DealerController::class, 'destroyPackageRequest'])->name('package-requests.destroy');
     Route::post('/leads/{lead}/buy', [DealerController::class, 'buyLead'])->name('leads.buy');
     Route::post('/leads/{lead}/decline', [DealerController::class, 'declineLead'])->name('leads.decline');
     Route::get('/leads/{lead}/status', [DealerController::class, 'getLeadStatus'])->name('leads.status');
@@ -229,6 +256,8 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::get('/leads/{lead}', [DealerController::class, 'leadDetail'])->name('leads.detail');
     Route::post('/leads/{lead}/stage', [DealerController::class, 'updateLeadStage'])->name('leads.stage');
     Route::post('/leads/{lead}/activity', [DealerController::class, 'addLeadActivity'])->name('leads.activity');
+    Route::patch('/leads/{lead}/activities/{activity}', [DealerController::class, 'updateLeadActivity'])->name('leads.activity.update');
+    Route::delete('/leads/{lead}/activities/{activity}', [DealerController::class, 'deleteLeadActivity'])->name('leads.activity.destroy');
     Route::post('/activities/{activity}/toggle', [DealerController::class, 'toggleTask'])->name('activities.toggle');
     Route::post('/leads/{lead}/deliver', [DealerController::class, 'deliverLead'])->name('leads.deliver');
 
@@ -240,13 +269,15 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::put('/service-requests/{serviceRequest}', [DealerController::class, 'updateServiceRequestStatus'])->name('service-requests.update');
     Route::get('/quotes', [DealerController::class, 'quotes'])->name('quotes');
     Route::get('/inventory', [DealerController::class, 'inventory'])->name('inventory');
-    
+    Route::get('/service-management', [\App\Http\Controllers\Admin\ServiceManagementController::class, 'index'])->name('service-management');
+    Route::get('/service-management/{serviceRequest}/download', [\App\Http\Controllers\Admin\ServiceManagementController::class, 'downloadReport'])->name('service-management.download');
+
     // Credits & Plans
     Route::get('/credits', [DealerController::class, 'credits'])->name('credits');
     Route::post('/credits/purchase', [DealerController::class, 'purchasePlan'])->name('credits.purchase');
     Route::get('/credits/success', [DealerController::class, 'purchaseSuccess'])->name('credits.success');
     Route::get('/credits/cancel', [DealerController::class, 'purchaseCancel'])->name('credits.cancel');
-    
+
     Route::post('/credits/request', [DealerController::class, 'requestCredits'])->name('credits.request');
     Route::get('/profile', [DealerController::class, 'profile'])->name('profile');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -254,12 +285,14 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::get('/payments', [DealerController::class, 'payments'])->name('payments');
     Route::get('/invoices/{invoice}', [DealerController::class, 'invoice'])->name('invoice');
     Route::get('/invoices/{invoice}/download', [DealerController::class, 'invoiceDownload'])->name('invoice.download');
-    
+
     // Dealer Academy
     Route::get('/academy', [\App\Http\Controllers\Dealer\DealerAcademyController::class, 'index'])->name('academy.index');
     Route::get('/academy/{dealer_academy}', [\App\Http\Controllers\Dealer\DealerAcademyController::class, 'show'])->name('academy.show');
-    
-    Route::get('/messages', function() { return view('dealer.messages'); })->name('messages');
+
+    Route::get('/messages', function () {
+        return view('dealer.messages');
+    })->name('messages');
     Route::get('/api/conversations', [MessageController::class, 'getConversations'])->name('api.conversations');
     Route::get('/api/messages/{user}', [MessageController::class, 'getMessages'])->name('api.messages');
     Route::post('/api/messages/{user}', [MessageController::class, 'sendMessage'])->name('api.send_message');
@@ -267,7 +300,11 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
 
 // ══ MANUFACTURER PANEL ════════════════════════════════════════════════════════
 Route::middleware(['auth', 'manufacturer'])->prefix('manufacturer')->name('manufacturer.')->group(function () {
+    Route::view('/account/pending', 'manufacturer.account-pending')->name('account.pending');
     Route::get('/', [ManufacturerController::class, 'overview'])->name('overview');
+    Route::get('/overview/recent-activity', [ManufacturerController::class, 'overviewRecentActivityList'])->name('overview.recent-activity');
+    Route::get('/dashboard/tasks', [ManufacturerController::class, 'dashboardTasks'])->name('dashboard.tasks');
+    Route::get('/customers', [ManufacturerController::class, 'myCustomers'])->name('customers.index');
     Route::get('/leads', [ManufacturerController::class, 'leads'])->name('leads');
     Route::post('/leads/private', [ManufacturerController::class, 'storePrivateLead'])->name('leads.private.store');
     Route::delete('/leads/private/{lead}', [ManufacturerController::class, 'destroyPrivateLead'])->name('leads.private.destroy');
@@ -279,17 +316,23 @@ Route::middleware(['auth', 'manufacturer'])->prefix('manufacturer')->name('manuf
     Route::get('/leads/{lead}', [ManufacturerController::class, 'leadDetail'])->name('leads.detail');
     Route::post('/leads/{lead}/stage', [ManufacturerController::class, 'updateLeadStage'])->name('leads.stage');
     Route::post('/leads/{lead}/activity', [ManufacturerController::class, 'addLeadActivity'])->name('leads.activity');
+    Route::patch('/leads/{lead}/activities/{activity}', [ManufacturerController::class, 'updateLeadActivity'])->name('leads.activity.update');
+    Route::delete('/leads/{lead}/activities/{activity}', [ManufacturerController::class, 'deleteLeadActivity'])->name('leads.activity.destroy');
     Route::post('/activities/{activity}/toggle', [ManufacturerController::class, 'toggleTask'])->name('activities.toggle');
     Route::post('/leads/{lead}/deliver', [ManufacturerController::class, 'deliverLead'])->name('leads.deliver');
+    Route::post('/leads/{lead}/service-checklist', [ManufacturerController::class, 'storeServiceChecklist'])->name('leads.service-checklist');
+    Route::get('/leads/{lead}/service-history', [ManufacturerController::class, 'getServiceHistory'])->name('leads.service-history');
     Route::get('/quotes', [ManufacturerController::class, 'quotes'])->name('quotes');
     Route::get('/inventory', [ManufacturerController::class, 'inventory'])->name('inventory');
-    
+    Route::get('/service-management', [\App\Http\Controllers\Admin\ServiceManagementController::class, 'index'])->name('service-management');
+    Route::get('/service-management/{serviceRequest}/download', [\App\Http\Controllers\Admin\ServiceManagementController::class, 'downloadReport'])->name('service-management.download');
+
     // Credits & Plans
     Route::get('/credits', [ManufacturerController::class, 'credits'])->name('credits');
     Route::post('/credits/purchase', [ManufacturerController::class, 'purchasePlan'])->name('credits.purchase');
     Route::get('/credits/success', [ManufacturerController::class, 'purchaseSuccess'])->name('credits.success');
     Route::get('/credits/cancel', [ManufacturerController::class, 'purchaseCancel'])->name('credits.cancel');
-    
+
     Route::post('/credits/request', [ManufacturerController::class, 'requestCredits'])->name('credits.request');
     Route::get('/profile', [ManufacturerController::class, 'profile'])->name('profile');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -304,7 +347,7 @@ Route::middleware(['auth', 'manufacturer'])->prefix('manufacturer')->name('manuf
     Route::get('/maintenance-packages/{package}/edit', [ManufacturerController::class, 'editMaintenancePackage'])->name('maintenance-packages.edit');
     Route::put('/maintenance-packages/{package}', [ManufacturerController::class, 'updateMaintenancePackage'])->name('maintenance-packages.update');
     Route::delete('/maintenance-packages/{package}', [ManufacturerController::class, 'destroyMaintenancePackage'])->name('maintenance-packages.destroy');
-    
+
     Route::get('/package-requests', [ManufacturerController::class, 'packageRequests'])->name('package-requests');
     Route::put('/package-requests/{packageRequest}', [ManufacturerController::class, 'updatePackageRequestStatus'])->name('package-requests.update');
 
@@ -312,15 +355,17 @@ Route::middleware(['auth', 'manufacturer'])->prefix('manufacturer')->name('manuf
     Route::get('/service-requests', [ManufacturerController::class, 'serviceRequests'])->name('service-requests');
     Route::get('/service-history', [ManufacturerController::class, 'serviceHistory'])->name('service-history');
     Route::put('/service-requests/{serviceRequest}', [ManufacturerController::class, 'updateServiceRequestStatus'])->name('service-requests.update');
-    
-    Route::get('/messages', function() { return view('manufacturer.messages'); })->name('messages');
+
+    Route::get('/messages', function () {
+        return view('manufacturer.messages');
+    })->name('messages');
     Route::get('/api/conversations', [MessageController::class, 'getConversations'])->name('api.conversations');
     Route::get('/api/messages/{user}', [MessageController::class, 'getMessages'])->name('api.messages');
     Route::post('/api/messages/{user}', [MessageController::class, 'sendMessage'])->name('api.send_message');
 });
 
 // ══ CUSTOMER PANEL ════════════════════════════════════════════════════════════
-Route::middleware(['auth', 'customer'])->prefix('customer')->name('customer.')->group(function () {
+Route::middleware(['auth', 'phone.verified', 'customer'])->prefix('customer')->name('customer.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Customer\CustomerController::class, 'overview'])->name('overview');
     Route::get('/hot-tub', [\App\Http\Controllers\Customer\CustomerController::class, 'myHotTub'])->name('hot-tub');
     Route::get('/service-requests', [\App\Http\Controllers\Customer\CustomerController::class, 'serviceRequests'])->name('service-requests');
@@ -332,6 +377,8 @@ Route::middleware(['auth', 'customer'])->prefix('customer')->name('customer.')->
     Route::post('/service-requests', [\App\Http\Controllers\Customer\CustomerController::class, 'storeServiceRequest'])->name('service-requests.store');
     Route::put('/service-requests/{serviceRequest}/confirm', [\App\Http\Controllers\Customer\CustomerController::class, 'confirmServiceRequest'])->name('service-requests.confirm');
     Route::post('/package-requests', [\App\Http\Controllers\Customer\CustomerController::class, 'storePackageRequest'])->name('package-requests.store');
+    Route::post('/package-requests/{packageRequest}/cancel', [\App\Http\Controllers\Customer\CustomerController::class, 'cancelPackageRequest'])->name('package-requests.cancel');
+    Route::post('/package-requests/{packageRequest}/reactivate', [\App\Http\Controllers\Customer\CustomerController::class, 'reactivatePackageRequest'])->name('package-requests.reactivate');
     Route::get('/messages', [\App\Http\Controllers\Customer\CustomerController::class, 'messages'])->name('messages');
 
     // API-like routes for messaging

@@ -11,7 +11,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('admin.dealer-academy.index') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('admin.dealer-academy.index') }}" class="panel-filter-form panel-filter-form--4">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Title..." value="{{ request('search') }}">
@@ -30,9 +30,12 @@
             <label class="form-label">Category</label>
             <input type="text" name="category" class="form-input" placeholder="Category..." value="{{ request('category') }}">
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('admin.dealer-academy.index') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>

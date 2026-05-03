@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
 use App\Services\GeocodingService;
+use Illuminate\Support\Str;
 
 class DealerManagementController extends Controller
 {
@@ -119,6 +119,10 @@ class DealerManagementController extends Controller
 
     public function destroy(User $dealer)
     {
+        if ($dealer->role !== User::ROLE_DEALER) {
+            abort(403, 'This account cannot be deleted here.');
+        }
+
         $dealer->delete();
         return redirect()->route('admin.dealers.index')->with('success', 'Dealer deleted.');
     }
@@ -147,9 +151,17 @@ class DealerManagementController extends Controller
         return back()->with('success', "{$request->amount} credits added to {$dealer->name}.");
     }
 
-    public function resetPassword(User $dealer)
+    public function resetPassword(Request $request, User $dealer)
     {
-        Password::sendResetLink(['email' => $dealer->email]);
-        return back()->with('success', "Password reset email sent to {$dealer->email}.");
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $dealer->update([
+            'password' => $data['password'],
+            'remember_token' => Str::random(60),
+        ]);
+
+        return back()->with('success', "Password updated successfully for {$dealer->email}.");
     }
 }

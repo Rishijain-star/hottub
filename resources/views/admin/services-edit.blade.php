@@ -75,10 +75,11 @@
                 <td>
                     <div class="actions-row">
                         <a href="{{ route('admin.services.edit', $svc) }}" class="icon-btn" title="Edit">✎</a>
-                        <form method="POST" action="{{ route('admin.services.destroy', $svc) }}" onsubmit="return confirm('Delete this service?')">
-                            @csrf @method('DELETE')
-                            <button class="icon-btn" title="Delete">✕</button>
-                        </form>
+                        <button type="button"
+                                class="icon-btn js-open-delete"
+                                title="Delete"
+                                data-action="{{ route('admin.services.destroy', $svc) }}"
+                                data-entity="service">✕</button>
                     </div>
                 </td>
             </tr>
@@ -97,4 +98,5 @@
         document.getElementById('includesListEdit').appendChild(row);
     }
 </script>
+@include('components.delete-confirm-modal')
 @endsection

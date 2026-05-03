@@ -58,8 +58,16 @@
                 <td>@if($l->status==='converted')<span class="badge badge--success">Converted</span>@elseif($l->status==='contacted')<span class="badge">Contacted</span>@elseif($l->status==='closed')<span class="badge badge--dark">Closed</span>@else<span class="badge">New</span>@endif</td>
                 <td>
                     <div class="actions-row">
-                        <a href="{{ route('admin.leads.activity', $l) }}" class="icon-btn" title="Activity">&#128221;</a>
-                        <a href="{{ route('admin.leads.edit', $l) }}" class="icon-btn" title="Edit">✎</a>
+                        <a href="{{ route('admin.leads.activity', $l) }}" class="icon-btn" title="Activity">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                        </a>
+                        <a href="{{ route('admin.leads.edit', $l) }}" class="icon-btn" title="Edit">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+                            </svg>
+                        </a>
                     </div>
                 </td>
             </tr>

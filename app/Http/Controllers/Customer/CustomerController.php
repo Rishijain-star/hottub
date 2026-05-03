@@ -3,12 +3,34 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use App\Models\Notification;
+use App\Support\MaintenancePlanDates;
 
 class CustomerController extends Controller
 {
     public function overview()
     {
         $user = auth()->user();
+
+        if (Schema::hasColumn('package_requests', 'expiry_date')) {
+            \App\Models\PackageRequest::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->whereNotNull('expiry_date')
+                ->where('expiry_date', '<=', now())
+                ->update(['status' => 'expired']);
+        }
+        if (Schema::hasColumn('package_requests', 'cancellation_effective_at')) {
+            \App\Models\PackageRequest::where('user_id', $user->id)
+                ->where('status', 'cancellation_scheduled')
+                ->whereNotNull('cancellation_effective_at')
+                ->where('cancellation_effective_at', '<=', now())
+                ->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                ]);
+        }
         
         // Fetch all leads for this customer (email-based) - include non-converted for notifications
         $leads = \App\Models\Lead::whereRaw('LOWER(email) = ?', [strtolower($user->email)])
@@ -49,9 +71,12 @@ class CustomerController extends Controller
             if ($dealerId) {
                 $lead->dealer = \App\Models\User::find($dealerId);
                 if ($lead->dealer) {
-                    $lead->packages = \App\Models\MaintenancePackage::where('dealer_id', $lead->dealer->id)
-                        ->where('status', 'active')
-                        ->get();
+                    $pkgQuery = \App\Models\MaintenancePackage::where('dealer_id', $lead->dealer->id)
+                        ->where('status', 'active');
+                    if (Schema::hasColumn('maintenance_packages', 'is_most_popular')) {
+                        $pkgQuery->orderByDesc('is_most_popular');
+                    }
+                    $lead->packages = $pkgQuery->orderBy('price')->get();
                 }
             }
         }
@@ -61,8 +86,7 @@ class CustomerController extends Controller
 
         $recentActivity = \App\Models\Notification::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
-            ->take(10)
-            ->get();
+            ->paginate(5);
 
         if (request()->ajax() && request()->has('page')) {
             return view('customer.overview', compact('recentActivity'))->render();
@@ -156,9 +180,11 @@ class CustomerController extends Controller
 
             return response()->json(['ok' => true, 'msg' => 'Deposit confirmed successfully. This lead has been assigned to the dealer.']);
         } else {
+            $rejectingDealerId = $notification->data['dealer_id'] ?? null;
+
             \App\Models\LeadActivity::create([
                 'lead_id' => $lead->id,
-                'dealer_id' => $notification->data['dealer_id'],
+                'dealer_id' => $rejectingDealerId,
                 'type' => 'activity',
                 'content' => "Customer rejected deposit confirmation."
             ]);
@@ -167,6 +193,35 @@ class CustomerController extends Controller
                 'read' => true,
                 'message' => "✗ You have rejected the deposit confirmation for this dealer."
             ]);
+
+            // ── Notify the dealer who requested the deposit ────────────
+            if ($rejectingDealerId) {
+                \App\Models\Notification::create([
+                    'user_id' => $rejectingDealerId,
+                    'message' => "Customer {$lead->name} has rejected your deposit confirmation request.",
+                    'type' => 'deposit_rejected',
+                    'data' => ['lead_id' => $lead->id, 'customer_id' => $user->id],
+                ]);
+            }
+
+            // ── Notify every manufacturer who purchased this lead ──────
+            $manufacturerIds = \App\Models\LeadPurchase::where('lead_id', $lead->id)
+                ->where('buyer_role', 'manufacturer')
+                ->pluck('dealer_id')
+                ->unique();
+            foreach ($manufacturerIds as $manufacturerId) {
+                \App\Models\Notification::create([
+                    'user_id' => $manufacturerId,
+                    'message' => "Customer {$lead->name} has rejected the deposit confirmation for lead #{$lead->id}.",
+                    'type' => 'deposit_rejected',
+                    'data' => [
+                        'lead_id' => $lead->id,
+                        'customer_id' => $user->id,
+                        'dealer_id' => $rejectingDealerId,
+                    ],
+                ]);
+            }
+
             return response()->json(['ok' => true, 'msg' => 'Deposit confirmation rejected.']);
         }
     }
@@ -204,10 +259,135 @@ class CustomerController extends Controller
 
         \App\Models\Notification::create([
             'user_id' => $dealer_id,
-            'message' => 'New package request from ' . $user->name,
+            'message' => 'Customer purchased a maintenance plan: ' . $package->name,
+            'type' => 'maintenance_plan_purchase',
+            'data' => [
+                'customer_id' => $user->id,
+                'customer_name' => $user->name,
+                'package_id' => $package->id,
+                'package_name' => $package->name,
+                'package_request_id' => $packageRequest->id,
+            ],
         ]);
 
         return back()->with('success', 'Package request submitted to your dealer.');
+    }
+
+    public function cancelPackageRequest(\Illuminate\Http\Request $request, \App\Models\PackageRequest $packageRequest)
+    {
+        $user = auth()->user();
+        if ((int) $packageRequest->user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'mode' => 'required|in:immediate,scheduled',
+            'reason' => 'required|string|max:2000',
+        ]);
+
+        if (!in_array($packageRequest->status, ['active', 'cancellation_scheduled'], true)) {
+            return back()->with('error', 'Only active plans can be cancelled.');
+        }
+
+        if ($data['mode'] === 'scheduled') {
+            $effectiveAt = $packageRequest->expiry_date ?? now();
+            $packageRequest->update([
+                'status' => 'cancellation_scheduled',
+                'cancellation_type' => 'scheduled',
+                'cancellation_requested_at' => now(),
+                'cancellation_effective_at' => $effectiveAt,
+                'cancellation_reason' => trim((string) $data['reason']),
+            ]);
+
+            Notification::create([
+                'user_id' => $packageRequest->dealer_id,
+                'message' => 'Customer scheduled cancellation for ' . ($effectiveAt ? $effectiveAt->format('d M Y') : now()->format('d M Y')),
+                'type' => 'maintenance_plan_cancel_scheduled',
+                'data' => [
+                    'customer_id' => $user->id,
+                    'customer_name' => $user->name,
+                    'package_request_id' => $packageRequest->id,
+                    'effective_at' => $effectiveAt?->toDateTimeString(),
+                ],
+            ]);
+
+            return back()->with('success', 'Plan will be cancelled at end of term.');
+        }
+
+        $packageRequest->update([
+            'status' => 'cancelled',
+            'cancellation_type' => 'immediate',
+            'cancellation_requested_at' => now(),
+            'cancellation_effective_at' => now(),
+            'cancelled_at' => now(),
+            'cancellation_reason' => trim((string) $data['reason']),
+        ]);
+
+        Notification::create([
+            'user_id' => $packageRequest->dealer_id,
+            'message' => 'Customer cancelled the plan immediately',
+            'type' => 'maintenance_plan_cancel_immediate',
+            'data' => [
+                'customer_id' => $user->id,
+                'customer_name' => $user->name,
+                'package_request_id' => $packageRequest->id,
+                'cancelled_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        return back()->with('success', 'Plan cancelled immediately.');
+    }
+
+    public function reactivatePackageRequest(\Illuminate\Http\Request $request, \App\Models\PackageRequest $packageRequest)
+    {
+        $user = auth()->user();
+        if ((int) $packageRequest->user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        if (!in_array($packageRequest->status, ['cancellation_scheduled', 'cancelled'], true)) {
+            return back()->with('error', 'Only cancelled plans can be reactivated.');
+        }
+
+        if ($packageRequest->status === 'cancellation_scheduled') {
+            $packageRequest->update([
+                'status' => 'active',
+                'cancellation_type' => null,
+                'cancellation_requested_at' => null,
+                'cancellation_effective_at' => null,
+                'cancelled_at' => null,
+                'cancellation_reason' => null,
+            ]);
+        } else {
+            $planType = MaintenancePlanDates::normalizeType(optional($packageRequest->package)->plan_type);
+            $dates = MaintenancePlanDates::calculate($planType);
+
+            $packageRequest->update([
+                'status' => 'active',
+                'start_date' => $dates['start_date'],
+                'expiry_date' => $dates['expiry_date'],
+                'next_due_date' => $dates['next_due_date'],
+                'cancellation_type' => null,
+                'cancellation_requested_at' => null,
+                'cancellation_effective_at' => null,
+                'cancelled_at' => null,
+                'cancellation_reason' => null,
+            ]);
+        }
+
+        Notification::create([
+            'user_id' => $packageRequest->dealer_id,
+            'message' => 'Customer reactivated the plan',
+            'type' => 'maintenance_plan_reactivated',
+            'data' => [
+                'customer_id' => $user->id,
+                'customer_name' => $user->name,
+                'package_request_id' => $packageRequest->id,
+                'reactivated_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        return back()->with('success', 'Your plan has been reactivated');
     }
 
     public function myHotTub()
@@ -238,7 +418,12 @@ class CustomerController extends Controller
             });
         }
 
-        return view('customer.my-hot-tub', compact('leads'));
+        $checklists = \App\Models\ServiceChecklist::whereIn('lead_id', $leads->pluck('id'))
+            ->with('dealer')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('customer.my-hot-tub', compact('leads', 'checklists'));
     }
     public function serviceRequests()
     {
@@ -272,14 +457,20 @@ class CustomerController extends Controller
         ]);
 
         $signature_image = $request->customer_signature;
-        $signature_image = str_replace('data:image/png;base64,', '', $signature_image);
+        if (preg_match('/^data:image\/\w+;base64,/', $signature_image)) {
+            $signature_image = substr($signature_image, strpos($signature_image, ',') + 1);
+        }
         $signature_image = str_replace(' ', '+', $signature_image);
-        $imageName = uniqid().'.'.'png';
-        \Illuminate\Support\Facades\Storage::disk('public')->put('signatures/'.$imageName, base64_decode($signature_image));
+        $imageName = uniqid('', true) . '.png';
+        $raw = base64_decode($signature_image, true);
+        if ($raw === false) {
+            return back()->with('error', 'Could not read signature. Please try again.');
+        }
+        \Illuminate\Support\Facades\Storage::disk('public')->put('signatures/' . $imageName, $raw);
 
         $serviceRequest->update([
             'customer_review' => $data['customer_review'],
-            'customer_signature' => 'signatures/'.$imageName,
+            'customer_signature' => 'signatures/' . $imageName,
             'status' => 'completed',
             'completed_at' => now(),
         ]);
@@ -294,7 +485,7 @@ class CustomerController extends Controller
             'type' => 'required|in:part,service',
             'product_id' => 'required|integer',
             'lead_id' => 'required|exists:leads,id', // Selected product (lead)
-            'message' => 'nullable|string',
+            'message' => 'required|string|min:3|max:5000',
         ]);
 
         // Find linked dealer via the selected lead
@@ -365,6 +556,7 @@ class CustomerController extends Controller
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:20',
             'postcode' => 'nullable|string|max:10',
+            'address' => 'nullable|string|max:2000',
         ]);
 
         $user->update($data);
@@ -381,7 +573,7 @@ class CustomerController extends Controller
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('profiles', 'public');
-            $user->update(['profile_image' => $path]);
+            $user->update(['profile_picture' => $path]);
         }
 
         return back()->with('success', 'Profile picture updated successfully.');
@@ -389,28 +581,33 @@ class CustomerController extends Controller
 
     public function serviceHistory()
     {
-        
-        $user = auth()->user();
-        $lead = \App\Models\Lead::where('email', $user->email)->first();
-         $history = [];
-        if (!$lead)   return view('customer.service-history', compact('history'));
-
-        $history = \App\Models\ServiceChecklist::where('lead_id', $lead->id)
-            ->orderBy('completed_at', 'desc')
-            ->get();
-         
-        return view('customer.service-history', compact('history'));
+        return redirect()->route('customer.request-history');
     }
 
     public function signService(Request $request, \App\Models\ServiceChecklist $checklist)
     {
         $user = auth()->user();
-        $lead = \App\Models\Lead::where('email', $user->email)->first();
-        if (!$lead || $checklist->lead_id !== $lead->id) abort(403);
+        $lead = \App\Models\Lead::whereRaw('LOWER(email) = ?', [strtolower($user->email)])
+            ->where('id', $checklist->lead_id)
+            ->first();
+        if (!$lead) {
+            abort(403);
+        }
 
         $request->validate(['signature' => 'required|string']);
-        $checklist->update(['customer_signature' => $request->signature]);
-        
+        $sig = $request->signature;
+        if (preg_match('/^data:image\/\w+;base64,/', $sig)) {
+            $sig = substr($sig, strpos($sig, ',') + 1);
+        }
+        $sig = str_replace(' ', '+', $sig);
+        $raw = base64_decode($sig, true);
+        if ($raw === false || $raw === '') {
+            return response()->json(['ok' => false, 'msg' => 'Invalid signature data'], 422);
+        }
+        $imageName = uniqid('', true) . '.png';
+        \Illuminate\Support\Facades\Storage::disk('public')->put('signatures/' . $imageName, $raw);
+        $checklist->update(['customer_signature' => 'signatures/' . $imageName]);
+
         return response()->json(['ok' => true]);
     }
 

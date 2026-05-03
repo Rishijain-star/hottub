@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
+use App\Support\PublicMedia;
 use App\Models\OutdoorProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -135,7 +136,7 @@ class OutdoorProductController extends Controller
             $outdoor_product->images = $imgs;
             $outdoor_product->save();
 
-            return response()->json(['ok' => true, 'url' => asset('storage/' . $url)]);
+            return response()->json(['ok' => true, 'url' => PublicMedia::url($path)]);
         }
         return response()->json(['ok' => false], 400);
     }

@@ -25,7 +25,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('admin.services.index') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('admin.services.index') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Service name..." value="{{ request('search') }}">
@@ -38,9 +38,12 @@
                 <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('admin.services.index') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -156,7 +159,12 @@
                 <tr>
                     <td style="width:60px">
                         @if($it->image_url)
-                            <img src="{{ $it->image_url }}" alt="{{ $it->name }}"
+                            @php
+                                $imgUrl = str_starts_with($it->image_url, 'http://') || str_starts_with($it->image_url, 'https://')
+                                    ? $it->image_url
+                                    : \App\Support\PublicMedia::url(ltrim($it->image_url, '/'));
+                            @endphp
+                            <img src="{{ $imgUrl }}" alt="{{ $it->name }}"
                                  style="width:48px;height:48px;object-fit:cover;border-radius:6px">
                         @else
                             <div style="width:48px;height:48px;border:1px dashed var(--gray-300);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--gray-400)">
@@ -196,15 +204,15 @@
                                     <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
                                 </svg>
                             </a>
-                            <form method="POST" action="{{ route('admin.services.destroy', $it) }}"
-                                  onsubmit="return confirm('Delete this service?')">
-                                @csrf @method('DELETE')
-                                <button class="icon-btn" title="Delete">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                                        <path d="M3 6h18M8 6v14m8-14v14M5 6l1-2h12l1 2"/>
-                                    </svg>
-                                </button>
-                            </form>
+                            <button type="button"
+                                    class="icon-btn js-open-delete"
+                                    title="Delete"
+                                    data-action="{{ route('admin.services.destroy', $it) }}"
+                                    data-entity="service">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path d="M3 6h18M8 6v14m8-14v14M5 6l1-2h12l1 2"/>
+                                </svg>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -257,5 +265,7 @@
         }
     }
 </script>
+
+@include('components.delete-confirm-modal')
 
 @endsection

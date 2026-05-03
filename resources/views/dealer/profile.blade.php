@@ -28,7 +28,7 @@
         <div style="display: flex; align-items: center; gap: 2.5rem; margin-bottom: 4rem;">
             <div style="position: relative; width: 150px; height: 150px; flex-shrink: 0; border-radius: 50%; overflow: hidden; border: 4px solid #f3f4f6; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center;">
                 @if($dealer->profile_picture)
-                    <img id="profile_picture_preview" src="{{ url('storage/app/public/' . $dealer->profile_picture) }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                    <img id="profile_picture_preview" src="{{ \App\Support\PublicMedia::url($dealer->profile_picture) }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;">
                 @else
                     <div id="profile_picture_preview_container" class="letter-avatar" style="width: 100%; height: 100%; font-size: 4rem;">
                         {{ substr($dealer->name, 0, 1) }}
@@ -58,20 +58,24 @@
                 <input type="email" name="email" class="form-input" value="{{ $dealer->email }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
             </div>
             <div class="form-group">
-                <label class="form-label" style="font-weight: 600; color: #4b5563; margin-bottom: 0.75rem;">Phone Number</label>
-                <input type="text" name="phone" class="form-input" value="{{ $dealer->phone }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
+                <label class="form-label" style="font-weight: 600; color: #4b5563; margin-bottom: 0.75rem;">Mobile Number</label>
+                <input type="text" name="phone" class="form-input" value="{{ $dealer->phone ?: '—' }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 600; color: #4b5563; margin-bottom: 0.75rem;">Postcode</label>
+                <input type="text" class="form-input" value="{{ $dealer->postcode ?: '—' }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
             </div>
             <div class="form-group">
                 <label class="form-label" style="font-weight: 600; color: #4b5563; margin-bottom: 0.75rem;">Website</label>
                 <input type="text" name="website" class="form-input" value="{{ $dealer->website }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
             </div>
             <div class="form-group">
-                <label class="form-label" style="font-weight: 600; color: #4b5563; margin-bottom: 0.75rem;">Company Registration</label>
-                <input type="text" name="company_number" class="form-input" value="{{ $dealer->company_number }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
+                <label class="form-label" style="font-weight: 600; color: #4b5563; margin-bottom: 0.75rem;">Company Registration Number</label>
+                <input type="text" name="company_number" class="form-input" value="{{ $dealer->company_number ?: '—' }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
             </div>
             <div class="form-group">
                 <label class="form-label" style="font-weight: 600; color: #4b5563; margin-bottom: 0.75rem;">VAT Number</label>
-                <input type="text" name="vat_number" class="form-input" value="{{ $dealer->vat_number }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
+                <input type="text" name="vat_number" class="form-input" value="{{ $dealer->vat_number ?: '—' }}" readonly style="background-color: #f9fafb; cursor: not-allowed; border-color: #e5e7eb; color: #6b7280; padding: 0.75rem 1rem;">
             </div>
         </div>
 

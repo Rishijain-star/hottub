@@ -23,7 +23,7 @@
             <div class="form-group">
                 <label class="form-label">Brand *</label>
                 @if(isset($brands) && count($brands))
-                <select name="brand_id" class="form-input">
+                <select name="brand_id" id="hotTubEditBrandSelect" class="form-input">
                     <option value="">Select a brand...</option>
                     @foreach($brands as $b)
                         <option value="{{ $b->id }}" @selected(old('brand_id',$item->brand_id)==$b->id)>{{ $b->name }}</option>
@@ -36,7 +36,7 @@
             <div class="form-group"><label class="form-label">Model *</label><input name="model" class="form-input" value="{{ old('model', $item->model) }}" required></div>
             <div class="form-group">
                 <label class="form-label">Product Type *</label>
-                <select name="product_type" class="form-input" required>
+                <select name="product_type" id="hotTubEditProductTypeSelect" class="form-input" required>
                     <option value="hot_tub" @selected(old('product_type',$item->product_type)=='hot_tub')>Hot Tub</option>
                     <option value="swim_spa" @selected(old('product_type',$item->product_type)=='swim_spa')>Swim Spa</option>
                 </select>
@@ -60,6 +60,13 @@
                     <option value="active" @selected(old('status',$item->status)=='active')>Active</option>
                     <option value="inactive" @selected(old('status',$item->status)=='inactive')>Inactive</option>
                 </select>
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Homepage</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:600;">
+                    <input type="checkbox" name="featured_on_homepage" value="1" @checked(old('featured_on_homepage', $item->featured_on_homepage ?? false))>
+                    Featured product (show in Featured Products on homepage when active)
+                </label>
             </div>
         </div>
 
@@ -117,7 +124,7 @@
                 @if(count($imgs))
                     @foreach($imgs as $idx => $img)
                         <div class="image-item" style="position:relative;width:100px;height:100px;border:2px solid {{ $idx === 0 ? 'var(--primary)' : 'var(--gray-200)' }};border-radius:8px;overflow:hidden">
-                            <img src="{{ url('storage/app/public/'.$img) }}" style="width:100%;height:100%;object-fit:cover">
+                            <img src="{{ \App\Support\PublicMedia::url(ltrim($img,'/')) }}" alt="" style="width:100%;height:100%;object-fit:cover">
                             @if($idx === 0)
                                 <div style="position:absolute;bottom:0;left:0;right:0;background:var(--primary);color:white;font-size:10px;text-align:center;padding:2px">Main</div>
                             @else
@@ -143,6 +150,51 @@
 <script>
     function addProEdit(){const row=document.createElement('div');row.className='input-group';row.style='display:flex;gap:8px;margin-bottom:8px';row.innerHTML='<input class="form-input" name="pros[]" placeholder="Pro"><button type="button" class="btn" onclick="this.parentElement.remove()">✕</button>';document.getElementById('prosListEdit').appendChild(row);}
     function addConEdit(){const row=document.createElement('div');row.className='input-group';row.style='display:flex;gap:8px;margin-bottom:8px';row.innerHTML='<input class="form-input" name="cons[]" placeholder="Con"><button type="button" class="btn" onclick="this.parentElement.remove()">✕</button>';document.getElementById('consListEdit').appendChild(row);}
+
+    // Brand filtering based on selected product type (Hot Tub vs Swim Spa)
+    (function () {
+        const brandSelect = document.getElementById('hotTubEditBrandSelect');
+        const typeSelect = document.getElementById('hotTubEditProductTypeSelect');
+        if (!brandSelect || !typeSelect) return;
+
+        const BRAND_TYPE_MAP = @php
+            $map = [];
+            foreach ($brands as $b) {
+                $types = (array) ($b->types ?? []);
+                $legacy = $b->type ?? null;
+                $forHot = in_array('hot_tub', $types, true) || in_array('both', $types, true) || in_array($legacy, ['hot_tub', 'both'], true);
+                $forSwim = in_array('swim_spa', $types, true) || in_array('both', $types, true) || in_array($legacy, ['swim_spa', 'both'], true);
+                $map[$b->id] = [
+                    'hot_tub' => $forHot,
+                    'swim_spa' => $forSwim,
+                ];
+            }
+            echo json_encode($map);
+        @endphp;
+
+        function applyBrandFilter() {
+            const type = typeSelect.value || 'hot_tub';
+            const current = brandSelect.value;
+            Array.from(brandSelect.options).forEach(opt => {
+                if (!opt.value) {
+                    opt.hidden = false;
+                    return;
+                }
+                const meta = BRAND_TYPE_MAP[opt.value] || null;
+                const allowed = !meta || meta[type] || opt.value === current;
+                opt.hidden = !allowed;
+            });
+            if (current && brandSelect.selectedOptions[0] && brandSelect.selectedOptions[0].hidden) {
+                // Keep selected visible; don't force-change existing item on edit
+                Array.from(brandSelect.options).forEach(opt => {
+                    if (opt.value === current) opt.hidden = false;
+                });
+            }
+        }
+
+        typeSelect.addEventListener('change', applyBrandFilter);
+        applyBrandFilter();
+    })();
 
     function setMainImage(index) {
         if (!confirm('Set this image as the main image?')) return;
@@ -199,10 +251,11 @@
                 <td>
                     <div class="actions-row">
                         <a href="{{ route('admin.hot-tubs.edit', $it) }}" class="icon-btn" title="Edit">✎</a>
-                        <form method="POST" action="{{ route('admin.hot-tubs.destroy', $it) }}" onsubmit="return confirm('Delete this product?')">
-                            @csrf @method('DELETE')
-                            <button class="icon-btn" title="Delete">✕</button>
-                        </form>
+                        <button type="button"
+                                class="icon-btn js-open-delete"
+                                title="Delete"
+                                data-action="{{ route('admin.hot-tubs.destroy', $it) }}"
+                                data-entity="product">✕</button>
                     </div>
                 </td>
             </tr>
@@ -211,4 +264,5 @@
     </table>
     <div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
 </div>
+@include('components.delete-confirm-modal')
 @endsection

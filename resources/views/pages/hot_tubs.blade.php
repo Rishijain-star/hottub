@@ -17,22 +17,22 @@ more.')
     <div class="container">
         <div class="ht-filters-panel">
         <form class="ht-filters" method="GET" action="{{ route('hot-tubs') }}" id="filterForm">
-            <!-- <div class="ht-filter-group">
+            <div class="ht-filter-group">
                 <label class="ht-filter-label">Tier</label>
                 <select class="ht-filter-select" name="tier" id="filter-tier">
                     @php $tierSel = request('tier'); @endphp
                     <option value="">All Tiers</option>
-                    @foreach(['luxury'=>'Luxury','premium'=>'Premium','mid-range'=>'Mid Range','budget'=>'Budget','entry'=>'Entry','mid range'=>'Mid Range'] as $val=>$label)
+                    @foreach(($tierFilters ?? ['entry-level' => 'Entry Level', 'luxury' => 'Luxury', 'mid-range' => 'Mid-range']) as $val => $label)
                         <option value="{{ $val }}" {{ $tierSel==$val ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
-            </div> -->
+            </div>
             <div class="ht-filter-group">
                 <label class="ht-filter-label">Minimum Seats</label>
                 <select class="ht-filter-select" name="min_seats" id="filter-seats">
                     @php $seatSel = request('min_seats'); @endphp
                     <option value="">Any</option>
-                    @foreach([2,4,6,7] as $s)
+                    @foreach(($seatOptions ?? []) as $s)
                         <option value="{{ $s }}" {{ (string)$seatSel===(string)$s ? 'selected' : '' }}>{{ $s }}+</option>
                     @endforeach
                 </select>
@@ -197,6 +197,7 @@ selBrand.addEventListener('change', function(){
     form.submit();
 });
 selModel.addEventListener('change', function(){ form.submit(); });
+const ft = document.getElementById('filter-tier'); if(ft){ ft.addEventListener('change', ()=>form.submit()); }
 const fs = document.getElementById('filter-seats'); if(fs){ fs.addEventListener('change', ()=>form.submit()); }
 
 // initialize models on load

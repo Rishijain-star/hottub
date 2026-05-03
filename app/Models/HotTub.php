@@ -11,10 +11,11 @@ class HotTub extends Model
 
     protected $fillable = [
         'brand', 'brand_id', 'product_type', 'model', 'tier', 'seats', 'jets', 'dimensions', 'power_requirements',
-        'status', 'comfort', 'efficiency', 'features', 'quality', 'value', 'overall', 'pros', 'cons', 'images', 'description', 'slug'
+        'status', 'featured_on_homepage', 'comfort', 'efficiency', 'features', 'quality', 'value', 'overall', 'pros', 'cons', 'images', 'description', 'slug'
     ];
 
     protected $casts = [
+        'featured_on_homepage' => 'boolean',
         'pros' => 'array',
         'cons' => 'array',
         'images' => 'array',

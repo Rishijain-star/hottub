@@ -48,7 +48,7 @@
             <label class="form-label">Thumbnail Image</label>
             @if($item->thumbnail_path)
                 <div class="mb-2">
-                    <img src="{{ asset('storage/' . $item->thumbnail_path) }}" style="width:120px; height:80px; object-fit:cover; border-radius:8px; border:1px solid var(--gray-200)">
+                    <img src="{{ \App\Support\PublicMedia::url($item->thumbnail_path) }}" style="width:120px; height:80px; object-fit:cover; border-radius:8px; border:1px solid var(--gray-200)">
                 </div>
             @endif
             <input type="file" name="thumbnail" class="form-input" accept="image/*">
@@ -59,7 +59,7 @@
             <label class="form-label" id="fileLabel">Upload File</label>
             @if($item->file_path)
                 <div class="mb-2 text-sm">
-                    Current: <a href="{{ asset('storage/' . $item->file_path) }}" target="_blank" class="text-primary-600 fw-700">View Current File</a>
+                    Current: <a href="{{ \App\Support\PublicMedia::url($item->file_path) }}" target="_blank" class="text-primary-600 fw-700">View Current File</a>
                 </div>
             @endif
             <input type="file" name="file" class="form-input" accept=".pdf,.mp4,.avi,.mov">

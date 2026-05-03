@@ -14,13 +14,20 @@ class Invoice extends Model
         'dealer_id',
         'credits',
         'amount',
+        'credit_plan_id',
+        'plan_name',
+        'plan_description',
+        'currency',
         'status',
         'payment_id',
+        'stripe_session_id',
+        'payment_details',
     ];
 
     protected $casts = [
         'credits' => 'integer',
         'amount' => 'decimal:2',
+        'payment_details' => 'array',
     ];
 
     public function user()

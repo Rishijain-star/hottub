@@ -21,7 +21,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('admin.brands.index') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('admin.brands.index') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Brand Name..." value="{{ request('search') }}">
@@ -35,9 +35,12 @@
                 <option value="both" {{ request('type') === 'both' ? 'selected' : '' }}>Both</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('admin.brands.index') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -51,14 +54,16 @@
                 <label class="form-label">Name *</label>
                 <input name="name" class="form-input" required placeholder="e.g., Hotspring">
             </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column:1/-1">
                 <label class="form-label">Brand Type</label>
-                <select name="type" class="form-input">
-                    <option value="">Select...</option>
-                    <option value="hot_tub">Hot Tub</option>
-                    <option value="swim_spa">Swim Spa</option>
-                    <option value="both">Both</option>
-                </select>
+                <div style="display:flex;flex-wrap:wrap;gap:12px">
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="types[]" value="hot_tub"> Hot Tub</label>
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="types[]" value="swim_spa"> Swim Spa</label>
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="types[]" value="both"> Hot Tub &amp; Swim Spa</label>
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="types[]" value="outdoor_kitchen"> Outdoor Kitchen</label>
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="types[]" value="sauna"> Sauna</label>
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="types[]" value="other"> Other</label>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label">Website</label>
@@ -77,9 +82,21 @@
             <label class="form-label">Description</label>
             <textarea name="description" class="form-input" rows="4"></textarea>
         </div>
+        <div class="form-group">
+            <label class="form-label">Brand Status</label>
+            <div style="display:flex;align-items:center;gap:16px">
+                <label class="form-check" style="display:flex;align-items:center;gap:6px">
+                    <input type="radio" name="is_active" value="1" checked> Active
+                </label>
+                <label class="form-check" style="display:flex;align-items:center;gap:6px">
+                    <input type="radio" name="is_active" value="0"> Inactive
+                </label>
+            </div>
+        </div>
         <label class="form-check" style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" name="featured" value="1"> Featured brand
         </label>
+        <p class="text-xs text-muted" style="margin-top:.35rem;max-width:42rem;">Only brands with this box ticked appear on the homepage “Premium Brands We Feature” section.</p>
         @include('components.upload-progress')
         <div class="modal-actions" style="justify-content:flex-start">
             <button class="btn btn--primary" type="submit">+ Create Brand</button>
@@ -102,6 +119,7 @@
                 <th>Origin</th>
                 <th>Type</th>
                 <th>Website</th>
+                <th>Active</th>
                 <th>Featured</th>
                 <th>Actions</th>
             </tr>
@@ -111,31 +129,47 @@
             <tr>
                 <td>
                     @if($b->logo_path)
-                        <img src="{{ url('storage/app/public/'.$b->logo_path) }}" alt="{{ $b->name }}" style="width:40px;height:40px;object-fit:contain;border-radius:4px">
+                        <img src="{{ \App\Support\PublicMedia::url($b->logo_path) }}" alt="{{ $b->name }}" style="width:40px;height:40px;object-fit:contain;border-radius:4px">
                     @else
                         —
                     @endif
                 </td>
                 <td class="fw-700 text-dark">{{ $b->name }}</td>
                 <td>{{ $b->country_of_origin ?? '—' }}</td>
-                <td>{{ $b->type ? str_replace('_',' ', ucfirst($b->type)) : '—' }}</td>
+                <td>
+                    @php
+                        $labels = ['hot_tub' => 'Hot Tub', 'swim_spa' => 'Swim Spa', 'both' => 'Hot Tub & Swim Spa', 'outdoor_kitchen' => 'Outdoor Kitchen', 'sauna' => 'Sauna', 'other' => 'Other'];
+                        $bits = [];
+                        foreach ((array) ($b->types ?? []) as $t) { if (isset($labels[$t])) $bits[] = $labels[$t]; }
+                    @endphp
+                    @if(count($bits))
+                        {{ implode(', ', $bits) }}
+                    @elseif($b->type)
+                        {{ str_replace('_',' ', ucfirst($b->type)) }}
+                    @else
+                        —
+                    @endif
+                </td>
                 <td>@if($b->website)<a href="{{ $b->website }}" target="_blank">{{ $b->website }}</a>@else — @endif</td>
+                <td>@if($b->is_active ?? true)<span class="badge badge--success">Yes</span>@else <span class="badge badge--danger">No</span> @endif</td>
                 <td>@if($b->featured)<span class="badge badge--success">Featured</span>@else <span class="badge">—</span> @endif</td>
                 <td>
                     <div class="actions-row">
                         <a href="{{ route('admin.brands.edit', $b) }}" class="icon-btn" title="Edit">✎</a>
-                        <form method="POST" action="{{ route('admin.brands.destroy', $b) }}" onsubmit="return confirm('Delete this brand?')">
-                            @csrf @method('DELETE')
-                            <button class="icon-btn" title="Delete">✕</button>
-                        </form>
+                        <button type="button"
+                                class="icon-btn js-open-delete"
+                                title="Delete"
+                                data-action="{{ route('admin.brands.destroy', $b) }}"
+                                data-entity="brand">✕</button>
                     </div>
                 </td>
             </tr>
         @empty
-            <tr><td colspan="4" class="text-muted">No brands yet.</td></tr>
+            <tr><td colspan="8" class="text-muted">No brands yet.</td></tr>
         @endforelse
         </tbody>
     </table>
     <div class="mt-4" style="padding:1rem">{{ $brands->links('components.pagination') }}</div>
 </div>
+@include('components.delete-confirm-modal')
 @endsection

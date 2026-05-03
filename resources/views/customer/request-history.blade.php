@@ -1,8 +1,8 @@
 @extends('layouts.customer')
-@section('title', 'Request History – Customer Panel')
+@section('title', 'Service History – Customer Panel')
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Request History</h1><p class="panel-page-sub">View your past service and part requests</p></div>
+    <div><h1 class="panel-page-title">Service History</h1><p class="panel-page-sub">Completed service and part requests</p></div>
 </div>
 
 <div class="card" style="padding:0;">
@@ -56,6 +56,29 @@
 </div>
 
 <script>
+    function publicMediaUrlClient(rel) {
+        if (!rel) return '';
+        var s = String(rel).replace(/\\/g, '/').trim();
+        s = s.replace(/\/storage\/app\/public\//gi, '/uploads/app/public/').replace(/\/storage\//gi, '/uploads/app/public/');
+        s = s.replace(/\/uploads\/(?!app\/public\/)/gi, '/uploads/app/public/');
+        if (/^https?:\/\//i.test(s)) return s;
+        if (s.startsWith('/uploads/') || s.startsWith('/images/')) return s;
+        s = s.replace(/^\/+/, '');
+        var low = s.toLowerCase();
+        while (low.indexOf('storage/app/public/') === 0) {
+            s = s.substring(19);
+            low = s.toLowerCase();
+        }
+        if (low.indexOf('public/storage/') === 0) s = s.substring(15);
+        low = s.toLowerCase();
+        if (low.indexOf('storage/') === 0 && low.indexOf('storage/app/') !== 0) s = s.substring(8);
+        low = s.toLowerCase();
+        while (low.indexOf('uploads/') === 0) { s = s.substring(8); low = s.toLowerCase(); }
+        while (low.indexOf('app/public/') === 0) { s = s.substring(11); low = s.toLowerCase(); }
+        if (low.indexOf('images/') === 0) return '/' + s;
+        return '/uploads/app/public/' + s;
+    }
+
     function openImagePreview(src) {
         document.getElementById('previewImage').src = src;
         document.getElementById('imagePreviewModal').style.display = 'flex';
@@ -81,8 +104,8 @@
             <div>
                 <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Your Signature:</h4>
                 ${req.customer_signature ? `
-                    <div style="cursor:pointer;" onclick="openImagePreview('/storage/${req.customer_signature}')">
-                        <img src="/storage/${req.customer_signature}" alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                    <div style="cursor:pointer;" onclick="openImagePreview(${JSON.stringify(publicMediaUrlClient(req.customer_signature))})">
+                        <img src=${JSON.stringify(publicMediaUrlClient(req.customer_signature))} alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
                         <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
                     </div>
                 ` : '<div class="text-sm text-muted">N/A</div>'}

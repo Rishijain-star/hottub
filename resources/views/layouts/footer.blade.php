@@ -27,15 +27,18 @@
                     for all major brands and models.
                 </p>
                 <p class="footer__social-label">Stay connected with us on social media</p>
+                @php
+                    $social = $siteSocialLinks ?? ['facebook'=>null,'twitter'=>null,'instagram'=>null,'tiktok'=>null];
+                @endphp
                 <div class="footer__socials">
-                    <a href="#" class="social-btn" aria-label="Facebook">f</a>
-                    <a href="#" class="social-btn" aria-label="X / Twitter">𝕏</a>
-                    <a href="#" class="social-btn" aria-label="Instagram">
+                    <a href="{{ $social['facebook'] ?: '#' }}" class="social-btn" aria-label="Facebook" @if($social['facebook']) target="_blank" rel="noopener noreferrer" @endif>f</a>
+                    <a href="{{ $social['twitter'] ?: '#' }}" class="social-btn" aria-label="X / Twitter" @if($social['twitter']) target="_blank" rel="noopener noreferrer" @endif>𝕏</a>
+                    <a href="{{ $social['instagram'] ?: '#' }}" class="social-btn" aria-label="Instagram" @if($social['instagram']) target="_blank" rel="noopener noreferrer" @endif>
                         <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
                             <path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4c0 3.2-2.6 5.8-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8C2 4.6 4.6 2 7.8 2Zm-.2 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6Zm9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5ZM12 7a5 5 0 1 1 0 10A5 5 0 0 1 12 7Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/>
                         </svg>
                     </a>
-                    <a href="#" class="social-btn" aria-label="TikTok">
+                    <a href="{{ $social['tiktok'] ?: '#' }}" class="social-btn" aria-label="TikTok" @if($social['tiktok']) target="_blank" rel="noopener noreferrer" @endif>
                         <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
                             <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06Z"/>
                         </svg>
@@ -90,9 +93,45 @@
         </div>
     </div>
 
+    @php
+        $biz = $siteBusinessDetails ?? ['company_name'=>'Hot Tub Buyer Ltd','vat_number'=>null,'company_number'=>null,'fca_number'=>null];
+        $bizBits = [];
+        if (!empty($biz['vat_number'])) $bizBits[] = 'VAT No: ' . $biz['vat_number'];
+        if (!empty($biz['company_number'])) $bizBits[] = 'Company No: ' . $biz['company_number'];
+        if (!empty($biz['fca_number'])) $bizBits[] = 'FCA No: ' . $biz['fca_number'];
+    @endphp
+
+    @if(!empty($bizBits))
+        <div class="footer__reg-strip">
+            <div class="footer__reg-inner">
+                <div class="footer__reg-heading">Registered company details</div>
+                <div class="footer__reg-chips">
+                    @if(!empty($biz['vat_number']))
+                        <div class="footer__reg-chip">
+                            <span class="footer__reg-chip-label">VAT</span>
+                            <span class="footer__reg-chip-value">{{ $biz['vat_number'] }}</span>
+                        </div>
+                    @endif
+                    @if(!empty($biz['company_number']))
+                        <div class="footer__reg-chip">
+                            <span class="footer__reg-chip-label">Company No.</span>
+                            <span class="footer__reg-chip-value">{{ $biz['company_number'] }}</span>
+                        </div>
+                    @endif
+                    @if(!empty($biz['fca_number']))
+                        <div class="footer__reg-chip">
+                            <span class="footer__reg-chip-label">FCA</span>
+                            <span class="footer__reg-chip-value">{{ $biz['fca_number'] }}</span>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- ── Bottom Bar ── --}}
     <div class="footer__bottom">
-        <p class="footer__copy">© {{ date('Y') }} Hot Tub Buyer. All rights reserved.</p>
+        <p class="footer__copy">© {{ date('Y') }} {{ $biz['company_name'] ?? 'Hot Tub Buyer' }}. All rights reserved.</p>
         <p class="footer__credit">
             <a href="{{ route('faq') }}">Contact Support</a>
         </p>

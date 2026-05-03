@@ -77,12 +77,69 @@
                 @endforeach
                 </tbody>
             </table>
-            <div class="totals"><div class="total-line">Total Amount: £{{ number_format($total, 2) }} {{ $currency }}</div></div>
+            @php
+                $net = $netAmount ?? (isset($total) ? round($total / 1.2, 2) : 0);
+                $vat = $vatAmount ?? (isset($total) ? round($total - $net, 2) : 0);
+            @endphp
+            <div style="padding:12px 18px;border-top:1px solid var(--gray-200);font-size:13px;color:var(--gray-700)">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Net (excl. VAT)</span><span>£{{ number_format($net, 2) }}</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>VAT ({{ $vatRatePercent ?? 20 }}%)</span><span>£{{ number_format($vat, 2) }}</span></div>
+            </div>
+            <div class="totals"><div class="total-line">Total (incl. VAT): £{{ number_format($total, 2) }} {{ $currency }}</div></div>
+        </div>
+
+        <div class="card section">
+            <div class="card-head">Plan & Inclusions</div>
+            <div class="meta">
+                <div><b>Plan Name:</b> {{ $items[0]['title'] ?? 'Credit Plan' }}</div>
+                <div><b>Credits Purchased:</b> {{ $items[0]['qty'] ?? 0 }}</div>
+            </div>
+            <div style="padding:14px 18px;color:var(--gray-700);">
+                <div style="font-weight:800;color:var(--gray-900);margin-bottom:6px;">What is included in the plan</div>
+                <div style="white-space:pre-wrap;">{{ $items[0]['desc'] ?? '' }}</div>
+            </div>
+        </div>
+
+        <div class="card section">
+            <div class="card-head">Payment Details</div>
+            <div style="padding:14px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><b>Payment ID:</b> {{ $paymentId ?? 'N/A' }}</div>
+                <div><b>Stripe Session ID:</b> {{ $stripeSessionId ?? 'N/A' }}</div>
+                <div><b>Payment Status:</b> {{ $paymentDetails['payment_status'] ?? $status }}</div>
+                <div><b>Payment Method:</b> {{ $paymentMethodText ?? 'N/A' }}</div>
+                <div style="grid-column:1/-1;"><b>Customer Email:</b> {{ $paymentDetails['customer_email'] ?? 'N/A' }}</div>
+                <div style="grid-column:1/-1;"><b>Amount Charged:</b> £{{ number_format((float)($paymentDetails['amount_total'] ?? $total), 2) }} {{ $currency }}</div>
+            </div>
+        </div>
+
+        @php
+            $biz = $siteBusinessDetails ?? ['company_name'=>'Hot Tub Buyer Ltd','company_email'=>'support@hottubbuyer.com','company_address'=>null,'vat_number'=>null,'company_number'=>null,'fca_number'=>null];
+        @endphp
+        <div class="card section">
+            <div class="card-head">Issuer Details</div>
+            <div style="padding:14px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.95rem;">
+                <div><b>Company:</b> {{ $biz['company_name'] ?? 'Hot Tub Buyer Ltd' }}</div>
+                @if(!empty($biz['company_email']))
+                    <div><b>Email:</b> {{ $biz['company_email'] }}</div>
+                @endif
+                @if(!empty($biz['company_address']))
+                    <div style="grid-column:1/-1;"><b>Registered Address:</b> {{ $biz['company_address'] }}</div>
+                @endif
+                @if(!empty($biz['vat_number']))
+                    <div><b>VAT Number:</b> {{ $biz['vat_number'] }}</div>
+                @endif
+                @if(!empty($biz['company_number']))
+                    <div><b>Company Number:</b> {{ $biz['company_number'] }}</div>
+                @endif
+                @if(!empty($biz['fca_number']))
+                    <div><b>FCA Number:</b> {{ $biz['fca_number'] }}</div>
+                @endif
+            </div>
         </div>
 
         <div class="footer">
-            <div>Hot Tub Buyer Ltd</div>
-            <div>Thank you for your business. For support, contact: support@hottubbuyer.com</div>
+            <div>{{ $biz['company_name'] ?? 'Hot Tub Buyer Ltd' }}</div>
+            <div>Thank you for your business. For support, contact: {{ $biz['company_email'] ?? 'support@hottubbuyer.com' }}</div>
         </div>
     </div>
 </body>

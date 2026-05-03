@@ -1,5 +1,25 @@
 @extends('layouts.admin')
 @section('title', 'Payments & Credit Requests – Admin Panel')
+@section('styles')
+<style>
+    .invoice-number-text {
+        font-weight: 700;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .payment-id-cell {
+        max-width: 170px;
+    }
+    .payment-id-text {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: bottom;
+    }
+</style>
+@endsection
 @section('content')
 <div class="panel-page-header">
     <div>
@@ -108,12 +128,15 @@
                 <th>Gateway Status</th>
                 <th>Payment ID</th>
                 <th>Date</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             @forelse($invoices as $inv)
             <tr>
-                <td class="fw-700">{{ $inv->invoice_number }}</td>
+                <td>
+                    <span class="invoice-number-text">{{ $inv->invoice_number }}</span>
+                </td>
                 <td>
                     <div class="fw-700">{{ $inv->user->name ?? 'N/A' }}</div>
                     <div class="text-xs text-muted">{{ $inv->user->company_name ?? $inv->user->email ?? 'N/A' }}</div>
@@ -131,12 +154,20 @@
                         <span class="badge">{{ ucfirst($inv->status) }}</span>
                     @endif
                 </td>
-                <td><span class="text-xs">{{ $inv->payment_id ?: 'N/A' }}</span></td>
+                <td class="payment-id-cell">
+                    @php($paymentId = (string) ($inv->payment_id ?: 'N/A'))
+                    <span class="text-xs payment-id-text" title="{{ $paymentId }}">{{ $paymentId }}</span>
+                </td>
                 <td class="text-sm">{{ $inv->created_at->format('d/m/Y H:i') }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{{ route('admin.invoice', $inv->invoice_number) }}" class="text-teal fw-700">View</a>
+                    <span class="text-muted" style="margin:0 6px;">|</span>
+                    <a href="{{ route('admin.invoice.download', $inv->invoice_number) }}" class="text-teal fw-700">Download</a>
+                </td>
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center text-muted" style="padding: 3rem;">No gateway payments found.</td>
+                <td colspan="8" class="text-center text-muted" style="padding: 3rem;">No gateway payments found.</td>
             </tr>
             @endforelse
         </tbody>

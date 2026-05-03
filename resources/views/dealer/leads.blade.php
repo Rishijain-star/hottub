@@ -39,7 +39,7 @@
 
 {{-- Search Bar --}}
 <div class="card mb-4">
-    <form method="GET" action="{{ route('dealer.leads.index') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('dealer.leads.index') }}" class="panel-filter-form panel-filter-form--2">
         @if(request('lead_status'))
             <input type="hidden" name="lead_status" value="{{ request('lead_status') }}">
         @endif
@@ -47,16 +47,40 @@
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Name, Email, Phone..." value="{{ request('search') }}">
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Search</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Search</button>
             <a href="{{ route('dealer.leads.index') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
 
 
 
-<div class="fw-800 mb-3" style="font-size:1.1rem; color:var(--gray-900)">Private Leads</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="fw-800" style="font-size:1.1rem; color:var(--gray-900)">Private Leads</div>
+    <div>
+        <form method="GET" action="{{ route('dealer.leads.index') }}" id="privateStatusFilterForm">
+            @if(request('search'))
+                <input type="hidden" name="search" value="{{ request('search') }}">
+            @endif
+            @if(request('status'))
+                <input type="hidden" name="status" value="{{ request('status') }}">
+            @endif
+            @if(request('lead_status'))
+                <input type="hidden" name="lead_status" value="{{ request('lead_status') }}">
+            @endif
+            <select name="private_status" class="form-input" style="width: 160px; padding: 0.5rem;" onchange="document.getElementById('privateStatusFilterForm').submit()">
+                <option value="">All Private Leads</option>
+                <option value="active" {{ request('private_status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="converted" {{ request('private_status') === 'converted' ? 'selected' : '' }}>Converted</option>
+                <option value="lost" {{ request('private_status') === 'lost' ? 'selected' : '' }}>Lost</option>
+            </select>
+        </form>
+    </div>
+</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>
@@ -71,6 +95,14 @@
         </thead>
         <tbody>
             @forelse($privateLeads as $it)
+            @php
+                $privateStatus = 'ACTIVE';
+                if ($it->status === 'converted') {
+                    $privateStatus = 'CONVERTED';
+                } elseif ($it->stage === 'Lost' || $it->status === 'closed') {
+                    $privateStatus = 'LOST';
+                }
+            @endphp
             <tr>
                 <td>
                     <div class="fw-700 text-dark">{{ $it->name }}</div>
@@ -80,14 +112,15 @@
                 <td><span class="badge" style="background: #f1f5f9; color: #475569;">{{ $it->source ?: 'Direct' }}</span></td>
                 <td class="text-sm text-muted">{{ $it->created_at->format('d M Y') }}</td>
                 <td>
-                    <span class="fw-800" style="font-size:0.85rem; color: var(--primary-600);">{{ strtoupper($it->status) }}</span>
+                    <span class="fw-800" style="font-size:0.85rem; color: var(--primary-600);">{{ $privateStatus }}</span>
                 </td>
                 <td>
-                    @if(strtolower($it->status) !== 'closed')
-                        <a href="{{ route('dealer.leads.view', $it->id) }}" class="fw-700 text-dark" style="text-decoration:none">View</a>
-                    @else
-                        —
-                    @endif
+                    <a href="{{ route('dealer.leads.view', $it->id) }}" class="btn btn--ghost btn--sm">View</a>
+                    <form action="{{ route('dealer.leads.private.destroy', $it->id) }}" method="POST" style="display:inline-block; margin-left: 6px;" onsubmit="event.preventDefault(); showConfirmationModal(this, 'Delete Lead?', 'Are you sure you want to delete this private lead? This action cannot be undone.', 'Yes, Delete');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn--danger-soft btn--sm">Delete</button>
+                    </form>
                 </td>
             </tr>
             @empty
@@ -109,6 +142,9 @@
         <form method="GET" action="{{ route('dealer.leads.index') }}" id="statusFilterForm">
             @if(request('search'))
                 <input type="hidden" name="search" value="{{ request('search') }}">
+            @endif
+            @if(request('status'))
+                <input type="hidden" name="status" value="{{ request('status') }}">
             @endif
             <select name="lead_status" class="form-input" style="width: 150px; padding: 0.5rem;" onchange="document.getElementById('statusFilterForm').submit()">
                 <option value="">All Leads</option>
@@ -147,6 +183,15 @@
                     $status = 'CLOSED';
                     $statusClass = 'text-warning';
                 }
+
+                $purchasedOnFormatted = null;
+                if (!empty($it->latest_purchase_date)) {
+                    $purchasedOnFormatted = \Illuminate\Support\Carbon::parse($it->latest_purchase_date)->format('d M Y');
+                } elseif ($purchase && $purchase->created_at) {
+                    $purchasedOnFormatted = $purchase->created_at->format('d M Y');
+                } else {
+                    $purchasedOnFormatted = optional($it->created_at)->format('d M Y') ?? '—';
+                }
             @endphp
             <tr>
                 <td>
@@ -167,7 +212,7 @@
                     </div>
                 </td>
                 <td><div class="fw-700 text-dark">£{{ number_format($it->price ?: 0, 2) }}</div></td>
-                <td class="text-sm text-muted">{{ $it->created_at->format('d M Y') }}</td>
+                <td class="text-sm text-muted">{{ $purchasedOnFormatted }}</td>
                 <td>
                     @if($status === 'WON')
                         <span class="fw-800 text-success" style="font-size:0.85rem">WON</span>

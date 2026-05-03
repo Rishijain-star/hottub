@@ -66,9 +66,22 @@
             <div class="grid grid--3">
                 @php $compat = is_array($item->compatible_brand_ids) ? $item->compatible_brand_ids : []; @endphp
                 @foreach($brands as $b)
+                    @php
+                        $types = (array) ($b->types ?? []);
+                        $legacy = $b->type ?? null;
+                        $allowed = (
+                            in_array('parts', $types, true) ||
+                            in_array('other', $types, true) ||
+                            in_array($legacy, ['parts', 'other'], true) ||
+                            // Always keep already-selected brands visible for editing
+                            in_array($b->id, old('compatible_brand_ids', $compat), true)
+                        );
+                    @endphp
+                    @if($allowed)
                     <label class="form-check" style="display:flex;align-items:center;gap:8px">
                         <input type="checkbox" name="compatible_brand_ids[]" value="{{ $b->id }}" @checked(in_array($b->id, old('compatible_brand_ids',$compat)))> {{ $b->name }}
                     </label>
+                    @endif
                 @endforeach
             </div>
         </div>
@@ -91,10 +104,11 @@
                 <td>
                     <div class="actions-row">
                         <a href="{{ route('admin.parts.edit', $it) }}" class="icon-btn" title="Edit">✎</a>
-                        <form method="POST" action="{{ route('admin.parts.destroy', $it) }}" onsubmit="return confirm('Delete this part?')">
-                            @csrf @method('DELETE')
-                            <button class="icon-btn" title="Delete">✕</button>
-                        </form>
+                        <button type="button"
+                                class="icon-btn js-open-delete"
+                                title="Delete"
+                                data-action="{{ route('admin.parts.destroy', $it) }}"
+                                data-entity="part">✕</button>
                     </div>
                 </td>
             </tr>
@@ -103,4 +117,5 @@
     </table>
     <div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
 </div>
+@include('components.delete-confirm-modal')
 @endsection

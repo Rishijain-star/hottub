@@ -2,14 +2,38 @@
 @section('title', 'Hot Tub Buyer - Expert Reviews & Guides')
 @section('meta_description', 'Find your perfect hot tub. Expert reviews, verified dealers, price comparisons and comprehensive guides.')
 
+@section('styles')
+    @php
+        $homeCssPath = public_path('css/home.css');
+        $homeCssVersion = file_exists($homeCssPath) ? filemtime($homeCssPath) : null;
+    @endphp
+    <link rel="stylesheet" href="{{ asset('css/home.css') }}{{ $homeCssVersion ? ('?v=' . $homeCssVersion) : '' }}">
+@endsection
+
 @section('content')
 
 {{-- ═══════════════════════════════════════════
      HERO
 ════════════════════════════════════════════ --}}
-<section class="hero">
-    <div class="hero__bg"></div>
-    <div class="hero__overlay"></div>
+@php
+    $heroSlides = collect($heroImages ?? [])
+        ->filter(fn ($u) => is_string($u) && $u !== '')
+        ->values();
+    if ($heroSlides->isEmpty() && !empty($heroBgUrl)) {
+        $heroSlides = collect([$heroBgUrl]);
+    }
+@endphp
+<section class="hero" id="homeHeroSection">
+    <div class="hero__bg hero__bg--slider" id="heroBgSlider" @if($heroSlides->isEmpty() && !empty($heroBgUrl)) style="background-image:url({{ json_encode($heroBgUrl) }})" @endif>
+        @foreach($heroSlides as $index => $slideUrl)
+            <div
+                class="hero__bg-slide {{ $index === 0 ? 'is-active' : '' }}"
+                data-bg="{{ e($slideUrl) }}"
+                @if($index === 0) data-priority="high" @endif
+            ></div>
+        @endforeach
+    </div>
+    <div class="hero__overlay hero__overlay--clear"></div>
     <div class="hero__inner">
         <div class="hero__body">
             <span class="hero__badge">
@@ -17,9 +41,9 @@
                 Expert Reviews &amp; Verified Dealers
             </span>
             <h1 class="hero__title">
-                Find Your Perfect<br>
-                Hot Tub Or Wellness<br>
-                Products
+                <span class="hero__title-line">Find Your Perfect</span>
+                <span class="hero__title-line">Hot Tub Or Wellness</span>
+                <span class="hero__title-line">Products</span>
             </h1>
             <div class="hero__actions">
                 <a href="{{ route('hot-tubs') }}" class="btn btn--primary btn--pill btn--lg">
@@ -30,18 +54,25 @@
                 </a>
             </div>
         </div>
-        <button class="hero__scroll-btn" aria-label="Scroll down" onclick="window.scrollBy({top:500,behavior:'smooth'})">
-            <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </button>
+        @if($heroSlides->count() > 1)
+            <button class="hero__nav-btn hero__nav-btn--prev" id="heroPrevBtn" type="button" aria-label="Previous image">
+                <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+                    <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <button class="hero__nav-btn hero__nav-btn--next" id="heroNextBtn" type="button" aria-label="Next image">
+                <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+                    <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        @endif
     </div>
 </section>
 
 {{-- ═══════════════════════════════════════════
      TRUST BAR
 ════════════════════════════════════════════ --}}
-<div class="trust-bar">
+<div class="trust-bar trust-bar--home">
     <div class="trust-bar__inner">
         <p class="trust-bar__text">
             Expert Reviews, Comprehensive Guides, And Competitive Quotes From Trusted UK Dealers.
@@ -75,13 +106,13 @@
      PRODUCT OF THE MONTH
 ════════════════════════════════════════════ --}}
 @if($potm)
-<section class="potm">
+<section class="potm home-animate home-defer">
     <div class="potm__grid">
         <div class="potm__text">
-            <p class="potm__label">Product Of The Month</p>
+            <p class="potm__label">Product of the Month</p>
             <h2 class="potm__title">{{ $potm->title }}</h2>
             <p class="potm__desc">
-                {{ $potm->hotTub ? $potm->hotTub->description : 'Expertly reviewed for performance, luxury, and lasting quality.' }}
+                {{ $potm->description ?: ($potm->hotTub ? $potm->hotTub->description : 'Expertly reviewed for performance, luxury, and lasting quality.') }}
             </p>
             @if($potm->hotTub)
             <a href="{{ route('hot-tubs.detail', $potm->hotTub->slug) }}" class="btn btn--outline btn--pill btn--sm">
@@ -93,7 +124,7 @@
             @php
                 $potmImg = null;
                 if ($potm && $potm->image_url) {
-                    $potmImg = $potm->image_url;
+                    $potmImg = \App\Support\PublicMedia::url($potm->image_url);
                 }
                 if (!$potmImg && $potm && $potm->hotTub) {
                     $rawImgs = $potm->hotTub->images;
@@ -107,7 +138,7 @@
                         return null;
                     }, $imgs), fn ($v) => is_string($v) && $v !== ''));
                     if (count($imgs)) {
-                        $potmImg = url('storage/app/public/' . $imgs[0]);
+                        $potmImg = \App\Support\PublicMedia::url($imgs[0]);
                     }
                 }
             @endphp
@@ -120,7 +151,7 @@
 {{-- ═══════════════════════════════════════════
      WHY CHOOSE HOT TUB BUYER
 ════════════════════════════════════════════ --}}
-<section class="why">
+<section class="why home-animate home-defer">
     <div class="container">
         <h2 class="section-title text-center">Why Choose Hot Tub Buyer?</h2>
         <p class="section-subtitle text-center">Your Complete Resource For Hot Tub Research And Purchasing</p>
@@ -178,9 +209,9 @@
 {{-- ═══════════════════════════════════════════
      FEATURED HOT TUBS
 ════════════════════════════════════════════ --}}
-<section class="featured">
+<section class="featured home-animate home-defer">
     <div class="featured__heading text-center">
-        <h2 class="featured__title">Featured Hot Tubs</h2>
+        <h2 class="featured__title">Featured Products</h2>
         <p class="featured__sub">Top-Rated Models Across All Price Ranges</p>
     </div>
 
@@ -203,33 +234,18 @@
                             if (is_array($v)) return $v['path'] ?? $v['url'] ?? $v['file'] ?? ($v[0] ?? null);
                             return null;
                         }, $imgs), fn ($v) => is_string($v) && $v !== ''));
-                        $img = count($imgs) ? url('storage/app/public/' . $imgs[0]) : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80&auto=format&fit=crop';
-                        
+                        $img = count($imgs)
+                            ? (\App\Support\PublicMedia::url($imgs[0]) ?: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80&auto=format&fit=crop')
+                            : 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80&auto=format&fit=crop';
+
                         $featuredInfo = $it->featuredContents->first();
                         if ($featuredInfo && $featuredInfo->image_url) {
-                            $img =  count($imgs) ? url('storage/app/public/' . $imgs[0]) : $featuredInfo->image_url;
+                            $img = \App\Support\PublicMedia::url($featuredInfo->image_url) ?: $img;
                         }
                         $badgeText = $featuredInfo ? $featuredInfo->title : 'Top Rated';
                     @endphp
                     <div class="featured__slide">
-                        <div class="tub-card">
-                            <div class="tub-card__img">
-                                <img src="{{ $img }}" alt="{{ $it->brand }} {{ $it->model }}" loading="lazy">
-                                <span class="tub-card__badge {{ $loop->index % 2 == 0 ? 'tub-card__badge--dark' : 'tub-card__badge--teal' }}">{{ $badgeText }}</span>
-                            </div>
-                            <div class="tub-card__body">
-                                <p class="tub-card__name">{{ $it->model }}</p>
-                                <p class="tub-card__brand">{{ $it->brand }}</p>
-                                <div class="tub-card__tags">
-                                    <span class="tub-card__tag">{{ $it->seats ?? '—' }} Person</span>
-                                    <span class="tub-card__tag">{{ $it->jets ?? '—' }} Jets</span>
-                                </div>
-                                <div class="tub-card__footer">
-                                    <a href="{{ route('hot-tubs.detail', $it->slug) }}" class="btn btn--primary btn--sm">View Details</a>
-                                    <span class="tub-card__rating">⭐ {{ number_format($it->overall ?? 0, 1) }}</span>
-                                </div>
-                            </div>
-                        </div>
+                        @include('components.hot-tub-card', ['it' => $it])
                     </div>
                 @endforeach
             </div>
@@ -246,36 +262,52 @@
 {{-- ═══════════════════════════════════════════
      BRANDS
 ════════════════════════════════════════════ --}}
-<section class="brands">
+@php
+    $brandSlides = collect($premiumBrands ?? [])->map(function ($b) {
+        $name = (string) ($b->name ?? '');
+        $mark = '';
+        foreach (preg_split('/\s+/', trim($name)) as $word) {
+            if ($word !== '') {
+                $mark .= mb_substr($word, 0, 1);
+            }
+            if (mb_strlen($mark) >= 2) break;
+        }
+        $tag = $b->country_of_origin ? ('Made in ' . $b->country_of_origin) : 'Premium Brand';
+        return [
+            'name' => $name,
+            'tag' => $tag,
+            'mark' => mb_strtoupper($mark ?: mb_substr($name, 0, 1)),
+            'logo' => $b->logo_path ? \App\Support\PublicMedia::url($b->logo_path) : null,
+            'slug' => $b->slug ?? null,
+        ];
+    });
+    $brandLoop = $brandSlides->count() > 1 ? $brandSlides->concat($brandSlides) : $brandSlides;
+@endphp
+@if($brandSlides->isNotEmpty())
+<section class="brands home-animate home-defer">
     <div class="container">
         <h2 class="section-title text-center">Premium Brands We Feature</h2>
         <p class="section-subtitle text-center">Industry Leaders In Hot Tub Innovation And Quality</p>
 
-        <div class="brands__grid">
-            <a href="{{ route('brands') }}" class="brand-tile">
-                <span class="brand-tile__name">Jacuzzi</span>
-                <span class="brand-tile__tag">Iconic Technology</span>
-            </a>
-            <a href="{{ route('brands') }}" class="brand-tile">
-                <span class="brand-tile__name">Hot Spring</span>
-                <span class="brand-tile__tag">Premium Brand</span>
-            </a>
-            <a href="{{ route('brands') }}" class="brand-tile">
-                <span class="brand-tile__name">Sundance</span>
-                <span class="brand-tile__tag">Made in USA</span>
-            </a>
-            <a href="{{ route('brands') }}" class="brand-tile">
-                <span class="brand-tile__name">Marquis</span>
-                <span class="brand-tile__tag">Luxury Choice</span>
-            </a>
-            <a href="{{ route('brands') }}" class="brand-tile">
-                <span class="brand-tile__name">Caldera</span>
-                <span class="brand-tile__tag">Alto Designs</span>
-            </a>
-            <a href="{{ route('brands') }}" class="brand-tile">
-                <span class="brand-tile__name">Bullfrog</span>
-                <span class="brand-tile__tag">JetPak System</span>
-            </a>
+        <div class="brands__slider" aria-label="Premium brands">
+            <div class="brands__track">
+                @foreach($brandLoop as $brand)
+                    <a href="{{ !empty($brand['slug']) ? route('brands.detail', $brand['slug']) : route('brands') }}" class="brand-tile brand-tile--logo">
+                        <span class="brand-tile__logo">
+                            @if(!empty($brand['logo']))
+                                <img src="{{ $brand['logo'] }}" alt="{{ $brand['name'] }}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <span style="display:none;align-items:center;justify-content:center;width:100%;height:100%;font-weight:800;font-size:1.1rem;">{{ $brand['mark'] }}</span>
+                            @else
+                                {{ $brand['mark'] }}
+                            @endif
+                        </span>
+                        <span class="brand-tile__meta">
+                            <span class="brand-tile__name">{{ $brand['name'] }}</span>
+                            <span class="brand-tile__tag">{{ $brand['tag'] }}</span>
+                        </span>
+                    </a>
+                @endforeach
+            </div>
         </div>
 
         <div class="text-center">
@@ -285,11 +317,12 @@
         </div>
     </div>
 </section>
+@endif
 
 {{-- ═══════════════════════════════════════════
      EXPERT GUIDES & RESOURCES
 ════════════════════════════════════════════ --}}
-<section class="guides">
+<section class="guides home-animate home-defer">
     <div class="guides__bg"></div>
     <div class="guides__overlay"></div>
     <div class="guides__inner">
@@ -346,7 +379,7 @@
 {{-- ═══════════════════════════════════════════
      SUCCESS STORIES / STATS
 ════════════════════════════════════════════ --}}
-<section class="stats">
+<section class="stats home-animate home-defer">
     <div class="container">
         <h2 class="stats__title">Our Success Stories</h2>
         <div class="stats__grid">
@@ -387,7 +420,7 @@
 {{-- ═══════════════════════════════════════════
      CTA
 ════════════════════════════════════════════ --}}
-<section class="cta-home">
+<section class="cta-home home-animate home-defer">
     <div class="cta-home__layout">
         <div class="cta-home__text">
             <h2>Ready To Find Your Perfect Hot Tub?</h2>
@@ -402,120 +435,375 @@
                 Save as: public/images/cta-tub.png
             --}}
             <img
-                src="/images/2254d30420731f5659a4b5d60e9edddc84f75915.png"
+                src="{{ !empty($ctaImageUrl) ? e($ctaImageUrl) : asset('images/hot-tub-cta-fallback.svg') }}"
                 alt="Hot Tub"
                 loading="lazy"
+                onerror="this.onerror=null;this.src='{{ asset('images/hot-tub-cta-fallback.svg') }}';"
+                style="max-width:100%;height:auto;object-fit:contain;"
             >
         </div>
     </div>
 </section>
+
+{{-- ═══════════════════════════════════════════
+     DELIVERY OF THE WEEK (page bottom)
+════════════════════════════════════════════ --}}
+@if($dotw)
+<section class="potm home-animate home-defer" style="margin-top:2rem;">
+    <div class="potm__grid">
+        <div class="potm__text">
+            <p class="potm__label">Delivery of the Week</p>
+            <h2 class="potm__title">{{ $dotw->title }}</h2>
+            <p class="potm__desc">{{ $dotw->description ?: ($dotw->hotTub?->description ?? 'Celebrating outstanding deliveries from our dealer network.') }}</p>
+            @if($dotw->hotTub)
+            <a href="{{ route('hot-tubs.detail', $dotw->hotTub->slug) }}" class="btn btn--outline btn--pill btn--sm">View Product</a>
+            @endif
+        </div>
+        <div class="potm__img">
+            @php
+                $dotwImg = $dotw->image_url ? \App\Support\PublicMedia::url($dotw->image_url) : null;
+                if (!$dotwImg && $dotw->hotTub) {
+                    $rawImgs = $dotw->hotTub->images;
+                    if ($rawImgs instanceof \Illuminate\Support\Collection) $rawImgs = $rawImgs->all();
+                    $imgs = is_array($rawImgs) ? $rawImgs : (is_string($rawImgs) ? (json_decode($rawImgs, true) ?: []) : []);
+                    $imgs = array_values(array_filter(array_map(function ($v) {
+                        if (is_string($v)) return $v;
+                        if (is_array($v)) return $v['path'] ?? $v['url'] ?? null;
+                        return null;
+                    }, $imgs), fn ($v) => is_string($v) && $v !== ''));
+                    if (count($imgs)) $dotwImg = \App\Support\PublicMedia::url($imgs[0]);
+                }
+            @endphp
+            <img src="{{ $dotwImg ?: 'https://images.unsplash.com/photo-1584464479516-0c10b2d2eb1c?w=800' }}" alt="{{ $dotw->title }}" loading="lazy">
+        </div>
+    </div>
+</section>
+@endif
 
 @endsection
 
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const slider = document.getElementById('featuredSlider');
-    const track = slider.querySelector('.featured__track');
-    const slides = Array.from(track.children);
-    const nextBtn = document.getElementById('featuredNext');
-    const prevBtn = document.getElementById('featuredPrev');
-    const dotsContainer = document.getElementById('featuredDots');
-    
-    if (slides.length === 0) return;
+    (function initBrandsMouseScroll() {
+        const slider = document.querySelector('.brands__slider');
+        if (!slider) return;
 
-    let index = 0;
-    const gap = 24; // 1.5rem in pixels
+        slider.addEventListener('wheel', function (event) {
+            // Convert vertical wheel into smooth horizontal scrolling for premium brands strip.
+            if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+                event.preventDefault();
+                slider.scrollLeft += event.deltaY;
+            }
+        }, { passive: false });
+    })();
 
-    function updateSlider() {
-        const containerWidth = slider.offsetWidth;
-        const trackWidth = track.scrollWidth;
-        const slideWidth = slides[0].offsetWidth;
-        
-        // Number of items that can fully fit in the container
-        const itemsInView = Math.floor((containerWidth + gap) / (slideWidth + gap));
-        const maxIndex = Math.max(0, slides.length - itemsInView);
+    (function initHeroCarousel() {
+        const heroSlides = Array.from(document.querySelectorAll('#heroBgSlider .hero__bg-slide'));
+        const heroPrevBtn = document.getElementById('heroPrevBtn');
+        const heroNextBtn = document.getElementById('heroNextBtn');
+        const HERO_AUTOPLAY_MS = 10000;
+        let heroTimer = null;
+        let heroIndex = 0;
+        let isNavigatingAway = false;
+        const activeHeroPreloads = new Set();
 
-        // Adjust index if it exceeds maxIndex
-        if (index > maxIndex) index = maxIndex;
+        function optimizeHeroImageUrl(rawUrl) {
+            if (!rawUrl) return rawUrl;
+            try {
+                const parsed = new URL(rawUrl, window.location.origin);
+                const host = parsed.hostname.toLowerCase();
 
-        // If track is smaller than container, center it and hide controls
-        if (trackWidth <= containerWidth) {
-            track.style.transform = 'translateX(0)';
-            track.style.justifyContent = 'center';
-            prevBtn.style.display = 'none';
-            nextBtn.style.display = 'none';
-            dotsContainer.style.display = 'none';
+                // Keep local uploads untouched (avoid breaking storage URLs).
+                if (parsed.origin === window.location.origin) {
+                    return parsed.href;
+                }
+
+                // Safe compression/resize for Unsplash assets.
+                if (host.includes('unsplash.com')) {
+                    if (!parsed.searchParams.has('auto')) parsed.searchParams.set('auto', 'format');
+                    if (!parsed.searchParams.has('fit')) parsed.searchParams.set('fit', 'crop');
+                    if (!parsed.searchParams.has('q')) parsed.searchParams.set('q', '74');
+                    if (!parsed.searchParams.has('w')) parsed.searchParams.set('w', '1920');
+                    if (!parsed.searchParams.has('dpr')) parsed.searchParams.set('dpr', String(Math.min(2, Math.max(1, window.devicePixelRatio || 1))));
+                    return parsed.href;
+                }
+
+                return parsed.href;
+            } catch (e) {
+                return rawUrl;
+            }
+        }
+
+        function loadHeroSlideBackground(slide) {
+            if (!slide) return Promise.resolve(false);
+            if (isNavigatingAway) return Promise.resolve(false);
+            if (slide.dataset.bgLoaded === '1') return Promise.resolve(true);
+            if (slide.dataset.bgLoading === '1') return Promise.resolve(false);
+
+            const rawBgUrl = slide.dataset.bg || '';
+            const bgUrl = optimizeHeroImageUrl(rawBgUrl);
+            if (!bgUrl) return Promise.resolve(false);
+
+            slide.dataset.bgLoading = '1';
+            const preloader = new Image();
+            preloader.decoding = 'async';
+            activeHeroPreloads.add(preloader);
+
+            return new Promise(function (resolve) {
+                preloader.onload = function () {
+                    activeHeroPreloads.delete(preloader);
+                    if (isNavigatingAway) {
+                        slide.dataset.bgLoading = '0';
+                        resolve(false);
+                        return;
+                    }
+                    slide.style.backgroundImage = 'url("' + bgUrl.replace(/"/g, '\\"') + '")';
+                    slide.dataset.bgLoaded = '1';
+                    slide.dataset.bgLoading = '0';
+                    resolve(true);
+                };
+                preloader.onerror = function () {
+                    activeHeroPreloads.delete(preloader);
+                    slide.dataset.bgLoading = '0';
+                    resolve(false);
+                };
+                preloader.src = bgUrl;
+            });
+        }
+
+        function preloadHeroAround(index) {
+            if (!heroSlides.length) return;
+            loadHeroSlideBackground(heroSlides[index]);
+            if (heroSlides.length > 1) {
+                loadHeroSlideBackground(heroSlides[(index + 1) % heroSlides.length]);
+            }
+        }
+
+        function showHeroSlide(targetIndex) {
+            if (!heroSlides.length) return;
+            heroSlides[heroIndex].classList.remove('is-active');
+            heroIndex = (targetIndex + heroSlides.length) % heroSlides.length;
+            heroSlides[heroIndex].classList.add('is-active');
+            preloadHeroAround(heroIndex);
+        }
+
+        function clearHeroTimer() {
+            if (heroTimer) {
+                clearInterval(heroTimer);
+                heroTimer = null;
+            }
+        }
+
+        function pauseHeroForNavigation() {
+            if (isNavigatingAway) return;
+            isNavigatingAway = true;
+            clearHeroTimer();
+            activeHeroPreloads.forEach(function (img) {
+                img.onload = null;
+                img.onerror = null;
+                img.src = '';
+            });
+            activeHeroPreloads.clear();
+        }
+
+        function startHeroAutoPlay() {
+            clearHeroTimer();
+            if (heroSlides.length <= 1) return;
+            if (document.visibilityState !== 'visible') return;
+            heroTimer = setInterval(function () {
+                showHeroSlide(heroIndex + 1);
+            }, HERO_AUTOPLAY_MS);
+        }
+
+        function resetHeroAutoPlay() {
+            startHeroAutoPlay();
+        }
+
+        if (heroSlides.length > 1) {
+            document.addEventListener('click', function (event) {
+                const link = event.target.closest('a[href]');
+                if (!link) return;
+                if (link.target === '_blank' || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                try {
+                    const nextUrl = new URL(link.href, window.location.origin);
+                    if (nextUrl.origin !== window.location.origin) return;
+                    if (nextUrl.pathname === window.location.pathname && nextUrl.search === window.location.search && nextUrl.hash) return;
+                    pauseHeroForNavigation();
+                } catch (e) {}
+            }, { capture: true });
+
+            window.addEventListener('pagehide', pauseHeroForNavigation);
+
+            if (heroNextBtn) {
+                heroNextBtn.addEventListener('click', function () {
+                    showHeroSlide(heroIndex + 1);
+                    resetHeroAutoPlay();
+                });
+            }
+            if (heroPrevBtn) {
+                heroPrevBtn.addEventListener('click', function () {
+                    showHeroSlide(heroIndex - 1);
+                    resetHeroAutoPlay();
+                });
+            }
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') {
+                    startHeroAutoPlay();
+                } else {
+                    clearHeroTimer();
+                }
+            });
+            preloadHeroAround(0);
+            setTimeout(startHeroAutoPlay, 0);
+        }
+    })();
+
+    (function initFeaturedSlider() {
+        const slider = document.getElementById('featuredSlider');
+        const track = slider ? slider.querySelector('.featured__track') : null;
+        if (!slider || !track) return;
+
+        const slides = Array.from(track.children);
+        const nextBtn = document.getElementById('featuredNext');
+        const prevBtn = document.getElementById('featuredPrev');
+        const dotsContainer = document.getElementById('featuredDots');
+
+        if (slides.length === 0) return;
+        if (!nextBtn || !prevBtn || !dotsContainer) return;
+
+        let index = 0;
+        const gap = 24;
+
+        function updateSlider() {
+            const containerWidth = slider.offsetWidth;
+            const trackWidth = track.scrollWidth;
+            const slideWidth = slides[0].offsetWidth;
+
+            const itemsInView = Math.floor((containerWidth + gap) / (slideWidth + gap));
+            const maxIndex = Math.max(0, slides.length - itemsInView);
+
+            if (index > maxIndex) index = maxIndex;
+
+            if (trackWidth <= containerWidth) {
+                track.style.transform = 'translateX(0)';
+                track.style.justifyContent = 'center';
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                dotsContainer.style.display = 'none';
+                return;
+            }
+
+            track.style.justifyContent = 'flex-start';
+            prevBtn.style.display = 'flex';
+            nextBtn.style.display = 'flex';
+            dotsContainer.style.display = 'flex';
+
+            const offset = index * (slideWidth + gap);
+            track.style.transform = 'translateX(-' + offset + 'px)';
+
+            updateControls(maxIndex);
+        }
+
+        function updateControls(maxIndex) {
+            prevBtn.disabled = index === 0;
+            nextBtn.disabled = index >= maxIndex;
+
+            dotsContainer.innerHTML = '';
+            const numDots = maxIndex + 1;
+            if (numDots > 1) {
+                for (let i = 0; i < numDots; i++) {
+                    const dot = document.createElement('div');
+                    dot.classList.add('featured__dot');
+                    if (i === index) dot.classList.add('active');
+                    dot.onclick = function () {
+                        index = i;
+                        updateSlider();
+                    };
+                    dotsContainer.appendChild(dot);
+                }
+            }
+        }
+
+        nextBtn.onclick = function () {
+            index++;
+            updateSlider();
+        };
+
+        prevBtn.onclick = function () {
+            index--;
+            updateSlider();
+        };
+
+        let startX, moveX, isDragging = false;
+        slider.ontouchstart = function (e) {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+        };
+        slider.ontouchmove = function (e) {
+            if (!isDragging) return;
+            moveX = e.touches[0].clientX;
+        };
+        slider.ontouchend = function () {
+            if (!isDragging || moveX === undefined) return;
+            const diff = startX - moveX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) nextBtn.click();
+                else prevBtn.click();
+            }
+            isDragging = false;
+            moveX = undefined;
+        };
+
+        window.addEventListener('resize', updateSlider);
+
+        setTimeout(updateSlider, 100);
+    })();
+
+    (function initHomeScrollReveal() {
+        var blocks = document.querySelectorAll('.home-animate');
+        if (!blocks.length) return;
+
+        function markInView(el) {
+            el.classList.add('home-in-view');
+        }
+
+        function revealNow() {
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            blocks.forEach(function (el) {
+                if (el.classList.contains('home-in-view')) return;
+                var r = el.getBoundingClientRect();
+                if (r.top < vh * 0.92 && r.bottom > 0) {
+                    markInView(el);
+                }
+            });
+        }
+
+        revealNow();
+
+        if (!window.IntersectionObserver) {
+            blocks.forEach(markInView);
             return;
         }
 
-        track.style.justifyContent = 'flex-start';
-        prevBtn.style.display = 'flex';
-        nextBtn.style.display = 'flex';
-        dotsContainer.style.display = 'flex';
+        var io = new IntersectionObserver(
+            function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        markInView(entry.target);
+                        io.unobserve(entry.target);
+                    }
+                });
+            },
+            { threshold: 0.08, rootMargin: '0px 0px -24px 0px' }
+        );
 
-        const offset = index * (slideWidth + gap);
-        track.style.transform = `translateX(-${offset}px)`;
-
-        updateControls(maxIndex);
-    }
-
-    function updateControls(maxIndex) {
-        prevBtn.disabled = index === 0;
-        nextBtn.disabled = index >= maxIndex;
-        
-        // Update dots
-        dotsContainer.innerHTML = '';
-        const numDots = maxIndex + 1;
-        if (numDots > 1) {
-            for (let i = 0; i < numDots; i++) {
-                const dot = document.createElement('div');
-                dot.classList.add('featured__dot');
-                if (i === index) dot.classList.add('active');
-                dot.onclick = () => {
-                    index = i;
-                    updateSlider();
-                };
-                dotsContainer.appendChild(dot);
+        blocks.forEach(function (el) {
+            if (!el.classList.contains('home-in-view')) {
+                io.observe(el);
             }
-        }
-    }
-
-    nextBtn.onclick = () => {
-        index++;
-        updateSlider();
-    };
-
-    prevBtn.onclick = () => {
-        index--;
-        updateSlider();
-    };
-
-    // Touch support
-    let startX, moveX, isDragging = false;
-    slider.ontouchstart = (e) => {
-        startX = e.touches[0].clientX;
-        isDragging = true;
-    };
-    slider.ontouchmove = (e) => {
-        if (!isDragging) return;
-        moveX = e.touches[0].clientX;
-    };
-    slider.ontouchend = () => {
-        if (!isDragging || moveX === undefined) return;
-        const diff = startX - moveX;
-        if (Math.abs(diff) > 50) {
-            if (diff > 0) nextBtn.click();
-            else prevBtn.click();
-        }
-        isDragging = false;
-        moveX = undefined;
-    };
-
-    window.onresize = updateSlider;
-    
-    // Initial call
-    setTimeout(updateSlider, 100);
+        });
+    })();
 });
 </script>
 @endsection

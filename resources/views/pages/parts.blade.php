@@ -88,7 +88,7 @@
                 <div class="parts-card__img-container" style="position:relative; width:100%; height:200px; overflow:hidden; border-radius:12px 12px 0 0; background:#f8fafb; display:flex; align-items:center; justify-content:center;">
                     @if(count($imgs) > 0)
                         @foreach($imgs as $idx => $img)
-                            <img src="{{ url('storage/app/public/' . $img) }}" 
+                            <img src="{{ \App\Support\PublicMedia::url($img) }}" 
                                  class="part-img-{{ $p->id }}" 
                                  data-index="{{ $idx }}"
                                  style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; transition: opacity 0.3s; {{ $idx === 0 ? 'opacity:1; z-index:1;' : 'opacity:0; z-index:0;' }}">
@@ -113,6 +113,7 @@
                 <div class="parts-card__body">
                     <span class="parts-cat-badge">{{ $cat }}</span>
                     <div class="parts-card__name">{{ $p->name }}</div>
+                    @include('components.card-description', ['text' => $p->description, 'lines' => 3, 'class' => 'parts-card__desc'])
                     @if($p->part_number)
                     <div class="parts-card__partno">Part #: {{ $p->part_number }}</div>
                     @endif

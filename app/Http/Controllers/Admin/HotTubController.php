@@ -46,11 +46,17 @@ class HotTubController extends Controller
         }
         $data['pros'] = $request->input('pros', []);
         $data['cons'] = $request->input('cons', []);
+        $data['featured_on_homepage'] = $request->boolean('featured_on_homepage');
         $data['overall'] = $this->calcOverall($data);
         $base = $data['brand'] . '-' . $data['model'];
         $data['slug'] = $this->makeUniqueSlug($base);
 
         $item = HotTub::create($data);
+        $folder = 'hot-tubs/' . $item->slug;
+        $uploaded = $this->storeImages($request, $folder);
+        if (! empty($uploaded)) {
+            $item->update(['images' => array_values(array_slice($uploaded, 0, 10))]);
+        }
         if ($request->wantsJson() || $request->ajax()) {
             $item->refresh();
             return response()->json(['ok' => true, 'item' => $item]);
@@ -76,10 +82,18 @@ class HotTubController extends Controller
         }
         $data['pros'] = $request->input('pros', []);
         $data['cons'] = $request->input('cons', []);
+        $data['featured_on_homepage'] = $request->boolean('featured_on_homepage');
         $data['overall'] = $this->calcOverall($data);
         $slug = $hot_tub->slug;
         if ($request->boolean('regen_slug') || empty($hot_tub->slug)) {
             $slug = $data['slug'] = $this->makeUniqueSlug($data['brand'] . '-' . $data['model'], $hot_tub->id);
+        }
+
+        $folder = 'hot-tubs/' . ($hot_tub->slug ?: $this->makeUniqueSlug($data['brand'] . '-' . $data['model'], $hot_tub->id));
+        $uploaded = $this->storeImages($request, $folder);
+        if (! empty($uploaded)) {
+            $existing = $hot_tub->images ?? [];
+            $data['images'] = array_values(array_slice(array_merge(is_array($existing) ? $existing : [], $uploaded), 0, 10));
         }
 
         $hot_tub->update($data);
@@ -183,6 +197,7 @@ class HotTubController extends Controller
             'dimensions' => 'nullable|string|max:255',
             'power_requirements' => 'nullable|string|max:255',
             'status' => 'required|in:active,inactive',
+            'featured_on_homepage' => 'nullable|boolean',
             'comfort' => 'nullable|numeric|min:0|max:5',
             'efficiency' => 'nullable|numeric|min:0|max:5',
             'features' => 'nullable|numeric|min:0|max:5',

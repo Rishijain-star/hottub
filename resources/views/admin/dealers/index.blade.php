@@ -38,7 +38,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('admin.dealers.index') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('admin.dealers.index') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Name, Email, or Company..." value="{{ request('search') }}">
@@ -54,9 +54,12 @@
                 <option value="frozen" {{ request('status') === 'frozen' ? 'selected' : '' }}>Frozen</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('admin.dealers.index') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -83,7 +86,7 @@
                 <td style="width: 70px; text-align: center; vertical-align: middle;">
                     <div style="width: 50px; height: 50px; margin: 0 auto; border-radius: 50%; overflow: hidden; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center;">
                         @if($dealer->profile_picture)
-                            <img src="{{ url('storage/app/public/' . $dealer->profile_picture) }}" 
+                            <img src="{{ \App\Support\PublicMedia::url($dealer->profile_picture) }}" 
                                  alt="Profile Picture" 
                                  loading="lazy"
                                  style="width: 100%; height: 100%; object-fit: cover; display: block;">
@@ -236,14 +239,21 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                                 </svg>
                             </button>
-                            <a href="{{ route('admin.dealers.reset-password', $dealer) }}"
-                               class="icon-btn"
-                               title="Reset password"
-                               onclick="return confirm('Send password reset to {{ $dealer->email }}?')">
+                            <button type="button"
+                               class="icon-btn js-open-password"
+                               title="Set new password"
+                               data-name="{{ $dealer->name }}"
+                               data-email="{{ $dealer->email }}"
+                               data-action="{{ route('admin.dealers.reset-password', $dealer) }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 0 1 21.75 8.25Z" />
                                 </svg>
-                            </a>
+                            </button>
+                            <button type="button"
+                               class="icon-btn js-open-delete"
+                               title="Delete"
+                               data-action="{{ route('admin.dealers.destroy', $dealer) }}"
+                               data-entity="dealer">✕</button>
                         </div>
 
                         @if($dealer->status === 'approved')
@@ -425,6 +435,33 @@
     </div>
 </div>
 
+<div class="modal-backdrop" id="passwordModal">
+    <div class="modal-container modal-container--sm">
+        <div class="modal-header">
+            <div class="modal-title">Set New Password</div>
+            <button type="button" class="modal-close" data-close="#passwordModal">✕</button>
+        </div>
+        <div class="text-sm text-muted" id="passwordTargetText">Update account password.</div>
+        <form id="passwordForm" method="POST" action="#">
+            @csrf
+            <div class="form-group mt-3">
+                <label class="form-label">New Password</label>
+                <input type="password" name="password" class="form-input" minlength="8" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirm Password</label>
+                <input type="password" name="password_confirmation" class="form-input" minlength="8" required>
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="btn btn--primary">Update Password</button>
+                <button type="button" class="btn" data-close="#passwordModal">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@include('components.delete-confirm-modal')
+
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -506,6 +543,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (amountInput) amountInput.value = '';
             }
             openModal('#creditsModal');
+        });
+    });
+
+    document.querySelectorAll('.js-open-password').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const form = document.getElementById('passwordForm');
+            const targetText = document.getElementById('passwordTargetText');
+            if (form) {
+                form.action = btn.getAttribute('data-action');
+                form.reset();
+            }
+            if (targetText) {
+                targetText.textContent = 'Set a new password for ' + (btn.getAttribute('data-name') || 'this account') + ' (' + (btn.getAttribute('data-email') || '') + ').';
+            }
+            openModal('#passwordModal');
         });
     });
 

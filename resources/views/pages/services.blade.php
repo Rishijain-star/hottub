@@ -55,8 +55,16 @@
         <div class="svc-cards-grid">
             @if(isset($items) && count($items))
                 @foreach($items as $svc)
+                @php
+                    $svcImage = null;
+                    if (!empty($svc->image_url)) {
+                        $svcImage = (str_starts_with($svc->image_url, 'http://') || str_starts_with($svc->image_url, 'https://'))
+                            ? $svc->image_url
+                            : \App\Support\PublicMedia::url(ltrim($svc->image_url, '/'));
+                    }
+                @endphp
                 <div class="svc-card">
-                    <div class="svc-card__img svc-card__img--blue" @if($svc->image_url) style="background-image:url('{{ $svc->image_url }}');background-size:cover;background-position:center" @endif>
+                    <div class="svc-card__img svc-card__img--blue" @if($svcImage) style="background-image:url('{{ $svcImage }}');background-size:cover;background-position:center" @endif>
                         @if(empty($svc->image_url))
                         <svg width="64" height="64" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                         @endif
@@ -64,7 +72,7 @@
                     <div class="svc-card__body">
                         <h3 class="svc-card__title">{{ $svc->name }}</h3>
                         @if($svc->description)
-                        <p class="svc-card__desc">{{ $svc->description }}</p>
+                        @include('components.card-description', ['text' => $svc->description, 'lines' => 3, 'class' => 'svc-card__desc'])
                         @endif
                         <div class="svc-card__price-row">
                             <span class="svc-card__from">Starting from</span>
@@ -81,7 +89,7 @@
                             </div>
                             <ul class="svc-card__list">
                                 @foreach($svc->includes as $inc)
-                                <li><svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> {{ $inc }}</li>
+                                @include('components.icon-list-item', ['text' => $inc, 'type' => 'check'])
                                 @endforeach
                             </ul>
                         </div>

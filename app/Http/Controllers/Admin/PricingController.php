@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CreditPackage;
+use App\Models\CreditPlan;
 use App\Models\PricingSetting;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,23 @@ class PricingController extends Controller
     {
         $packages = CreditPackage::orderBy('position')->get();
         $settings = PricingSetting::query()->first();
+
+        // If packages exist but no active checkout plans (e.g. before sync was added), mirror once on load.
+        if ($packages->isNotEmpty() && CreditPlan::where('is_active', true)->doesntExist()) {
+            CreditPlan::query()->update(['is_active' => false]);
+            foreach ($packages as $pkg) {
+                CreditPlan::create([
+                    'name' => $pkg->credits . ' Credits',
+                    'credits' => $pkg->credits,
+                    'price' => $pkg->price,
+                    'validity_days' => 365,
+                    'badge_type' => $pkg->most_popular ? 'Popular' : ($pkg->savings_label ?: null),
+                    'description' => $pkg->savings_label,
+                    'is_active' => true,
+                ]);
+            }
+        }
+
         return view('admin.pricing', compact('packages', 'settings'));
     }
 
@@ -38,6 +56,21 @@ class PricingController extends Controller
                 'position' => $i,
             ]);
         }
+
+        // Dealer/manufacturer credit checkout reads CreditPlan — mirror admin packages there.
+        CreditPlan::query()->update(['is_active' => false]);
+        foreach (CreditPackage::orderBy('position')->get() as $pkg) {
+            CreditPlan::create([
+                'name' => $pkg->credits . ' Credits',
+                'credits' => $pkg->credits,
+                'price' => $pkg->price,
+                'validity_days' => 365,
+                'badge_type' => $pkg->most_popular ? 'Popular' : ($pkg->savings_label ?: null),
+                'description' => $pkg->savings_label,
+                'is_active' => true,
+            ]);
+        }
+
         return back()->with('success', 'Credit packages saved.');
     }
 

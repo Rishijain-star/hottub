@@ -38,9 +38,25 @@
                     <select name="brand_id" class="form-input @error('brand_id') is-invalid @enderror" required>
                         <option value="">Select a brand...</option>
                         @foreach($brands as $b)
+                            @php
+                                $types = (array) ($b->types ?? []);
+                                $legacy = $b->type ?? null;
+                                $allowed = (
+                                    in_array('outdoor_kitchen', $types, true) ||
+                                    in_array('sauna', $types, true) ||
+                                    in_array('other', $types, true) ||
+                                    // Legacy compatibility from previous builder versions
+                                    in_array('outdoor_products', $types, true) ||
+                                    in_array($legacy, ['outdoor_kitchen','sauna','other','outdoor_products'], true) ||
+                                    // If brand has no type metadata at all, keep it visible (backward compatible)
+                                    (empty($types) && empty($legacy))
+                                );
+                            @endphp
+                            @if($allowed)
                             <option value="{{ $b->id }}" {{ old('brand_id') == $b->id ? 'selected' : '' }}>
                                 {{ $b->name }}
                             </option>
+                            @endif
                         @endforeach
                     </select>
                 @else
@@ -191,7 +207,7 @@
                 <tr>
                     <td class="fw-700 text-dark" style="display:flex;align-items:center;gap:8px">
                         @php 
-                            $thumb = ($it->images && count($it->images)) ? url('storage/app/public/'.$it->images[0]) : null; 
+                            $thumb = ($it->images && count($it->images)) ? \App\Support\PublicMedia::url($it->images[0]) : null; 
                         @endphp
                         @if($thumb)
                             <img src="{{ $thumb }}" alt="{{ $it->model }}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--gray-200)">
@@ -214,14 +230,15 @@
                                     <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
                                 </svg>
                             </a>
-                            <form method="POST" action="{{ route('admin.outdoor-products.destroy', $it) }}" onsubmit="return confirm('Delete this product?')">
-                                @csrf @method('DELETE')
-                                <button class="icon-btn">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                                        <path d="M3 6h18M8 6v14m8-14v14M5 6l1-2h12l1 2"/>
-                                    </svg>
-                                </button>
-                            </form>
+                            <button type="button"
+                                    class="icon-btn js-open-delete"
+                                    title="Delete"
+                                    data-action="{{ route('admin.outdoor-products.destroy', $it) }}"
+                                    data-entity="product">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path d="M3 6h18M8 6v14m8-14v14M5 6l1-2h12l1 2"/>
+                                </svg>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -347,5 +364,7 @@
         });
     }
 </script>
+
+@include('components.delete-confirm-modal')
 
 @endsection

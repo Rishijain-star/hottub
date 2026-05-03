@@ -20,6 +20,30 @@
             Overview
         </a>
 
+        @php
+            $pendingPartnersSidebar = \Illuminate\Support\Facades\Schema::hasColumn('users', 'status')
+                ? \App\Models\User::whereIn('role', ['dealer', 'manufacturer'])->where('status', 'pending')->count()
+                : 0;
+        @endphp
+        <a href="{{ route('admin.dealers.index') }}"
+           class="panel-nav-link {{ request()->routeIs('admin.dealers.*') || request()->routeIs('admin.manufacturers*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            Partner sign-ups
+            @if($pendingPartnersSidebar > 0)
+                <span style="background:#ef4444;color:#fff;min-width:18px;height:18px;padding:0 5px;border-radius:10px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:auto;">{{ $pendingPartnersSidebar }}</span>
+            @endif
+        </a>
+
+        <a href="{{ route('admin.settings') }}"
+           class="panel-nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+            </svg>
+            Homepage images
+        </a>
+
         <a href="{{ route('admin.support-requests') }}"
            class="panel-nav-link {{ request()->routeIs('admin.support-requests*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -30,7 +54,7 @@
                 $hasSupportStatusCol = \Illuminate\Support\Facades\Schema::hasColumn('messages', 'support_status');
                 $pendingSupportRequests = \App\Models\Message::where('receiver_id', 1)
                     ->when($hasSupportStatusCol, function ($q) {
-                        $q->where('support_status', 'pending');
+                        $q->whereNotNull('support_status')->where('support_status', 'pending');
                     })
                     ->count();
             @endphp
@@ -45,7 +69,7 @@
                 <path d="M3 9a9 9 0 0 1 18 0v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/>
                 <path d="M12 16v4M8 20h8"/>
             </svg>
-            Hot Tubs
+            Hot Tubs & Swim Spas
         </a>
 
         <a href="{{ route('admin.service-management') }}"
@@ -90,6 +114,7 @@
             Parts
         </a>
 
+        @if(auth()->user()?->isFullAdmin())
         <a href="{{ route('admin.plans') }}"
            class="panel-nav-link {{ request()->routeIs('admin.plans*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -97,6 +122,7 @@
             </svg>
             Credit Plans
         </a>
+        @endif
 
         <a href="{{ route('admin.featured') }}"
            class="panel-nav-link {{ request()->routeIs('admin.featured*') ? 'active' : '' }}">
@@ -116,6 +142,7 @@
             Dealer Academy
         </a>
 
+        @if(auth()->user()?->isFullAdmin())
         <a href="{{ route('admin.dealers.index') }}"
            class="panel-nav-link {{ request()->routeIs('admin.dealers.*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -129,16 +156,26 @@
                 <span class="panel-nav-badge">{{ $pendingDealers }}</span>
             @endif
         </a>
+        @endif
 
         <a href="{{ route('admin.users.index') }}"
-           class="panel-nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+           class="panel-nav-link {{ request()->routeIs('admin.users.index') || request()->routeIs('admin.users.update') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
             </svg>
             Users
         </a>
+        @if(auth()->user()?->isFullAdmin())
+        <a href="{{ route('admin.users.create') }}"
+           class="panel-nav-link {{ request()->routeIs('admin.users.create') ? 'active' : '' }}"
+           style="padding-left:2rem;font-size:0.9rem">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add sub-admin
+        </a>
+        @endif
 
+        @if(auth()->user()?->isFullAdmin())
         <a href="{{ route('admin.manufacturers') }}"
            class="panel-nav-link {{ request()->routeIs('admin.manufacturers*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -147,6 +184,7 @@
             </svg>
             Manufacturers
         </a>
+        @endif
 
         <a href="{{ route('admin.leads') }}"
            class="panel-nav-link {{ request()->routeIs('admin.leads*') ? 'active' : '' }}">
@@ -159,6 +197,7 @@
             Leads
         </a>
 
+        @if(auth()->user()?->isFullAdmin())
         <a href="{{ route('admin.payments') }}"
            class="panel-nav-link {{ request()->routeIs('admin.payments*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -185,6 +224,7 @@
             </svg>
             Price
         </a>
+        @endif
 
     </nav>
 

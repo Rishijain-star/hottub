@@ -17,6 +17,21 @@
     </form>
 </div>
 
+@if(($pendingPartnerRegistrations ?? 0) > 0)
+<div class="card" style="margin-bottom:1.5rem;padding:1.25rem 1.5rem;border:1px solid #fde68a;background:#fffbeb;border-radius:12px;">
+    <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;">
+        <div>
+            <div class="fw-800" style="font-size:1.05rem;color:#92400e;">New partner sign-ups awaiting review</div>
+            <p class="text-sm text-muted" style="margin:0.35rem 0 0;">{{ $pendingPartnerRegistrations }} pending ({{ $dealersPending ?? 0 }} dealers, {{ $manufacturersPending ?? 0 }} manufacturers)</p>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+            <a href="{{ route('admin.dealers.index') }}" class="btn btn--primary btn--sm">Review dealers</a>
+            <a href="{{ route('admin.manufacturers') }}" class="btn btn--outline btn--sm">Review manufacturers</a>
+        </div>
+    </div>
+</div>
+@endif
+
 <style>
     .admin-stats-grid {
         display: grid;
@@ -144,7 +159,7 @@
     </div>
 </div>
 
-@if($dealersPending > 0)
+@if($dealersPending > 0 && auth()->user()?->isFullAdmin())
 <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;background:#fff7ed;border:1px solid #fde68a;margin-bottom:1rem">
     <div>
         <div class="fw-800" style="color:#92400e">{{ $dealersPending }} Dealers Awaiting Approval</div>

@@ -41,6 +41,10 @@
             <label class="form-label">Title</label>
             <input name="title" class="form-input" value="{{ old('title',$item->title) }}">
         </div>
+        <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-input" rows="4" placeholder="Add a short supporting description shown below the featured title on the homepage">{{ old('description', $item->description) }}</textarea>
+        </div>
         <div class="grid grid--2">
             <div class="form-group">
                 <label class="form-label">Featured From</label>
@@ -54,6 +58,13 @@
         <label class="form-check" style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" name="show_on_homepage" value="1" @checked(old('show_on_homepage',$item->show_on_homepage))> Display on homepage
         </label>
+        <div class="form-group">
+            <label class="form-label">Hero image</label>
+            <input type="file" name="image" class="form-input" accept="image/*">
+            @if($item->image_url)
+                <p class="text-xs text-muted" style="margin-top:.35rem">Current file: {{ $item->image_url }}</p>
+            @endif
+        </div>
         <div class="form-group">
             <label class="form-label">Status *</label>
             <select name="status" class="form-input" required>
@@ -73,10 +84,7 @@
             <div style="display:flex;gap:14px">
                 <div style="width:160px;height:100px;background:#f3f4f6;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
                     @php
-                        $img = $it->image_url;
-                        if ($img && !Str::startsWith($img, ['http://', 'https://'])) {
-                            $img = url('storage/app/public/' . $img);
-                        }
+                        $img = $it->image_url ? \App\Support\PublicMedia::url($it->image_url) : null;
                     @endphp
                     @if($img)
                         <img src="{{ $img }}" alt="{{ $it->title }}" style="width:100%;height:100%;object-fit:cover">

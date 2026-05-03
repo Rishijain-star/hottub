@@ -39,6 +39,9 @@ class FeaturedContentController extends Controller
         if (empty($data['slug'])) {
             $data['slug'] = $this->uniqueSlug($data['title'] ?: ($this->composeTitle($data)));
         }
+        if ($request->hasFile('image')) {
+            $data['image_url'] = $request->file('image')->store('featured', 'public');
+        }
         FeaturedContent::create($data);
         return redirect()->route('admin.featured')->with('success', 'Featured content created.');
     }
@@ -57,12 +60,21 @@ class FeaturedContentController extends Controller
         if ($request->boolean('regen_slug') || empty($featured->slug)) {
             $data['slug'] = $this->uniqueSlug($data['title'] ?: $this->composeTitle($data), $featured->id);
         }
+        if ($request->hasFile('image')) {
+            if ($featured->image_url && ! str_starts_with($featured->image_url, 'http')) {
+                Storage::disk('public')->delete($featured->image_url);
+            }
+            $data['image_url'] = $request->file('image')->store('featured', 'public');
+        }
         $featured->update($data);
         return redirect()->route('admin.featured')->with('success', 'Featured content updated.');
     }
 
     public function destroy(FeaturedContent $featured)
     {
+        if ($featured->image_url && ! str_starts_with($featured->image_url, 'http')) {
+            Storage::disk('public')->delete($featured->image_url);
+        }
         $featured->delete();
         return back()->with('success', 'Featured content deleted.');
     }
@@ -74,6 +86,7 @@ class FeaturedContentController extends Controller
             'brand_id' => ['nullable', 'exists:brands,id'],
             'hot_tub_id' => ['nullable', 'exists:hot_tubs,id'],
             'title' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
             'slug' => ['nullable', 'string', 'max:255'],
             'image_url' => ['nullable', 'string', 'max:1000'],
             'image' => ['nullable', 'file', 'image', 'max:5120'],

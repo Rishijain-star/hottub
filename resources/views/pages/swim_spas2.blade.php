@@ -13,11 +13,21 @@
         <div class="ht-filters-panel">
         <form class="ht-filters" method="GET" action="{{ route('swim-spas') }}" id="filterForm">
             <div class="ht-filter-group">
+                <label class="ht-filter-label">Tier</label>
+                <select class="ht-filter-select" name="tier" id="filter-tier">
+                    @php $tierSel = request('tier'); @endphp
+                    <option value="">All Tiers</option>
+                    @foreach(($tierFilters ?? ['entry-level' => 'Entry Level', 'luxury' => 'Luxury', 'mid-range' => 'Mid-range']) as $val => $label)
+                        <option value="{{ $val }}" {{ $tierSel == $val ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="ht-filter-group">
                 <label class="ht-filter-label">Minimum Seats</label>
                 <select class="ht-filter-select" name="min_seats" id="filter-seats">
                     @php $seatSel = request('min_seats'); @endphp
                     <option value="">Any</option>
-                    @foreach([2,4,6,7] as $s)
+                    @foreach(($seatOptions ?? []) as $s)
                         <option value="{{ $s }}" {{ (string)$seatSel===(string)$s ? 'selected' : '' }}>{{ $s }}+</option>
                     @endforeach
                 </select>
@@ -54,22 +64,29 @@
     <div class="container">
         <div class="ht-products-grid" id="products-grid">
             @if(isset($items) && count($items))
-            @foreach($items as $it)
-                @include('components.swim-spa-card', ['it' => $it])
-            @endforeach
+                @foreach($items as $it)
+                    @include('components.swim-spa-card', ['it' => $it])
+                @endforeach
             @else
-            @for($i=0;$i<6;$i++)
-                @include('components.hot-tub-card-skeleton')
-            @endfor
+                @php
+                    $catalogTotal = (int) ($swimSpaCatalogTotal ?? 0);
+                    $noProductsInCatalog = $catalogTotal === 0;
+                @endphp
+                <div class="ht-no-results" id="no-results-initial" style="grid-column: 1 / -1; text-align: center; padding: 4rem 2rem;">
+                    @if($noProductsInCatalog)
+                        <div class="ht-no-results__icon" aria-hidden="true">🛁</div>
+                        <h3>No products available</h3>
+                        <p class="text-muted" style="margin-top:0.5rem;">There are no swim spas listed at the moment. Please check back later.</p>
+                    @else
+                        <div class="ht-no-results__icon" aria-hidden="true">🔍</div>
+                        <h3>No swim spas match your filters</h3>
+                        <p style="margin-top:0.5rem;">Try adjusting your filter criteria to see more results.</p>
+                        <button type="button" class="btn btn--outline btn--pill" style="margin-top:1rem;" onclick="document.getElementById('filterForm').reset();document.getElementById('filterForm').submit();">Reset Filters</button>
+                    @endif
+                </div>
             @endif
         </div>
 
-        <div class="ht-no-results" id="no-results" style="display:none;">
-            <div class="ht-no-results__icon">🔍</div>
-            <h3>No swim spas match your filters</h3>
-            <p>Try adjusting your filter criteria to see more results.</p>
-            <button class="btn btn--outline btn--pill" onclick="document.getElementById('filterForm').reset();document.getElementById('filterForm').submit();">Reset Filters</button>
-        </div>
         @if(method_exists($items,'hasMorePages') && $items->hasMorePages())
         <div class="mt-4" style="padding:1rem;text-align:center">
             <button id="loadMore" class="btn btn--outline" data-next-page="{{ $items->currentPage()+1 }}">Load More</button>
@@ -112,6 +129,7 @@ selBrand.addEventListener('change', function(){
     form.submit();
 });
 selModel.addEventListener('change', function(){ form.submit(); });
+const ft = document.getElementById('filter-tier'); if(ft){ ft.addEventListener('change', ()=>form.submit()); }
 const fs = document.getElementById('filter-seats'); if(fs){ fs.addEventListener('change', ()=>form.submit()); }
 populateModels(selBrand.value, true);
 

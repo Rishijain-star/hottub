@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 
 class ServiceController extends Controller
 {
@@ -95,7 +94,8 @@ class ServiceController extends Controller
         if (!$file) return null;
         $name = time().'_'.$file->getClientOriginalName();
         $path = $file->storeAs($folder, $name, 'public');
-        return Storage::disk('public')->url($path);
+        // Store only relative path in DB (e.g. services/slug/file.jpg)
+        return $path;
     }
 
     private function uniqueSlug(string $name, ?int $ignoreId = null): string

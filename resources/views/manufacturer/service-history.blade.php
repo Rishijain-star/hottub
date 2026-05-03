@@ -7,14 +7,17 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('manufacturer.service-history') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('manufacturer.service-history') }}" class="panel-filter-form panel-filter-form--2">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('manufacturer.service-history') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -131,6 +134,29 @@
 </div>
 
 <script>
+    function publicMediaUrlClient(rel) {
+        if (!rel) return '';
+        var s = String(rel).replace(/\\/g, '/').trim();
+        s = s.replace(/\/storage\/app\/public\//gi, '/uploads/app/public/').replace(/\/storage\//gi, '/uploads/app/public/');
+        s = s.replace(/\/uploads\/(?!app\/public\/)/gi, '/uploads/app/public/');
+        if (/^https?:\/\//i.test(s)) return s;
+        if (s.startsWith('/uploads/') || s.startsWith('/images/')) return s;
+        s = s.replace(/^\/+/, '');
+        var low = s.toLowerCase();
+        while (low.indexOf('storage/app/public/') === 0) {
+            s = s.substring(19);
+            low = s.toLowerCase();
+        }
+        if (low.indexOf('public/storage/') === 0) s = s.substring(15);
+        low = s.toLowerCase();
+        if (low.indexOf('storage/') === 0 && low.indexOf('storage/app/') !== 0) s = s.substring(8);
+        low = s.toLowerCase();
+        while (low.indexOf('uploads/') === 0) { s = s.substring(8); low = s.toLowerCase(); }
+        while (low.indexOf('app/public/') === 0) { s = s.substring(11); low = s.toLowerCase(); }
+        if (low.indexOf('images/') === 0) return '/' + s;
+        return '/uploads/app/public/' + s;
+    }
+
     function openImagePreview(src) {
         document.getElementById('previewImage').src = src;
         document.getElementById('imagePreviewModal').style.display = 'flex';
@@ -157,8 +183,8 @@
             <div>
                 <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Customer Signature:</h4>
                 ${req.customer_signature ? `
-                    <div style="cursor:pointer;" onclick="openImagePreview('/storage/${req.customer_signature}')">
-                        <img src="/storage/${req.customer_signature}" alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                    <div style="cursor:pointer;" onclick="openImagePreview(${JSON.stringify(publicMediaUrlClient(req.customer_signature))})">
+                        <img src=${JSON.stringify(publicMediaUrlClient(req.customer_signature))} alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
                         <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
                     </div>
                 ` : '<div class="text-sm text-muted">N/A</div>'}

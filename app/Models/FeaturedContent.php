@@ -14,6 +14,7 @@ class FeaturedContent extends Model
         'brand_id',
         'hot_tub_id',
         'title',
+        'description',
         'image_url',
         'featured_from',
         'featured_until',

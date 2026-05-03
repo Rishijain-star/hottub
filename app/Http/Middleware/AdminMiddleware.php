@@ -14,6 +14,11 @@ class AdminMiddleware
             abort(403, 'Access denied. Admins only.');
         }
 
+        $user = auth()->user();
+        if (in_array($user->status ?? '', ['paused', 'frozen', 'inactive'], true)) {
+            abort(403, 'Your administrator account is not active.');
+        }
+
         return $next($request);
     }
 }

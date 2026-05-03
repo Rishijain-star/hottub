@@ -11,7 +11,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('admin.featured') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('admin.featured') }}" class="panel-filter-form panel-filter-form--4">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Title..." value="{{ request('search') }}">
@@ -32,9 +32,12 @@
                 <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('admin.featured') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -74,6 +77,10 @@
             <label class="form-label">Title</label>
             <input name="title" class="form-input" placeholder="Auto-generated from product/dealer if left blank">
         </div>
+        <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-input" rows="4" placeholder="Add a short supporting description shown below the featured title on the homepage">{{ old('description') }}</textarea>
+        </div>
         <div class="grid grid--2">
             <div class="form-group">
                 <label class="form-label">Featured From</label>
@@ -94,6 +101,10 @@
                 <option value="inactive">Inactive</option>
             </select>
         </div>
+        <div class="form-group">
+            <label class="form-label">Hero image (optional)</label>
+            <input type="file" name="image" class="form-input" accept="image/*">
+        </div>
         @include('components.upload-progress')
         <div class="modal-actions" style="justify-content:flex-start">
             <button class="btn btn--primary" type="submit">Create</button>
@@ -113,10 +124,7 @@
             <div style="display:flex;gap:14px">
                 <div style="width:160px;height:100px;background:#f3f4f6;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
                     @php
-                        $adminImg = $it->image_url;
-                        if ($adminImg && !Str::startsWith($adminImg, ['http://', 'https://'])) {
-                            $adminImg = url('storage/app/public/' . $adminImg);
-                        }
+                        $adminImg = $it->image_url ? \App\Support\PublicMedia::url($it->image_url) : null;
                         if (!$adminImg && $it->hotTub) {
                             $rawImgs = $it->hotTub->images;
                             if ($rawImgs instanceof \Illuminate\Support\Collection) {
@@ -129,7 +137,7 @@
                                 return null;
                             }, $imgs), fn ($v) => is_string($v) && $v !== ''));
                             if (count($imgs)) {
-                                $adminImg = url('storage/app/public/' . $imgs[0]);
+                                $adminImg = \App\Support\PublicMedia::url($imgs[0]);
                             }
                         }
                     @endphp

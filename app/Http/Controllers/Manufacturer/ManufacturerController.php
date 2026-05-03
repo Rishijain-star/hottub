@@ -9,14 +9,41 @@ use App\Models\Lead;
 use App\Models\LeadPurchase;
 use App\Models\Notification;
 use App\Models\PaymentProcessorSetting;
+use App\Models\PricingSetting;
+use App\Models\ServiceChecklist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Invoice;
+use App\Models\LeadActivity;
+use Illuminate\Support\Str;
+use App\Models\User;
+use App\Models\Message;
+use Illuminate\Support\Facades\Hash;
+use App\Support\MaintenancePlanDates;
+use Illuminate\Support\Facades\Schema;
 
 class ManufacturerController extends Controller
 {
     public function overview()
     {
         $me = Auth::user();
+        if (Schema::hasColumn('package_requests', 'expiry_date')) {
+            \App\Models\PackageRequest::where('dealer_id', $me->id)
+                ->where('status', 'active')
+                ->whereNotNull('expiry_date')
+                ->where('expiry_date', '<=', now())
+                ->update(['status' => 'expired']);
+        }
+        if (Schema::hasColumn('package_requests', 'cancellation_effective_at')) {
+            \App\Models\PackageRequest::where('dealer_id', $me->id)
+                ->where('status', 'cancellation_scheduled')
+                ->whereNotNull('cancellation_effective_at')
+                ->where('cancellation_effective_at', '<=', now())
+                ->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                ]);
+        }
 
         // 1. Available Credits
         $availableCredits = $me->credits;
@@ -30,7 +57,13 @@ class ManufacturerController extends Controller
             ->pluck('lead_id');
         $declinedLeadIds = \DB::table('declined_leads')->where('user_id', $me->id)->pluck('lead_id');
         $excludeIds = $myPurchasedIds->merge($fullLeadIds)->merge($declinedLeadIds)->unique();
-        $availableLeads = Lead::where('is_private', false)->whereNotIn('id', $excludeIds)->count();
+        $availableLeads = Lead::where('is_private', false)
+            ->whereNotIn('id', $excludeIds)
+            ->whereNull('assigned_dealer_id')
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'converted');
+            })
+            ->count();
 
         $purchasedLeadsCount = LeadPurchase::where('dealer_id', $me->id)->where('buyer_role', 'manufacturer')->count();
         $convertedLeads = Lead::where('assigned_dealer_id', $me->id)->where('status', 'converted')->count();
@@ -46,28 +79,15 @@ class ManufacturerController extends Controller
                     });
             })
             ->count();
-        $activeLeads = LeadPurchase::where('dealer_id', $me->id)
-            ->where('buyer_role', 'manufacturer')
-            ->where(function ($q) {
-                $q
-                    ->whereNull('stage')
-                    ->orWhereNotIn('stage', ['Delivered', 'Lost']);
-            })
-            ->whereHas('lead', function ($q) {
-                $q->where(function ($sq) {
-                    $sq
-                        ->whereNull('status')
-                        ->orWhere('status', '!=', 'converted');
-                });
-            })
-            ->count();
+        $activeLeads = $this->countManufacturerActiveLeadsForDashboard($me->id);
 
         $conversionRate = $purchasedLeadsCount > 0 ? round(($convertedLeads / $purchasedLeadsCount) * 100, 1) : 0;
 
-        $recentActivity = \App\Models\Notification::where('user_id', $me->id)
+        $recentActivity = Notification::where('user_id', $me->id)
             ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get();
+            ->paginate(5);
+
+        $recentActivityTotalCount = Notification::where('user_id', $me->id)->count();
 
         $recentRequests = \App\Models\ServiceRequest::where('dealer_id', $me->id)
             ->with('customer')
@@ -75,9 +95,17 @@ class ManufacturerController extends Controller
             ->take(5)
             ->get();
 
-        if (request()->ajax() && request()->has('page')) {
-            return view('manufacturer.overview', compact('recentActivity'))->render();
-        }
+        $dashboardTasks = $this->getInitialDashboardTasks($me->id);
+        $dashboardTasksHasMore = $this->countDashboardTasks($me->id) > 15;
+        $maintenanceActivityUnreadCount = Notification::where('user_id', $me->id)
+            ->where('read', false)
+            ->whereIn('type', [
+                'maintenance_plan_purchase',
+                'maintenance_plan_cancel_scheduled',
+                'maintenance_plan_cancel_immediate',
+                'maintenance_plan_reactivated',
+            ])
+            ->count();
 
         return view('manufacturer.overview', compact(
             'availableCredits',
@@ -88,8 +116,187 @@ class ManufacturerController extends Controller
             'lostLeads',
             'conversionRate',
             'recentActivity',
-            'recentRequests'
+            'recentActivityTotalCount',
+            'recentRequests',
+            'dashboardTasks',
+            'dashboardTasksHasMore',
+            'maintenanceActivityUnreadCount'
         ));
+    }
+
+    public function overviewRecentActivityList()
+    {
+        $items = Notification::where('user_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->limit(250)
+            ->get(['id', 'message', 'created_at']);
+
+        return response()->json([
+            'ok' => true,
+            'items' => $items->map(fn (Notification $n) => [
+                'id' => $n->id,
+                'message' => $n->message,
+                'date' => $n->created_at->format('M d, Y'),
+            ])->values(),
+        ]);
+    }
+
+    public function dashboardTasks(Request $request)
+    {
+        $uid = Auth::id();
+
+        if ($request->boolean('additional')) {
+            $first = $this->getInitialDashboardTasks($uid);
+            $additional = $this->getAdditionalDashboardTasks($uid, $first->pluck('id')->all());
+            $payload = $additional->map(function (LeadActivity $task) use ($uid) {
+                $status = $this->resolveTaskLeadStatus($task->lead, $uid);
+
+                return [
+                    'id' => $task->id,
+                    'content' => $task->content,
+                    'lead_id' => $task->lead_id,
+                    'due_date' => optional($task->due_date)->format('d M Y'),
+                    'lead_url' => route('manufacturer.leads.view', $task->lead_id),
+                    'status_label' => $status['label'],
+                    'status_class' => $status['class'],
+                ];
+            })->values();
+
+            return response()->json([
+                'ok' => true,
+                'tasks' => $payload,
+                'additional' => true,
+            ]);
+        }
+
+        $tasks = $this->getInitialDashboardTasks($uid);
+        $payload = $tasks->map(function (LeadActivity $task) use ($uid) {
+            $status = $this->resolveTaskLeadStatus($task->lead, $uid);
+
+            return [
+                'id' => $task->id,
+                'content' => $task->content,
+                'lead_id' => $task->lead_id,
+                'due_date' => optional($task->due_date)->format('d M Y'),
+                'lead_url' => route('manufacturer.leads.view', $task->lead_id),
+                'status_label' => $status['label'],
+                'status_class' => $status['class'],
+            ];
+        })->values();
+
+        return response()->json(['ok' => true, 'tasks' => $payload]);
+    }
+
+    private function dashboardTasksBaseQuery(int $userId)
+    {
+        return LeadActivity::where('dealer_id', $userId)
+            ->where('type', 'task')
+            ->where('is_completed', false)
+            ->whereNotNull('lead_id')
+            ->whereHas('lead', function ($q) use ($userId) {
+                $q->where(function ($leadStatus) use ($userId) {
+                    $leadStatus
+                        ->whereNull('status')
+                        ->orWhere('status', '!=', 'converted')
+                        ->orWhere(function ($convertedLead) use ($userId) {
+                            $convertedLead
+                                ->where('status', 'converted')
+                                ->where('assigned_dealer_id', $userId);
+                        });
+                });
+            });
+    }
+
+    private function countDashboardTasks(int $userId): int
+    {
+        return $this->dashboardTasksBaseQuery($userId)->count();
+    }
+
+    private function getInitialDashboardTasks(int $userId)
+    {
+        return $this->dashboardTasksBaseQuery($userId)
+            ->with('lead')
+            ->orderBy('created_at', 'desc')
+            ->limit(15)
+            ->get();
+    }
+
+    /**
+     * @param  array<int>  $excludeIds
+     */
+    private function getAdditionalDashboardTasks(int $userId, array $excludeIds)
+    {
+        if ($excludeIds === []) {
+            return collect();
+        }
+
+        $recent = $this->dashboardTasksBaseQuery($userId)
+            ->with('lead')
+            ->whereNotIn('id', $excludeIds)
+            ->where('created_at', '>=', now()->subDays(2))
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+
+        if ($recent->isNotEmpty()) {
+            return $recent;
+        }
+
+        return $this->dashboardTasksBaseQuery($userId)
+            ->with('lead')
+            ->whereNotIn('id', $excludeIds)
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+    }
+
+    /**
+     * @return array{label: string, class: string}
+     */
+    private function resolveTaskLeadStatus(?Lead $lead, int $userId): array
+    {
+        if (!$lead) {
+            return ['label' => 'Active', 'class' => 'active'];
+        }
+
+        if ($lead->status === 'converted' && (int) $lead->assigned_dealer_id === $userId) {
+            return ['label' => 'Won', 'class' => 'won'];
+        }
+
+        if ($lead->status === 'converted' && (int) $lead->assigned_dealer_id !== $userId) {
+            return ['label' => 'Closed', 'class' => 'closed'];
+        }
+
+        return ['label' => 'Active', 'class' => 'active'];
+    }
+
+    /**
+     * Matches "My Leads" → Won/Purchased → filter "Active" (pipeline still open, not converted away).
+     */
+    private function countManufacturerActiveLeadsForDashboard(int $userId): int
+    {
+        $purchasedLeadIds = LeadPurchase::where('dealer_id', $userId)->where('buyer_role', 'manufacturer')->pluck('lead_id');
+        if ($purchasedLeadIds->isEmpty()) {
+            return 0;
+        }
+
+        return Lead::query()
+            ->whereIn('id', $purchasedLeadIds)
+            ->where('is_private', false)
+            ->whereHas('purchases', function ($q) use ($userId) {
+                $q
+                    ->where('dealer_id', $userId)
+                    ->where('buyer_role', 'manufacturer')
+                    ->where(function ($activeStages) {
+                        $activeStages
+                            ->whereNull('stage')
+                            ->orWhereNotIn('stage', ['Lost', 'Delivered']);
+                    });
+            })
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'converted');
+            })
+            ->count();
     }
 
     public function leads(Request $request)
@@ -118,20 +325,51 @@ class ManufacturerController extends Controller
         $declinedLeadIds = \Illuminate\Support\Facades\DB::table('declined_leads')->where('user_id', $manufacturer->id)->pluck('lead_id');
 
         // Private Leads
-        $privateLeads = (clone $query)
+        $privateLeadsQuery = (clone $query)
             ->where('assigned_dealer_id', $manufacturer->id)
-            ->where('is_private', true)
+            ->where('is_private', true);
+
+        if ($request->filled('private_status')) {
+            $privateStatusFilter = $request->private_status;
+            if ($privateStatusFilter === 'active') {
+                $privateLeadsQuery
+                    ->where(function ($q) {
+                        $q
+                            ->whereNull('status')
+                            ->orWhereNotIn('status', ['converted', 'closed']);
+                    })
+                    ->where(function ($q) {
+                        $q
+                            ->whereNull('stage')
+                            ->orWhere('stage', '!=', 'Lost');
+                    });
+            } elseif ($privateStatusFilter === 'converted') {
+                $privateLeadsQuery->where('status', 'converted');
+            } elseif ($privateStatusFilter === 'lost') {
+                $privateLeadsQuery->where(function ($q) {
+                    $q
+                        ->where('status', 'closed')
+                        ->orWhere('stage', 'Lost');
+                });
+            }
+        }
+
+        $privateLeads = $privateLeadsQuery
             ->orderBy('created_at', 'desc')
             ->paginate(7, ['*'], 'private_page')
             ->withQueryString();
 
-        // Won / Purchased Leads (Excluding Private)
+        // Won / Purchased Leads (Excluding Private) — only leads this manufacturer actually purchased
         $myLeadsQuery = Lead::query()
             ->whereIn('id', $purchasedLeadIds)
             ->where('is_private', false)
+            ->whereHas('purchases', function ($q) use ($manufacturer) {
+                $q->where('dealer_id', $manufacturer->id)->where('buyer_role', 'manufacturer');
+            })
             ->addSelect(['latest_purchase_date' => LeadPurchase::select('created_at')
                 ->whereColumn('lead_id', 'leads.id')
                 ->where('dealer_id', $manufacturer->id)
+                ->where('buyer_role', 'manufacturer')
                 ->latest()
                 ->limit(1)]);
 
@@ -171,9 +409,32 @@ class ManufacturerController extends Controller
                     $sq
                         ->where('dealer_id', $manufacturer->id)
                         ->where('buyer_role', 'manufacturer')
-                        ->whereNotIn('stage', ['Lost', 'Delivered']);
+                        ->where(function ($activeStages) {
+                            $activeStages
+                                ->whereNull('stage')
+                                ->orWhereNotIn('stage', ['Lost', 'Delivered']);
+                        });
                 });
             }
+        }
+
+        if (!$request->filled('lead_status')) {
+            $myLeadsQuery->where(function ($q) use ($manufacturer) {
+                $q
+                    ->whereNull('assigned_dealer_id')
+                    ->orWhere('assigned_dealer_id', $manufacturer->id)
+                    ->orWhere(function ($won) use ($manufacturer) {
+                        $won
+                            ->where('status', 'converted')
+                            ->where('assigned_dealer_id', $manufacturer->id);
+                    })
+                    ->orWhereHas('purchases', function ($lost) use ($manufacturer) {
+                        $lost
+                            ->where('dealer_id', $manufacturer->id)
+                            ->where('buyer_role', 'manufacturer')
+                            ->where('stage', 'Lost');
+                    });
+            });
         }
 
         $myLeads = $myLeadsQuery
@@ -212,6 +473,19 @@ class ManufacturerController extends Controller
         return back()->with('success', 'Private lead created successfully.');
     }
 
+    public function destroyPrivateLead(Lead $lead)
+    {
+        $manufacturer = Auth::user();
+
+        if (!$lead->is_private || (int) $lead->assigned_dealer_id !== (int) $manufacturer->id) {
+            abort(403);
+        }
+
+        $lead->delete();
+
+        return back()->with('success', 'Private lead deleted successfully.');
+    }
+
     public function quotes(Request $request)
     {
         $manufacturer = Auth::user();
@@ -241,6 +515,7 @@ class ManufacturerController extends Controller
         // 5. Manufacturers see ALL leads (no postcode restriction, but exclude private)
         $query = Lead::where('is_private', false)
             ->whereNotIn('id', $excludeIds)
+            ->whereNull('assigned_dealer_id')
             ->where(function ($q) {
                 $q->whereNull('status')->orWhere('status', '!=', 'converted');
             })
@@ -248,6 +523,10 @@ class ManufacturerController extends Controller
 
         $currentPage = max(1, (int) $request->get('page', 1));
         $items = $query->paginate($perPage, ['*'], 'page', $currentPage);
+        $items->getCollection()->transform(function (Lead $lead) {
+            $lead->price = $this->manufacturerLeadPrice($lead);
+            return $lead;
+        });
 
         // We also need the purchase counts to show in the view
         $counts = LeadPurchase::where('buyer_role', 'manufacturer')
@@ -284,6 +563,7 @@ class ManufacturerController extends Controller
     public function buyLead(Request $request, Lead $lead)
     {
         $manufacturer = Auth::user();
+        $manufacturerLeadPrice = $this->manufacturerLeadPrice($lead);
 
         // Check if the lead is private
         if ($lead->is_private) {
@@ -305,7 +585,7 @@ class ManufacturerController extends Controller
         }
 
         // Check if the manufacturer has enough credits
-        if ($manufacturer->credits < $lead->price) {
+        if ($manufacturer->credits < $manufacturerLeadPrice) {
             return response()->json(['ok' => false, 'msg' => 'Insufficient credits'], 422);
         }
 
@@ -319,14 +599,15 @@ class ManufacturerController extends Controller
         }
 
         // Deduct credits and save the purchase
-        $manufacturer->credits -= $lead->price;
+        $manufacturer->credits -= $manufacturerLeadPrice;
         $manufacturer->save();
 
         LeadPurchase::create([
             'lead_id' => $lead->id,
             'dealer_id' => $manufacturer->id,
             'buyer_role' => 'manufacturer',
-            'amount' => $lead->price,
+            'amount' => $manufacturerLeadPrice,
+            'stage' => 'New Lead',
         ]);
         $lead->stage = $lead->stage ?: 'New Lead';
         $lead->save();
@@ -342,13 +623,35 @@ class ManufacturerController extends Controller
                 'phone' => $lead->phone,
                 'postcode' => $lead->postcode,
                 'message' => $lead->message,
-                'price' => $lead->price,
+                'price' => $manufacturerLeadPrice,
                 'interests' => $lead->interests,
                 'stage' => $lead->stage ?: 'New Lead',
                 'status' => $lead->status,
                 'delivery_details' => $lead->delivery_details,
             ],
         ]);
+    }
+
+    private function manufacturerLeadPrice(Lead $lead): float
+    {
+        $basePrice = (float) ($lead->price ?? 0);
+        $multiplier = $this->manufacturerPriceMultiplier();
+
+        return round($basePrice * $multiplier, 2);
+    }
+
+    private function manufacturerPriceMultiplier(): float
+    {
+        $settings = PricingSetting::query()->first();
+        $leadCreditCosts = $settings?->lead_credit_costs ?? [];
+        $rawMultiplier = $leadCreditCosts['manufacturer_multiplier'] ?? null;
+
+        if (!is_numeric($rawMultiplier)) {
+            return 1.0;
+        }
+
+        $multiplier = (float) $rawMultiplier;
+        return $multiplier >= 0 ? $multiplier : 1.0;
     }
 
     public function declineLead(Request $request, Lead $lead)
@@ -376,18 +679,28 @@ class ManufacturerController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'plan_type' => 'required|in:monthly,yearly',
+            'is_most_popular' => 'nullable|boolean',
             'description' => 'nullable|string',
             'features' => 'nullable|array',
         ]);
 
-        \App\Models\MaintenancePackage::create([
+        $payload = [
             'dealer_id' => $mfr->id,
             'name' => $data['name'],
             'price' => $data['price'],
+            'plan_type' => MaintenancePlanDates::normalizeType($data['plan_type']),
+            'is_most_popular' => $request->boolean('is_most_popular'),
             'description' => $data['description'],
             'features' => $data['features'] ?? [],
             'status' => 'active',
-        ]);
+        ];
+        $payload = $this->stripUnavailableMaintenancePackageFields($payload);
+        $package = \App\Models\MaintenancePackage::create($payload);
+
+        if (($package->is_most_popular ?? false) && Schema::hasColumn('maintenance_packages', 'is_most_popular')) {
+            $package->markAsMostPopular();
+        }
 
         return back()->with('success', 'Maintenance package created.');
     }
@@ -407,16 +720,26 @@ class ManufacturerController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'plan_type' => 'required|in:monthly,yearly',
+            'is_most_popular' => 'nullable|boolean',
             'description' => 'nullable|string',
             'features' => 'nullable|array',
         ]);
 
-        $package->update([
+        $payload = [
             'name' => $data['name'],
             'price' => $data['price'],
+            'plan_type' => MaintenancePlanDates::normalizeType($data['plan_type']),
+            'is_most_popular' => $request->boolean('is_most_popular'),
             'description' => $data['description'],
             'features' => $data['features'] ?? [],
-        ]);
+        ];
+        $payload = $this->stripUnavailableMaintenancePackageFields($payload);
+        $package->update($payload);
+
+        if (($package->is_most_popular ?? false) && Schema::hasColumn('maintenance_packages', 'is_most_popular')) {
+            $package->markAsMostPopular();
+        }
 
         return back()->with('success', 'Maintenance package updated.');
     }
@@ -432,6 +755,14 @@ class ManufacturerController extends Controller
     public function packageRequests(Request $request)
     {
         $mfr = Auth::user();
+        if (Schema::hasColumn('package_requests', 'expiry_date')) {
+            \App\Models\PackageRequest::where('dealer_id', $mfr->id)
+                ->where('status', 'active')
+                ->whereNotNull('expiry_date')
+                ->where('expiry_date', '<=', now())
+                ->update(['status' => 'expired']);
+        }
+
         $requests = \App\Models\PackageRequest::where('dealer_id', $mfr->id)
             ->with(['customer', 'package'])
             ->when($request->search, function ($q, $search) {
@@ -454,9 +785,25 @@ class ManufacturerController extends Controller
     {
         if ($packageRequest->dealer_id !== Auth::id())
             abort(403);
-        $packageRequest->update(['status' => $request->status]);
+        $data = $request->validate([
+            'status' => 'required|in:pending,active,responded,closed,expired',
+        ]);
 
-        if ($request->status === 'active') {
+        $update = ['status' => $data['status']];
+        if ($data['status'] === 'active') {
+            $dates = MaintenancePlanDates::calculate(
+                (string) ($packageRequest->package->plan_type ?? 'monthly'),
+                $packageRequest->start_date ?: now()
+            );
+            $update['start_date'] = $dates['start_date'];
+            $update['expiry_date'] = $dates['expiry_date'];
+            $update['next_due_date'] = $dates['next_due_date'];
+        }
+        $update = $this->stripUnavailablePackageRequestDateFields($update);
+
+        $packageRequest->update($update);
+
+        if ($data['status'] === 'active') {
             \App\Models\Message::create([
                 'sender_id' => Auth::id(),
                 'receiver_id' => $packageRequest->user_id,
@@ -472,11 +819,37 @@ class ManufacturerController extends Controller
         return back()->with('success', 'Request status updated.');
     }
 
+    private function stripUnavailableMaintenancePackageFields(array $payload): array
+    {
+        if (!Schema::hasColumn('maintenance_packages', 'plan_type')) {
+            unset($payload['plan_type']);
+        }
+        if (!Schema::hasColumn('maintenance_packages', 'is_most_popular')) {
+            unset($payload['is_most_popular']);
+        }
+
+        return $payload;
+    }
+
+    private function stripUnavailablePackageRequestDateFields(array $payload): array
+    {
+        if (!Schema::hasColumn('package_requests', 'start_date')) {
+            unset($payload['start_date']);
+        }
+        if (!Schema::hasColumn('package_requests', 'expiry_date')) {
+            unset($payload['expiry_date']);
+        }
+        if (!Schema::hasColumn('package_requests', 'next_due_date')) {
+            unset($payload['next_due_date']);
+        }
+
+        return $payload;
+    }
+
     public function serviceRequests(Request $request)
     {
         $mfr = Auth::user();
         $requests = \App\Models\ServiceRequest::where('dealer_id', $mfr->id)
-            ->where('status', '!=', 'completed')
             ->with('customer')
             ->when($request->search, function ($q, $search) {
                 $q->whereHas('customer', function ($sq) use ($search) {
@@ -485,8 +858,12 @@ class ManufacturerController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->when($request->status, function ($q, $status) {
-                $q->where('status', $status);
+            ->when($request->query('status') !== 'all', function ($q) use ($request) {
+                if ($request->filled('status')) {
+                    $q->where('status', $request->status);
+                } else {
+                    $q->where('status', '!=', 'completed');
+                }
             })
             ->orderBy('created_at', 'desc')
             ->paginate(7)
@@ -617,6 +994,15 @@ class ManufacturerController extends Controller
         // Automatically create tasks if they don't exist
         $this->createDefaultTasks($lead, $manufacturer->id);
 
+        $serviceChecklist = ServiceChecklist::where('lead_id', $lead->id)
+            ->where('dealer_id', $manufacturer->id)
+            ->latest('completed_at')
+            ->first();
+
+        $customerAccount = User::whereRaw('LOWER(email) = ?', [strtolower((string) $lead->email)])
+            ->where('role', User::ROLE_USER)
+            ->first();
+
         if (empty($manufacturer->timezone) && !empty($manufacturer->postcode)) {
             $geo = app(\App\Services\GeocodingService::class)->geocode($manufacturer->postcode);
             if ($geo && !empty($geo['timezone'])) {
@@ -625,15 +1011,31 @@ class ManufacturerController extends Controller
             }
         }
 
-        return view('manufacturer.lead', compact('lead'));
+        return view('manufacturer.lead', compact('lead', 'serviceChecklist', 'customerAccount'));
     }
 
     private function createDefaultTasks(Lead $lead, int $manufacturerId)
     {
+        if ($lead->status === 'converted') {
+            return;
+        }
+
+        $defaultTaskContents = ['Call Customer', 'Follow Up Customer'];
+        $seedContent = 'Default lead follow-up tasks prepared.';
+        $hasSeedMarker = \App\Models\LeadActivity::where('lead_id', $lead->id)
+            ->where('dealer_id', $manufacturerId)
+            ->where('type', 'activity')
+            ->where('content', $seedContent)
+            ->exists();
+
+        if ($hasSeedMarker) {
+            return;
+        }
+
         $existingTasks = \App\Models\LeadActivity::where('lead_id', $lead->id)
             ->where('dealer_id', $manufacturerId)
             ->where('type', 'task')
-            ->whereIn('content', ['Call Customer', 'Follow Up Customer'])
+            ->whereIn('content', $defaultTaskContents)
             ->count();
 
         if ($existingTasks === 0) {
@@ -653,6 +1055,60 @@ class ManufacturerController extends Controller
                 'due_date' => now()->addDays(7),
             ]);
         }
+
+        \App\Models\LeadActivity::create([
+            'lead_id' => $lead->id,
+            'dealer_id' => $manufacturerId,
+            'type' => 'activity',
+            'content' => $seedContent,
+        ]);
+    }
+
+    public function storeServiceChecklist(Request $request, Lead $lead)
+    {
+        $manufacturer = Auth::user();
+        if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
+            return response()->json(['ok' => false], 403);
+        }
+
+        $existingChecklist = ServiceChecklist::where('lead_id', $lead->id)
+            ->where('dealer_id', $manufacturer->id)
+            ->first();
+
+        if ($existingChecklist?->completed_at) {
+            return response()->json([
+                'ok' => false,
+                'msg' => 'Checklist has already been saved and locked.',
+                'checklist' => $existingChecklist,
+            ], 422);
+        }
+
+        $data = $request->validate([
+            'checklist' => 'nullable|array',
+            'notes' => 'nullable|string',
+        ]);
+
+        $checklist = ServiceChecklist::updateOrCreate(
+            ['lead_id' => $lead->id, 'dealer_id' => $manufacturer->id],
+            [
+                'checklist_data' => $data['checklist'] ?? [],
+                'dealer_notes' => $data['notes'] ?? null,
+                'completed_at' => now(),
+            ]
+        );
+
+        return response()->json(['ok' => true, 'checklist' => $checklist]);
+    }
+
+    public function getServiceHistory(Lead $lead)
+    {
+        $manufacturer = Auth::user();
+        $history = ServiceChecklist::where('lead_id', $lead->id)
+            ->where('dealer_id', $manufacturer->id)
+            ->orderBy('completed_at', 'desc')
+            ->get();
+
+        return response()->json(['ok' => true, 'history' => $history]);
     }
 
     public function downloadGuidance(Lead $lead)
@@ -851,11 +1307,65 @@ class ManufacturerController extends Controller
         return response()->json(['ok' => true, 'is_completed' => $activity->is_completed]);
     }
 
+    public function updateLeadActivity(Request $request, Lead $lead, \App\Models\LeadActivity $activity)
+    {
+        $manufacturer = Auth::user();
+        if ((int) $activity->lead_id !== (int) $lead->id || (int) $activity->dealer_id !== (int) $manufacturer->id) {
+            return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+        if (!in_array($activity->type, ['note', 'task'], true)) {
+            return response()->json(['ok' => false, 'msg' => 'Cannot edit this entry'], 422);
+        }
+        if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
+            return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+
+        $data = $request->validate([
+            'content' => 'required|string',
+            'due_date' => 'nullable|date',
+        ]);
+
+        $activity->content = $data['content'];
+        if ($activity->type === 'task') {
+            $activity->due_date = $data['due_date'] ?? $activity->due_date;
+        }
+        $activity->save();
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function deleteLeadActivity(Lead $lead, \App\Models\LeadActivity $activity)
+    {
+        $manufacturer = Auth::user();
+        if ((int) $activity->lead_id !== (int) $lead->id || (int) $activity->dealer_id !== (int) $manufacturer->id) {
+            return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+        if (!in_array($activity->type, ['note', 'task'], true)) {
+            return response()->json(['ok' => false, 'msg' => 'Cannot delete this entry'], 422);
+        }
+        if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
+            return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+
+        $activity->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
     public function deliverLead(Request $request, Lead $lead)
     {
         $manufacturer = Auth::user();
         if (!$this->checkLeadAccess($lead, $manufacturer->id)) {
             return response()->json(['ok' => false, 'msg' => 'Not authorized'], 403);
+        }
+
+        if ($lead->status === 'converted' && (int) $lead->assigned_dealer_id === (int) $manufacturer->id) {
+            return response()->json([
+                'ok' => true,
+                'stage' => $lead->stage,
+                'status' => $lead->status,
+                'details' => $lead->delivery_details,
+            ]);
         }
 
         if ($lead->assigned_dealer_id && $lead->assigned_dealer_id !== $manufacturer->id) {
@@ -924,6 +1434,11 @@ class ManufacturerController extends Controller
             ->where('dealer_id', '!=', $manufacturer->id)
             ->update(['stage' => 'Lost']);
 
+        LeadActivity::where('lead_id', $lead->id)
+            ->where('type', 'task')
+            ->where('is_completed', false)
+            ->delete();
+
         // Log winner activity
         \App\Models\LeadActivity::create([
             'lead_id' => $lead->id,
@@ -933,14 +1448,14 @@ class ManufacturerController extends Controller
         ]);
 
         // Sync to Customer Account
-        $customer = \App\Models\User::whereRaw('LOWER(email) = ?', [strtolower($lead->email)])->where('role', 'user')->first();
+        $customer = User::whereRaw('LOWER(email) = ?', [strtolower($lead->email)])->where('role', 'user')->first();
 
         if (!$customer) {
             // Create a customer account if it doesn't exist
-            $customer = \App\Models\User::create([
+            $customer = User::create([
                 'name' => $lead->name,
                 'email' => $lead->email,
-                'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(12)),
+                'password' => Hash::make(Str::random(12)),
                 'role' => 'user',
                 'phone' => $lead->phone,
                 'postcode' => $lead->postcode,
@@ -960,12 +1475,21 @@ class ManufacturerController extends Controller
             ]);
 
             // Create initial chat message
-            \App\Models\Message::create([
-                'sender_id' => $manufacturer->id,
-                'receiver_id' => $customer->id,
-                'lead_id' => $lead->id,
-                'content' => "Hello, I have successfully processed your hot tub purchase for the {$details['make']} {$details['model']}. You can use this chat for any future work, service, or support regarding your new product.",
-            ]);
+            $autoMessage = "Hello, I have successfully processed your hot tub purchase for the {$details['make']} {$details['model']}. You can use this chat for any future work, service, or support regarding your new product.";
+            $alreadySent = Message::where('sender_id', $manufacturer->id)
+                ->where('receiver_id', $customer->id)
+                ->where('lead_id', $lead->id)
+                ->where('content', $autoMessage)
+                ->exists();
+
+            if (!$alreadySent) {
+                Message::create([
+                    'sender_id' => $manufacturer->id,
+                    'receiver_id' => $customer->id,
+                    'lead_id' => $lead->id,
+                    'content' => $autoMessage,
+                ]);
+            }
         }
 
         return response()->json(['ok' => true, 'stage' => $lead->stage, 'status' => $lead->status, 'details' => $lead->delivery_details]);
@@ -989,35 +1513,74 @@ class ManufacturerController extends Controller
 
     public function invoice(string $invoice)
     {
-        $data = [
-            'invoice' => $invoice,
-            'date' => now()->format('d/m/Y'),
-            'time' => now()->format('H:i:s'),
-            'customer' => auth()->user()->company_name ?? auth()->user()->name,
-            'status' => 'failed',
-            'items' => [
-                ['title' => 'Lead Generation Credits', 'desc' => 'Hot Tub Buyer Platform Access', 'qty' => 100, 'unit' => 3.0, 'total' => 300.0],
+        $me = Auth::user();
+
+        $inv = Invoice::where('invoice_number', $invoice)
+            ->where('dealer_id', $me->id)
+            ->firstOrFail();
+
+        $paymentDetails = $inv->payment_details ?? [];
+        if (is_string($paymentDetails)) {
+            $paymentDetails = json_decode($paymentDetails, true) ?: [];
+        }
+
+        $plan = null;
+        if (!empty($inv->credit_plan_id)) {
+            $plan = \App\Models\CreditPlan::find($inv->credit_plan_id);
+        }
+
+        $planName = $inv->plan_name ?? ($plan?->name ?? 'Credit Plan');
+        $planDescription = $inv->plan_description ?? ($plan?->description ?? '');
+
+        $creditsQty = (int) ($inv->credits ?? 0);
+        $amountTotal = (float) ($inv->amount ?? 0);
+        $unitPrice = $creditsQty > 0 ? ($amountTotal / $creditsQty) : $amountTotal;
+
+        $items = [
+            [
+                'title' => $planName,
+                'desc' => $planDescription ?: 'Includes credit access for the purchased plan.',
+                'qty' => $creditsQty,
+                'unit' => round($unitPrice, 4),
+                'total' => $amountTotal,
             ],
-            'currency' => 'GBP',
-            'total' => 300.0,
         ];
+
+        $paymentMethodTypes = $paymentDetails['payment_method_types'] ?? [];
+        if (!is_array($paymentMethodTypes)) {
+            $paymentMethodTypes = [$paymentMethodTypes];
+        }
+        $paymentMethodText = !empty($paymentMethodTypes) ? implode(', ', $paymentMethodTypes) : 'N/A';
+
+        $vatRate = 0.20;
+        $netAmount = round($amountTotal / (1 + $vatRate), 2);
+        $vatAmount = round($amountTotal - $netAmount, 2);
+
+        $data = [
+            'invoice' => $inv->invoice_number,
+            'date' => optional($inv->created_at)->format('d/m/Y'),
+            'time' => optional($inv->created_at)->format('H:i:s'),
+            'customer' => $me->company_name ?? $me->name,
+            'status' => $inv->status,
+            'items' => $items,
+            'currency' => $inv->currency ?? 'GBP',
+            'total' => $amountTotal,
+            'netAmount' => $netAmount,
+            'vatAmount' => $vatAmount,
+            'vatRatePercent' => 20,
+            'paymentDetails' => $paymentDetails,
+            'paymentMethodText' => $paymentMethodText,
+            'stripeSessionId' => $inv->stripe_session_id,
+            'paymentId' => $inv->payment_id,
+        ];
+
         return view('manufacturer.invoice', $data);
     }
 
     public function invoiceDownload(string $invoice)
     {
-        $html = view('manufacturer.invoice', [
-            'invoice' => $invoice,
-            'date' => now()->format('d/m/Y'),
-            'time' => now()->format('H:i:s'),
-            'customer' => auth()->user()->company_name ?? auth()->user()->name,
-            'status' => 'failed',
-            'items' => [
-                ['title' => 'Lead Generation Credits', 'desc' => 'Hot Tub Buyer Platform Access', 'qty' => 100, 'unit' => 3.0, 'total' => 300.0],
-            ],
-            'currency' => 'GBP',
-            'total' => 300.0,
-        ])->render();
+        $dataView = $this->invoice($invoice);
+        $html = $dataView->render();
         $filename = 'invoice-' . $invoice . '.html';
         return response($html, 200, [
             'Content-Type' => 'text/html; charset=UTF-8',
@@ -1036,10 +1599,95 @@ class ManufacturerController extends Controller
         return redirect()->route('home')->with('success', 'Your account deletion request has been processed.');
     }
 
-    public function credits()
+    public function myCustomers(Request $request)
+    {
+        $manufacturer = Auth::user();
+        if (Schema::hasColumn('package_requests', 'expiry_date')) {
+            \App\Models\PackageRequest::where('dealer_id', $manufacturer->id)
+                ->where('status', 'active')
+                ->whereNotNull('expiry_date')
+                ->where('expiry_date', '<=', now())
+                ->update(['status' => 'expired']);
+        }
+        if (Schema::hasColumn('package_requests', 'cancellation_effective_at')) {
+            \App\Models\PackageRequest::where('dealer_id', $manufacturer->id)
+                ->where('status', 'cancellation_scheduled')
+                ->whereNotNull('cancellation_effective_at')
+                ->where('cancellation_effective_at', '<=', now())
+                ->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                ]);
+        }
+
+        $customers = Lead::where('status', 'converted')
+            ->where('assigned_dealer_id', $manufacturer->id)
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = trim((string) $request->search);
+                $q->where(function ($sq) use ($search) {
+                    $sq
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('updated_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        $openTasksByLead = collect();
+        if ($customers->isNotEmpty()) {
+            $openTasksByLead = LeadActivity::whereIn('lead_id', $customers->pluck('id'))
+                ->where('dealer_id', $manufacturer->id)
+                ->where('type', 'task')
+                ->where('is_completed', false)
+                ->whereNotNull('due_date')
+                ->orderBy('due_date')
+                ->get()
+                ->groupBy('lead_id');
+        }
+
+        $customerUsersByEmail = collect();
+        if ($customers->isNotEmpty()) {
+            $emails = $customers->pluck('email')->filter()->unique();
+            $customerUsersByEmail = \App\Models\User::where('role', \App\Models\User::ROLE_USER)
+                ->whereIn('email', $emails)
+                ->get()
+                ->keyBy(fn (\App\Models\User $u) => strtolower($u->email));
+        }
+        $customerPlanByUserId = collect();
+        if ($customerUsersByEmail->isNotEmpty()) {
+            $customerPlanByUserId = \App\Models\PackageRequest::with('package')
+                ->where('dealer_id', $manufacturer->id)
+                ->whereIn('user_id', $customerUsersByEmail->pluck('id')->values())
+                ->orderByDesc('updated_at')
+                ->get()
+                ->groupBy('user_id')
+                ->map(function ($rows) {
+                    return $rows->sortByDesc(function (\App\Models\PackageRequest $row) {
+                        $priority = match ($row->status) {
+                            'active' => 5,
+                            'cancellation_scheduled' => 4,
+                            'cancelled' => 3,
+                            'expired' => 2,
+                            default => 1,
+                        };
+                        return $priority * 10000000000 + optional($row->updated_at)->getTimestamp();
+                    })->first();
+                });
+        }
+
+        return view('manufacturer.customers', compact('customers', 'openTasksByLead', 'customerUsersByEmail', 'customerPlanByUserId'));
+    }
+
+    public function credits(\Illuminate\Http\Request $request)
     {
         $me = Auth::user();
         $plans = \App\Models\CreditPlan::where('is_active', true)->orderBy('credits', 'asc')->get();
+        $settings = PaymentProcessorSetting::first();
+        $stripePublishableKey = $settings->stripe_publishable_key
+            ?? config('services.stripe.key')
+            ?? env('STRIPE_PUBLISHABLE_KEY');
 
         $historyQuery = \App\Models\CreditPurchase::where('user_id', $me->id)->orderBy('created_at', 'desc');
 
@@ -1049,7 +1697,7 @@ class ManufacturerController extends Controller
 
         $creditRequests = $historyQuery->paginate(10);
 
-        return view('manufacturer.credits', compact('me', 'plans', 'creditRequests'));
+        return view('manufacturer.credits', compact('me', 'plans', 'creditRequests', 'stripePublishableKey'));
     }
 
     public function purchasePlan(\Illuminate\Http\Request $request)
@@ -1057,7 +1705,10 @@ class ManufacturerController extends Controller
         $user = Auth::user();
         $plan = \App\Models\CreditPlan::findOrFail($request->plan_id);
 
-        $stripeSecret = config('services.stripe.secret') ?? env('STRIPE_SECRET_KEY');
+        $settings = PaymentProcessorSetting::first();
+        $stripeSecret = $settings->stripe_secret_key
+            ?? config('services.stripe.secret')
+            ?? env('STRIPE_SECRET_KEY');
         \Stripe\Stripe::setApiKey($stripeSecret);
 
         try {
@@ -1097,31 +1748,92 @@ class ManufacturerController extends Controller
         $planId = $request->get('plan_id');
         $user = Auth::user();
 
-        $stripeSecret = config('services.stripe.secret') ?? env('STRIPE_SECRET_KEY');
+        $settings = PaymentProcessorSetting::first();
+        $stripeSecret = $settings->stripe_secret_key
+            ?? config('services.stripe.secret')
+            ?? env('STRIPE_SECRET_KEY');
         \Stripe\Stripe::setApiKey($stripeSecret);
 
         try {
             $session = \Stripe\Checkout\Session::retrieve($sessionId);
 
             $existing = \App\Models\CreditPurchase::where('payment_id', $session->id)->first();
-            if ($existing) {
-                return redirect()->route('manufacturer.credits')->with('success', 'Credits already added to your account.');
-            }
+            $creditPurchase = $existing;
 
             if ($session->payment_status === 'paid') {
-                $plan = \App\Models\CreditPlan::find($planId);
+                $resolvedPlanId = $planId ?: ($existing?->credit_plan_id);
+                $plan = \App\Models\CreditPlan::find($resolvedPlanId);
 
-                $user->credits += $plan->credits;
-                $user->save();
+                if (!$plan) {
+                    return redirect()->route('manufacturer.credits')->with('error', 'Payment was received but plan details could not be matched. Please contact support with your payment reference.');
+                }
 
-                \App\Models\CreditPurchase::create([
-                    'user_id' => $user->id,
-                    'credit_plan_id' => $plan->id,
-                    'amount' => $plan->price,
-                    'credits_added' => $plan->credits,
-                    'payment_id' => $session->id,
-                    'status' => 'completed',
-                ]);
+                if (!$existing) {
+                    $user->credits += $plan->credits;
+                    $user->save();
+
+                    $creditPurchase = \App\Models\CreditPurchase::create([
+                        'user_id' => $user->id,
+                        'credit_plan_id' => $plan->id,
+                        'amount' => $plan->price,
+                        'credits_added' => $plan->credits,
+                        'payment_id' => $session->id,
+                        'status' => 'completed',
+                    ]);
+                }
+
+                // Create invoice record for Accounting & Invoices section
+                try {
+                    $stripeSessionId = $session->id ?? $sessionId;
+                    $paymentIntent = $session->payment_intent ?? null;
+
+                    $invoiceExistsQuery = Invoice::where('stripe_session_id', $stripeSessionId);
+                    if (!empty($paymentIntent)) {
+                        $invoiceExistsQuery->orWhere('payment_id', $paymentIntent);
+                    }
+
+                    $invoiceExists = $invoiceExistsQuery->first();
+                    if (!$invoiceExists) {
+                        $invoiceNumber = 'INV-' . now()->format('YmdHis') . '-' . Str::random(6);
+
+                        $amountTotal = null;
+                        if (isset($session->amount_total)) {
+                            // Stripe amount_total is in the smallest currency unit (pence).
+                            $amountTotal = ((float) $session->amount_total) / 100;
+                        }
+
+                        $customerEmail = null;
+                        if (isset($session->customer_details) && isset($session->customer_details->email)) {
+                            $customerEmail = $session->customer_details->email;
+                        }
+
+                        Invoice::create([
+                            'invoice_number' => $invoiceNumber,
+                            'dealer_id' => $user->id,
+                            'credits' => $creditPurchase->credits_added,
+                            'amount' => $creditPurchase->amount,
+                            'status' => 'paid',
+                            'payment_id' => $paymentIntent ?: ($session->id ?? null),
+                            'credit_plan_id' => $plan->id,
+                            'plan_name' => $plan->name,
+                            'plan_description' => $plan->description,
+                            'currency' => 'GBP',
+                            'stripe_session_id' => $stripeSessionId,
+                            'payment_details' => [
+                                'payment_status' => $session->payment_status,
+                                'payment_method_types' => $session->payment_method_types ?? [],
+                                'customer_email' => $customerEmail ?: $user->email,
+                                'amount_total' => $amountTotal ?? $plan->price,
+                            ],
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::error('Manufacturer purchaseSuccess invoice creation failed', [
+                        'session_id' => $sessionId,
+                        'user_id' => $user?->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
 
                 return redirect()->route('manufacturer.credits')->with('success', "Success! {$plan->credits} credits have been added to your account.");
             }

@@ -11,6 +11,7 @@ class Message extends Model
         'receiver_id',
         'lead_id',
         'content',
+        'attachment_path',
         'support_status',
         'read_at',
     ];

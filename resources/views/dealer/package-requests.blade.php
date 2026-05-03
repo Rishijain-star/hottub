@@ -7,7 +7,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('dealer.package-requests') }}" class="grid grid--3" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('dealer.package-requests') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
@@ -18,11 +18,16 @@
                 <option value="">All Status</option>
                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                 <option value="responded" {{ request('status') === 'responded' ? 'selected' : '' }}>Responded</option>
+                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="expired" {{ request('status') === 'expired' ? 'selected' : '' }}>Expired</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('dealer.package-requests') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -61,6 +66,8 @@
                         <span class="badge badge--success">Active</span>
                     @elseif($req->status === 'responded')
                         <span class="badge badge--success">Responded</span>
+                    @elseif($req->status === 'expired')
+                        <span class="badge badge--danger">Expired</span>
                     @else
                         <span class="badge badge--dark">Closed</span>
                     @endif
@@ -77,6 +84,11 @@
                             <button class="btn btn--primary btn--xs">Activate Plan</button>
                         </form>
                         @endif
+
+                        <form method="POST" action="{{ route('dealer.package-requests.destroy', $req) }}" style="display:inline" onsubmit="return confirm('Are you sure you want to cancel and delete this request?')">
+                            @csrf @method('DELETE')
+                            <button class="btn btn--danger btn--xs" style="padding: 4px 8px; font-size: 0.7rem;">Cancel</button>
+                        </form>
                     </div>
                 </td>
             </tr>
@@ -109,6 +121,9 @@ function viewRequestDetails(req) {
         <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Customer:</span> ${req.customer.name}</div>
         <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Email:</span> ${req.customer.email}</div>
         <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Package:</span> ${req.package.name} (£${req.package.price})</div>
+        <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Plan Type:</span> ${(req.package.plan_type || 'yearly').toUpperCase()}</div>
+        <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Start Date:</span> ${req.start_date ? new Date(req.start_date).toLocaleDateString() : '—'}</div>
+        <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;"><span class="fw-700 text-dark">Expiry Date:</span> ${req.expiry_date ? new Date(req.expiry_date).toLocaleDateString() : '—'}</div>
         <div style="margin-bottom:15px;"><span class="fw-700 text-dark">Message from Customer:</span><br><p class="text-sm text-muted" style="margin-top: 5px;">${req.message || 'No message provided.'}</p></div>
     `;
     document.getElementById('requestModal').style.display = 'flex';

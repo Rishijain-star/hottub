@@ -15,6 +15,7 @@ class Lead extends Model
         'session_id',
         'phone',
         'postcode',
+        'address',
         'lead_postcode',
         'lead_lat',
         'lead_lng',

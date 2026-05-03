@@ -11,7 +11,7 @@
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
-    <form method="GET" action="{{ route('admin.parts') }}" class="grid grid--4" style="align-items: flex-end; gap: 1rem;">
+    <form method="GET" action="{{ route('admin.parts') }}" class="panel-filter-form panel-filter-form--4">
         <div class="form-group mb-0">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Name or part number..." value="{{ request('search') }}">
@@ -34,9 +34,12 @@
                 <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
             </select>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn--primary" style="flex: 1;">Filter</button>
+        <div class="form-group mb-0 panel-filter-actions-col">
+            <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
+            <div class="panel-filter-actions">
+            <button type="submit" class="btn btn--primary">Filter</button>
             <a href="{{ route('admin.parts') }}" class="btn btn--ghost">Clear</a>
+            </div>
         </div>
     </form>
 </div>
@@ -97,9 +100,21 @@
             <label class="form-label">Compatible Brands</label>
             <div class="grid grid--3">
                 @foreach($brands as $b)
+                    @php
+                        $types = (array) ($b->types ?? []);
+                        $legacy = $b->type ?? null;
+                        // Parts are compatible with hot tubs/swim spas brand families.
+                        $allowed = (
+                            in_array('parts', $types, true) ||
+                            in_array('other', $types, true) ||
+                            in_array($legacy, ['parts', 'other'], true)
+                        );
+                    @endphp
+                    @if($allowed)
                     <label class="form-check" style="display:flex;align-items:center;gap:8px">
                         <input type="checkbox" name="compatible_brand_ids[]" value="{{ $b->id }}"> {{ $b->name }}
                     </label>
+                    @endif
                 @endforeach
             </div>
         </div>
@@ -126,7 +141,7 @@
                     @php 
                         $img = (is_array($it->images) && count($it->images)) ? $it->images[0] : null; 
                         if ($img && !Str::startsWith($img, ['http://', 'https://'])) {
-                            $img = url('storage/app/public/' . $img);
+                            $img = \App\Support\PublicMedia::url($img);
                         }
                     @endphp
                     @if($img)
@@ -156,10 +171,11 @@
                 <td>
                     <div class="actions-row">
                         <a href="{{ route('admin.parts.edit', $it) }}" class="icon-btn" title="Edit">✎</a>
-                        <form method="POST" action="{{ route('admin.parts.destroy', $it) }}" onsubmit="return confirm('Delete this part?')">
-                            @csrf @method('DELETE')
-                            <button class="icon-btn" title="Delete">✕</button>
-                        </form>
+                        <button type="button"
+                                class="icon-btn js-open-delete"
+                                title="Delete"
+                                data-action="{{ route('admin.parts.destroy', $it) }}"
+                                data-entity="part">✕</button>
                     </div>
                 </td>
             </tr>
@@ -170,4 +186,5 @@
     </table>
     <div class="mt-4" style="padding:1rem">{{ $items->links('components.pagination') }}</div>
 </div>
+@include('components.delete-confirm-modal')
 @endsection

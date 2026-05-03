@@ -50,6 +50,14 @@
             My Leads
         </a>
 
+        <a href="{{ route('manufacturer.customers.index') }}"
+           class="panel-nav-link {{ request()->routeIs('manufacturer.customers*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            My Customers
+        </a>
+
         <a href="{{ route('manufacturer.maintenance-packages') }}"
            class="panel-nav-link {{ request()->routeIs('manufacturer.maintenance-packages*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -94,6 +102,14 @@
             @endif
         </a>
 
+        <a href="{{ route('manufacturer.service-management') }}"
+           class="panel-nav-link {{ request()->routeIs('manufacturer.service-management*') ? 'active' : '' }}">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Service Management
+        </a>
+
         <a href="{{ route('manufacturer.credits') }}"
            class="panel-nav-link {{ request()->routeIs('manufacturer.credits*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -123,9 +139,7 @@
                     ->whereNull('read_at')
                     ->count();
             @endphp
-            @if($unreadMessages > 0)
-                <span style="background:#ef4444;color:#fff;min-width:18px;height:18px;padding:0 5px;border-radius:10px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:auto;">{{ $unreadMessages }}</span>
-            @endif
+            <span id="messages-nav-unread-badge" class="notification-badge" style="{{ $unreadMessages > 0 ? 'margin-left:auto;' : 'display:none;' }}">{{ $unreadMessages > 0 ? $unreadMessages : '' }}</span>
         </a>
 
         <a href="{{ route('manufacturer.payments') }}"

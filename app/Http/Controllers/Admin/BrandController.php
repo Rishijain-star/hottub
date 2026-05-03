@@ -30,9 +30,12 @@ class BrandController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:brands,name'],
             'type' => ['nullable', 'string', 'max:50'],
+            'types' => ['nullable', 'array'],
+            'types.*' => ['in:hot_tub,swim_spa,both,outdoor_kitchen,sauna,other'],
             'website' => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
             'featured' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
             'country_of_origin' => ['nullable', 'string', 'max:255'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ]);
@@ -42,6 +45,8 @@ class BrandController extends Controller
         }
 
         $data['featured'] = (bool) ($data['featured'] ?? false);
+        $data['is_active'] = $request->boolean('is_active', true);
+        $data['types'] = array_values($data['types'] ?? []);
         $data['slug'] = $this->uniqueSlug($data['name']);
         Brand::create($data);
         return redirect()->route('admin.brands.index')->with('success', 'Brand created.');
@@ -58,9 +63,12 @@ class BrandController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:brands,name,' . $brand->id],
             'type' => ['nullable', 'string', 'max:50'],
+            'types' => ['nullable', 'array'],
+            'types.*' => ['in:hot_tub,swim_spa,both,outdoor_kitchen,sauna,other'],
             'website' => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
             'featured' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
             'country_of_origin' => ['nullable', 'string', 'max:255'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ]);
@@ -73,6 +81,8 @@ class BrandController extends Controller
         }
 
         $data['featured'] = (bool) ($data['featured'] ?? false);
+        $data['is_active'] = $request->boolean('is_active', true);
+        $data['types'] = array_values($data['types'] ?? []);
         if ($request->boolean('regen_slug') || empty($brand->slug)) {
             $data['slug'] = $this->uniqueSlug($data['name'], $brand->id);
         }

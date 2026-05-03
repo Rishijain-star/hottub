@@ -7,6 +7,8 @@ use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class LeadController extends Controller
 {
@@ -126,11 +128,35 @@ class LeadController extends Controller
         return redirect()->route('admin.leads')->with('success', 'Lead updated.');
     }
 
-    // public function destroy(Lead $lead)
-    // {
-    //     $lead->delete();
-    //     return back()->with('success', 'Lead deleted.');
-    // }
+    public function destroy(Lead $lead)
+    {
+        $leadId = (int) $lead->id;
+
+        DB::transaction(function () use ($leadId) {
+            // Defensive cleanup for environments where old FK constraints might be missing.
+            $relatedTables = [
+                'lead_purchases',
+                'lead_activities',
+                'declined_leads',
+                'service_checklists',
+                'messages',
+            ];
+
+            foreach ($relatedTables as $table) {
+                if (Schema::hasTable($table) && Schema::hasColumn($table, 'lead_id')) {
+                    DB::table($table)->where('lead_id', $leadId)->delete();
+                }
+            }
+
+            DB::table('leads')->where('id', $leadId)->delete();
+        });
+
+        if (DB::table('leads')->where('id', $leadId)->exists()) {
+            return back()->with('error', 'Lead could not be deleted from database. Please try again.');
+        }
+
+        return back()->with('success', 'Lead deleted permanently from database.');
+    }
 
     public function activity(Lead $lead)
     {

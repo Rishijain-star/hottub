@@ -62,9 +62,17 @@
                     @elseif(($hasSupportStatusColumn ?? false) && (($req->support_status ?? null) === 'rejected'))
                         <span class="badge badge--danger">Rejected</span>
                     @elseif($req->sender_role === 'manufacturer')
+                        @if(auth()->user()?->isFullAdmin())
                         <a href="{{ route('admin.manufacturers') }}?search={{ $req->sender_email }}" class="btn btn--ghost btn--sm">Manage Account</a>
+                        @else
+                        <span class="text-xs text-muted">Primary admin only</span>
+                        @endif
                     @elseif($req->sender_role === 'dealer')
+                        @if(auth()->user()?->isFullAdmin())
                         <a href="{{ route('admin.dealers.index') }}?search={{ $req->sender_email }}" class="btn btn--ghost btn--sm">Manage Account</a>
+                        @else
+                        <span class="text-xs text-muted">Primary admin only</span>
+                        @endif
                     @elseif($req->sender_role === 'user')
                         <a href="{{ route('admin.users.index') }}?search={{ $req->sender_email }}" class="btn btn--ghost btn--sm">Manage Account</a>
                     @endif

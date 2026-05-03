@@ -10,7 +10,7 @@ $imgs = array_values(array_filter(array_map(function ($v) {
     return null;
 }, $imgs), fn ($v) => is_string($v) && $v !== ''));
 $img = count($imgs)
-    ? url('storage/app/public/' . $imgs[0])
+    ? (\App\Support\PublicMedia::url($imgs[0]) ?: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80&auto=format&fit=crop')
     : 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80&auto=format&fit=crop';
 @endphp
 <div class="ht-card" data-seats="{{ $it->seats ?? 0 }}" data-brand="{{ strtolower($it->brand) }}">

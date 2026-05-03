@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\SiteSetting;
 use App\Models\User;
+use App\Support\PublicMedia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -55,6 +57,8 @@ class AdminController extends Controller
         $dealersTotal = $hasUserRoleCol ? User::where('role', 'dealer')->count() : 0;
         $dealersApproved = ($hasUserRoleCol && $hasUserStatusCol) ? User::where('role', 'dealer')->where('status', 'approved')->count() : 0;
         $dealersPending = ($hasUserRoleCol && $hasUserStatusCol) ? User::where('role', 'dealer')->where('status', 'pending')->count() : 0;
+        $manufacturersPending = ($hasUserRoleCol && $hasUserStatusCol) ? User::where('role', 'manufacturer')->where('status', 'pending')->count() : 0;
+        $pendingPartnerRegistrations = $dealersPending + $manufacturersPending;
         $dealersRevoked = ($hasUserRoleCol && $hasUserStatusCol) ? User::where('role', 'dealer')->where('status', 'revoked')->count() : 0;
 
         $hotTubs = $hasHotTubs ? (int) DB::table('hot_tubs')->count() : 0;
@@ -76,17 +80,19 @@ class AdminController extends Controller
         $manufacturerRankings = collect();
 
         if ($hasLeads) {
-            $dealerPurchaseQuery = DB::table('lead_purchases')->where('buyer_role', 'dealer');
-            $manufacturerPurchaseQuery = DB::table('lead_purchases')->where('buyer_role', 'manufacturer');
-            $purchasedLeadIdsQuery = DB::table('lead_purchases')->select('lead_id')->distinct();
+            $dealerPurchaseQuery = DB::table('lead_purchases')
+                ->join('leads', 'leads.id', '=', 'lead_purchases.lead_id')
+                ->where('lead_purchases.buyer_role', 'dealer');
+            $manufacturerPurchaseQuery = DB::table('lead_purchases')
+                ->join('leads', 'leads.id', '=', 'lead_purchases.lead_id')
+                ->where('lead_purchases.buyer_role', 'manufacturer');
             $leadsBase = DB::table('leads');
             $convertedLeadsBase = DB::table('leads')->where('status', 'converted');
 
             if ($range) {
                 [$from, $to] = $range;
-                $dealerPurchaseQuery->whereBetween('created_at', [$from, $to]);
-                $manufacturerPurchaseQuery->whereBetween('created_at', [$from, $to]);
-                $purchasedLeadIdsQuery->whereBetween('created_at', [$from, $to]);
+                $dealerPurchaseQuery->whereBetween('lead_purchases.created_at', [$from, $to]);
+                $manufacturerPurchaseQuery->whereBetween('lead_purchases.created_at', [$from, $to]);
                 $leadsBase->whereBetween('created_at', [$from, $to]);
                 $convertedLeadsBase->whereBetween('created_at', [$from, $to]);
             }
@@ -94,9 +100,8 @@ class AdminController extends Controller
             $dealerPurchasedCount = (int) $dealerPurchaseQuery->count();
             $manufacturerPurchasedCount = (int) $manufacturerPurchaseQuery->count();
 
-            $purchasedLeadIds = $purchasedLeadIdsQuery->pluck('lead_id');
-            $unpurchasedLeadsCount = (clone $leadsBase)->whereNotIn('id', $purchasedLeadIds)->count();
-            $leadsTotal = $dealerPurchasedCount + $manufacturerPurchasedCount + $unpurchasedLeadsCount;
+            // Total leads in overview must be unique leads, not purchase frequency.
+            $leadsTotal = (int) (clone $leadsBase)->count();
 
             $totalConverted = (int) (clone $convertedLeadsBase)->count();
             $activeLeadsCount = (int) (clone $leadsBase)->where(function ($q) {
@@ -163,7 +168,7 @@ class AdminController extends Controller
             $mostPopularModel = count($modelCounts) ? array_key_first($modelCounts) : 'N/A';
             $mostPopularColour = count($colourCounts) ? array_key_first($colourCounts) : 'N/A';
             $brandPerformance = collect($brandCounts)
-                ->map(fn ($wins, $brand) => ['brand' => $brand, 'wins' => $wins])
+                ->map(fn($wins, $brand) => ['brand' => $brand, 'wins' => $wins])
                 ->values();
 
             $dealerRankings = $this->buildUserRanking('dealer', $range);
@@ -174,6 +179,8 @@ class AdminController extends Controller
             'dealersTotal',
             'dealersApproved',
             'dealersPending',
+            'manufacturersPending',
+            'pendingPartnerRegistrations',
             'dealersRevoked',
             'hotTubs',
             'brands',
@@ -198,7 +205,8 @@ class AdminController extends Controller
     {
         $winsQuery = DB::table('users')
             ->leftJoin('leads', function ($join) use ($range) {
-                $join->on('users.id', '=', 'leads.assigned_dealer_id')
+                $join
+                    ->on('users.id', '=', 'leads.assigned_dealer_id')
                     ->where('leads.status', '=', 'converted');
                 if ($range) {
                     [$from, $to] = $range;
@@ -210,28 +218,31 @@ class AdminController extends Controller
             ->select('users.id', 'users.name', DB::raw('COUNT(leads.id) as wins'));
 
         $purchaseQuery = DB::table('lead_purchases')
+            ->join('leads', 'leads.id', '=', 'lead_purchases.lead_id')
             ->where('buyer_role', $role);
         if ($range) {
             [$from, $to] = $range;
-            $purchaseQuery->whereBetween('created_at', [$from, $to]);
+            $purchaseQuery->whereBetween('lead_purchases.created_at', [$from, $to]);
         }
         $purchasesByUser = $purchaseQuery
-            ->select('dealer_id', DB::raw('COUNT(*) as purchases'))
-            ->groupBy('dealer_id')
-            ->pluck('purchases', 'dealer_id');
+            ->select('lead_purchases.dealer_id', DB::raw('COUNT(*) as purchases'))
+            ->groupBy('lead_purchases.dealer_id')
+            ->pluck('purchases', 'lead_purchases.dealer_id');
 
-        return $winsQuery->get()->map(function ($row) use ($purchasesByUser) {
-            $purchases = (int) ($purchasesByUser[$row->id] ?? 0);
-            $wins = (int) $row->wins;
-            $conversionRate = $purchases > 0 ? round(($wins / $purchases) * 100, 1) : 0.0;
-            return [
-                'name' => $row->name,
-                'wins' => $wins,
-                'purchases' => $purchases,
-                'conversion_rate' => $conversionRate,
-            ];
-        })
-            ->sortByDesc(fn ($row) => [$row['wins'], $row['conversion_rate']])
+        return $winsQuery
+            ->get()
+            ->map(function ($row) use ($purchasesByUser) {
+                $purchases = (int) ($purchasesByUser[$row->id] ?? 0);
+                $wins = (int) $row->wins;
+                $conversionRate = $purchases > 0 ? round(($wins / $purchases) * 100, 1) : 0.0;
+                return [
+                    'name' => $row->name,
+                    'wins' => $wins,
+                    'purchases' => $purchases,
+                    'conversion_rate' => $conversionRate,
+                ];
+            })
+            ->sortByDesc(fn($row) => [$row['wins'], $row['conversion_rate']])
             ->values();
     }
 
@@ -276,11 +287,16 @@ class AdminController extends Controller
         $hasSupportStatusColumn = Schema::hasColumn('messages', 'support_status');
         // Get all messages where receiver is admin (ID 1)
         // Join with users to see the sender's info and status
-        $requests = \App\Models\Message::where('receiver_id', 1)
+        $q = \App\Models\Message::where('receiver_id', 1)
             ->join('users', 'messages.sender_id', '=', 'users.id')
             ->select('messages.*', 'users.name as sender_name', 'users.email as sender_email', 'users.role as sender_role', 'users.status as sender_status', 'users.company_name')
-            ->orderBy('messages.created_at', 'desc')
-            ->paginate(7);
+            ->orderBy('messages.created_at', 'desc');
+
+        if ($hasSupportStatusColumn) {
+            $q->whereNotNull('messages.support_status');
+        }
+
+        $requests = $q->paginate(7);
 
         return view('admin.support-requests', compact('requests', 'hasSupportStatusColumn'));
     }
@@ -350,6 +366,83 @@ class AdminController extends Controller
             ->paginate(7);
 
         return view('admin.payments', compact('creditRequests', 'revenue', 'pending', 'completed', 'failed', 'invoices'));
+    }
+
+    public function invoice(string $invoice)
+    {
+        $inv = \App\Models\Invoice::where('invoice_number', $invoice)
+            ->with('user')
+            ->firstOrFail();
+
+        $paymentDetails = $inv->payment_details ?? [];
+        if (is_string($paymentDetails)) {
+            $paymentDetails = json_decode($paymentDetails, true) ?: [];
+        }
+
+        $plan = null;
+        if (!empty($inv->credit_plan_id)) {
+            $plan = \App\Models\CreditPlan::find($inv->credit_plan_id);
+        }
+
+        $planName = $inv->plan_name ?? ($plan?->name ?? 'Credit Plan');
+        $planDescription = $inv->plan_description ?? ($plan?->description ?? '');
+
+        $creditsQty = (int) ($inv->credits ?? 0);
+        $amountTotal = (float) ($inv->amount ?? 0);
+        $unitPrice = $creditsQty > 0 ? ($amountTotal / $creditsQty) : $amountTotal;
+
+        $items = [
+            [
+                'title' => $planName,
+                'desc' => $planDescription ?: 'Includes credit access for the purchased plan.',
+                'qty' => $creditsQty,
+                'unit' => round($unitPrice, 4),
+                'total' => $amountTotal,
+            ],
+        ];
+
+        $paymentMethodTypes = $paymentDetails['payment_method_types'] ?? [];
+        if (!is_array($paymentMethodTypes)) {
+            $paymentMethodTypes = [$paymentMethodTypes];
+        }
+        $paymentMethodText = !empty($paymentMethodTypes) ? implode(', ', $paymentMethodTypes) : 'N/A';
+
+        $vatRate = 0.2;
+        $netAmount = round($amountTotal / (1 + $vatRate), 2);
+        $vatAmount = round($amountTotal - $netAmount, 2);
+
+        $customerName = $inv->user?->company_name ?: ($inv->user?->name ?? 'N/A');
+
+        $data = [
+            'invoice' => $inv->invoice_number,
+            'date' => optional($inv->created_at)->format('d/m/Y'),
+            'time' => optional($inv->created_at)->format('H:i:s'),
+            'customer' => $customerName,
+            'status' => $inv->status,
+            'items' => $items,
+            'currency' => $inv->currency ?? 'GBP',
+            'total' => $amountTotal,
+            'netAmount' => $netAmount,
+            'vatAmount' => $vatAmount,
+            'vatRatePercent' => 20,
+            'paymentDetails' => $paymentDetails,
+            'paymentMethodText' => $paymentMethodText,
+            'stripeSessionId' => $inv->stripe_session_id,
+            'paymentId' => $inv->payment_id,
+        ];
+
+        return view('admin.invoice', $data);
+    }
+
+    public function invoiceDownload(string $invoice)
+    {
+        $dataView = $this->invoice($invoice);
+        $html = $dataView->render();
+        $filename = 'invoice-' . $invoice . '.html';
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
     public function approveCreditRequest(\App\Models\CreditRequest $request)
@@ -438,5 +531,146 @@ class AdminController extends Controller
     {
         $plan->delete();
         return redirect()->back()->with('success', 'Credit plan deleted successfully.');
+    }
+
+    public function settings()
+    {
+        $homepageHeroImages = json_decode(SiteSetting::get('homepage_hero_images', '[]') ?? '[]', true);
+        if (!is_array($homepageHeroImages)) {
+            $homepageHeroImages = [];
+        }
+
+        $homepageHeroImages = collect($homepageHeroImages)
+            ->map(function ($item, $index) {
+                $path = is_array($item) ? ($item['path'] ?? null) : null;
+                if (!$path) {
+                    return null;
+                }
+
+                return [
+                    'path' => $path,
+                    'sort' => (int) (is_array($item) ? ($item['sort'] ?? ($index + 1)) : ($index + 1)),
+                    'url' => PublicMedia::url($path),
+                ];
+            })
+            ->filter()
+            ->sortBy('sort')
+            ->values()
+            ->all();
+
+        $homepageCtaImage = SiteSetting::get('homepage_cta_image');
+        $homepageCtaImage = $homepageCtaImage ? [
+            'path' => PublicMedia::normalizeStoredPath($homepageCtaImage) ?? $homepageCtaImage,
+            'url' => PublicMedia::url($homepageCtaImage),
+        ] : null;
+
+        $businessDetails = [
+            'vat_number' => SiteSetting::get('company_vat_number', '842368419'),
+            'company_number' => SiteSetting::get('company_number', '049947'),
+            'fca_number' => SiteSetting::get('company_fca_number'),
+            'company_name' => SiteSetting::get('company_name', 'Hot Tub Buyer Ltd'),
+            'company_email' => SiteSetting::get('company_email', 'support@hottubbuyer.com'),
+            'company_address' => SiteSetting::get('company_address'),
+        ];
+
+        $socialLinks = [
+            'facebook' => SiteSetting::get('social_facebook_url'),
+            'twitter' => SiteSetting::get('social_twitter_url'),
+            'instagram' => SiteSetting::get('social_instagram_url'),
+            'tiktok' => SiteSetting::get('social_tiktok_url'),
+        ];
+
+        return view('admin.settings', compact('homepageHeroImages', 'homepageCtaImage', 'businessDetails', 'socialLinks'));
+    }
+
+    public function updateSettings(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'hero_images' => 'nullable|array',
+            'hero_images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
+            'cta_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
+            'existing_hero_paths' => 'nullable|array',
+            'existing_hero_paths.*' => 'nullable|string|max:1000',
+            'existing_hero_sorts' => 'nullable|array',
+            'existing_hero_sorts.*' => 'nullable|integer|min:1',
+            'remove_hero_paths' => 'nullable|array',
+            'remove_hero_paths.*' => 'nullable|string|max:1000',
+            'existing_cta_path' => 'nullable|string|max:1000',
+            'remove_cta_image' => 'nullable|boolean',
+        ]);
+
+        $removePaths = collect($request->input('remove_hero_paths', []))
+            ->filter(fn($v) => is_string($v) && $v !== '')
+            ->values()
+            ->all();
+
+        $existingPaths = collect($request->input('existing_hero_paths', []))
+            ->filter(fn($v) => is_string($v) && $v !== '' && !in_array($v, $removePaths, true))
+            ->values();
+        $existingSorts = collect($request->input('existing_hero_sorts', []))->values();
+
+        $heroImages = [];
+        foreach ($existingPaths as $idx => $path) {
+            $sort = (int) ($existingSorts->get($idx) ?: ($idx + 1));
+            $canonical = PublicMedia::normalizeStoredPath($path) ?? $path;
+            $heroImages[] = ['path' => $canonical, 'sort' => max(1, $sort)];
+        }
+
+        if ($request->hasFile('hero_images')) {
+            foreach ((array) $request->file('hero_images') as $file) {
+                if (!$file) {
+                    continue;
+                }
+                $storedPath = $file->store('hero-images', 'public');
+                $canonical = PublicMedia::normalizeStoredPath($storedPath) ?? $storedPath;
+                $heroImages[] = [
+                    'path' => $canonical,
+                    'sort' => count($heroImages) + 1,
+                ];
+            }
+        }
+
+        usort($heroImages, fn($a, $b) => ($a['sort'] <=> $b['sort']));
+        $heroImages = array_values(array_map(
+            fn($item, $i) => ['path' => $item['path'], 'sort' => $i + 1],
+            $heroImages,
+            array_keys($heroImages)
+        ));
+
+        SiteSetting::set('homepage_hero_images', json_encode($heroImages));
+
+        $ctaPath = $request->boolean('remove_cta_image')
+            ? null
+            : (PublicMedia::normalizeStoredPath($request->input('existing_cta_path')) ?? $request->input('existing_cta_path'));
+
+        if ($request->hasFile('cta_image')) {
+            $storedPath = $request->file('cta_image')->store('cta-images', 'public');
+            $ctaPath = PublicMedia::normalizeStoredPath($storedPath) ?? $storedPath;
+        }
+
+        SiteSetting::set('homepage_cta_image', $ctaPath);
+
+        // ── Business details & social links ────────────────────────────
+        $businessValidated = $request->validate([
+            'company_name' => 'nullable|string|max:255',
+            'company_email' => 'nullable|email|max:255',
+            'company_address' => 'nullable|string|max:1000',
+            'company_vat_number' => 'nullable|string|max:100',
+            'company_number' => 'nullable|string|max:100',
+            'company_fca_number' => 'nullable|string|max:100',
+            'social_facebook_url' => 'nullable|url|max:500',
+            'social_twitter_url' => 'nullable|url|max:500',
+            'social_instagram_url' => 'nullable|url|max:500',
+            'social_tiktok_url' => 'nullable|url|max:500',
+        ]);
+
+        foreach ($businessValidated as $key => $value) {
+            // Only persist fields the admin actually submitted so partial updates are safe.
+            if ($request->has($key)) {
+                SiteSetting::set($key, $value);
+            }
+        }
+
+        return back()->with('success', 'Settings saved.');
     }
 }

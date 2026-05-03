@@ -252,10 +252,8 @@
             </div>
             
             @php
-                $bgImage = '';
-                if($it->thumbnail_path) {
-                    $bgImage = asset('storage/' . $it->thumbnail_path);
-                } else {
+                $bgImage = $it->thumbnail_path ? \App\Support\PublicMedia::url($it->thumbnail_path) : null;
+                if (empty($bgImage)) {
                     if($it->category == 'Sales Training') $bgImage = 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80';
                     elseif($it->category == 'Product Info') $bgImage = 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=800&q=80';
                     elseif($it->category == 'Installation') $bgImage = 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=80';
@@ -288,12 +286,12 @@
                             Watch Now <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
                     @elseif($it->file_path)
-                        <a href="{{ asset('storage/' . $it->file_path) }}" target="_blank" class="btn-learn">
+                        <a href="{{ \App\Support\PublicMedia::url($it->file_path) }}" target="_blank" class="btn-learn">
                             Watch Video <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </a>
                     @endif
                 @elseif($it->content_type === 'pdf')
-                    <a href="{{ asset('storage/' . $it->file_path) }}" target="_blank" class="btn-learn">
+                    <a href="{{ \App\Support\PublicMedia::url($it->file_path) }}" target="_blank" class="btn-learn">
                         Read PDF <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </a>
                 @elseif($it->content_type === 'link')

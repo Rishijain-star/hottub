@@ -14,20 +14,31 @@ class DealerMiddleware
             abort(403, 'Access denied. Dealers only.');
         }
 
-        // Freshly check status from DB to ensure real-time locking
         $user = \App\Models\User::find(auth()->id());
-        if ($user && ($user->status === 'paused' || $user->status === 'frozen')) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'ok' => false,
-                    'msg' => 'Your account is ' . $user->status . '. Please contact support.',
-                    'restricted' => true
-                ], 403);
+
+        if ($user && $user->status === 'pending') {
+            if ($request->routeIs('dealer.account.pending')) {
+                return $next($request);
             }
-            
-            // For normal requests, the layout will show the lock screen.
-            view()->share('isAccountRestricted', true);
-            view()->share('restrictionStatus', $user->status);
+
+            return redirect()->route('dealer.account.pending');
+        }
+
+        if ($user && ($user->status === 'paused' || $user->status === 'frozen')) {
+            $isSendMessageToAdmin = $request->is('dealer/api/messages/1') && $request->isMethod('POST');
+
+            if (!$isSendMessageToAdmin) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'ok' => false,
+                        'msg' => 'Your account is ' . $user->status . '. Please contact support.',
+                        'restricted' => true
+                    ], 403);
+                }
+
+                view()->share('isAccountRestricted', true);
+                view()->share('restrictionStatus', $user->status);
+            }
         }
 
         return $next($request);

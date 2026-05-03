@@ -39,4 +39,16 @@ return [
         'key' => env('OPENCAGE_API_KEY'),
     ],
 
+    'twilio' => [
+        'sid' => env('TWILIO_SID'),
+        'token' => env('TWILIO_TOKEN'),
+        'from' => env('TWILIO_FROM'),
+    ],
+
+    'firetext' => [
+        'api_key' => env('FIRETEXT_API_KEY'),
+        // Sender ID on the handset: 3–11 alphanumeric chars; must be allowed in your FireText account.
+        'from' => env('FIRETEXT_FROM') ?: 'HotTub',
+    ],
+
 ];

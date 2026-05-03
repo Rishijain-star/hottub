@@ -19,39 +19,35 @@
         <h1 class="auth-card__title">Create Account</h1>
         <p class="auth-card__sub">Join Hot Tub Buyer today</p>
 
-        {{-- Role selector --}}
-        <div class="reg-role-wrap">
-            <p class="reg-role__label">I am a:</p>
-            <div class="reg-role-grid">
-                <button type="button" class="reg-role-btn reg-role-btn--active" data-role="customer" onclick="selectRole('customer')">
-                    <span class="reg-role-btn__title">Customer</span>
-                    <span class="reg-role-btn__sub">Looking for a hot tub</span>
-                </button>
-                <button type="button" class="reg-role-btn" data-role="dealer" onclick="selectRole('dealer')">
-                    <span class="reg-role-btn__title">Dealer</span>
-                    <span class="reg-role-btn__sub">Sell hot tubs</span>
-                </button>
-                <button type="button" class="reg-role-btn" data-role="manufacturer" onclick="selectRole('manufacturer')">
-                    <span class="reg-role-btn__title">Manufacturer</span>
-                    <span class="reg-role-btn__sub">Hot tub brand</span>
-                </button>
-            </div>
-        </div>
-
-        <script>
-            // Set initial state on page load
-            document.addEventListener('DOMContentLoaded', () => {
-                selectRole('customer');
-            });
-        </script>
+        <p style="padding:12px 14px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:0.88rem;color:#134e4a;margin-bottom:1.25rem;line-height:1.5">
+            Please ensure all details are accurate. This platform is designed for long-term ownership and service tracking.
+        </p>
+        @php($otpPending = session('otp_pending') || session()->has('registration_otp'))
+        <p class="text-sm text-muted" style="margin-bottom:1rem">Choose account type: Customer, Dealer, or Manufacturer.</p>
 
         {{-- Form --}}
         <form class="auth-form" method="POST" action="/register" onsubmit="return handleRegister(event)">
             @csrf
-            <input type="hidden" name="role" id="roleInput" value="customer">
+            <input type="hidden" name="registration_step" id="registrationStep" value="{{ $otpPending ? 'verify_otp' : 'request_otp' }}">
             @if(request('redirect'))
                 <input type="hidden" name="redirect" value="{{ request('redirect') }}">
             @endif
+
+            <div class="form-group">
+                <label class="form-label">Register as</label>
+                <div style="display:flex;gap:14px;flex-wrap:wrap">
+                    @php($selectedRole = old('role', 'customer'))
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px">
+                        <input type="radio" name="role" value="customer" {{ $selectedRole === 'customer' ? 'checked' : '' }}> Customer
+                    </label>
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px">
+                        <input type="radio" name="role" value="dealer" {{ $selectedRole === 'dealer' ? 'checked' : '' }}> Dealer
+                    </label>
+                    <label class="form-check" style="display:flex;align-items:center;gap:6px">
+                        <input type="radio" name="role" value="manufacturer" {{ $selectedRole === 'manufacturer' ? 'checked' : '' }}> Manufacturer
+                    </label>
+                </div>
+            </div>
 
             {{-- Name + Email row --}}
             <div class="reg-row">
@@ -86,6 +82,51 @@
                     @error('email')
                         <span class="auth-field-error">{{ $message }}</span>
                     @enderror
+                </div>
+            </div>
+
+            <div class="form-group" id="otpBlock" style="{{ $otpPending ? '' : 'display:none;' }}">
+                <label class="form-label" for="code">OTP Verification Code *</label>
+                <input class="form-input auth-input" type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Enter 6-digit OTP">
+                @error('code')
+                    <span class="auth-field-error">{{ $message }}</span>
+                @enderror
+                @if(session('dev_registration_otp_code'))
+                    <div class="alert alert--success mt-2">Dev OTP: <strong>{{ session('dev_registration_otp_code') }}</strong></div>
+                @endif
+                <div style="margin-top:.6rem">
+                    <button type="button" class="btn btn--ghost btn--sm" id="resendOtpBtn">Resend OTP</button>
+                </div>
+            </div>
+
+            {{-- Mobile + Postcode (dealer/manufacturer & customer) --}}
+            <div class="reg-row">
+                <div class="form-group">
+                    <label class="form-label" for="phone">Mobile Number *</label>
+                    <input class="form-input auth-input" type="text" id="phone" name="phone" placeholder="For SMS verification" value="{{ old('phone') }}" required autocomplete="tel">
+                    @error('phone') <span class="auth-field-error">{{ $message }}</span> @enderror
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="postcode">Postcode *</label>
+                    <input class="form-input auth-input" type="text" id="postcode" name="postcode" placeholder="e.g. SW1A 1AA" value="{{ old('postcode') }}" required autocomplete="postal-code">
+                    @error('postcode') <span class="auth-field-error">{{ $message }}</span> @enderror
+                </div>
+            </div>
+
+            {{-- Dealer / Manufacturer: optional company details --}}
+            <div id="partnerOptionalFields" style="display:none;margin-bottom:1.25rem;">
+                <p class="text-sm text-muted" style="margin:0 0 0.75rem;font-size:0.85rem;">Dealer &amp; manufacturer: company details (optional)</p>
+                <div class="reg-row">
+                    <div class="form-group">
+                        <label class="form-label" for="vat_number">VAT Number</label>
+                        <input class="form-input auth-input" type="text" id="vat_number" name="vat_number" placeholder="e.g. GB123456789" value="{{ old('vat_number') }}" maxlength="255" autocomplete="off">
+                        @error('vat_number') <span class="auth-field-error">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="company_number">Company Registration Number</label>
+                        <input class="form-input auth-input" type="text" id="company_number" name="company_number" placeholder="e.g. 12345678" value="{{ old('company_number') }}" maxlength="255" autocomplete="off">
+                        @error('company_number') <span class="auth-field-error">{{ $message }}</span> @enderror
+                    </div>
                 </div>
             </div>
 
@@ -133,41 +174,6 @@
                 </div>
             </div>
 
-            {{-- Postcode + Phone row --}}
-            <div class="reg-row">
-                <div class="form-group">
-                    <label class="form-label" for="postcode">Postcode *</label>
-                    <input class="form-input auth-input" type="text" id="postcode" name="postcode" placeholder="e.g. SW1A 1AA" value="{{ old('postcode') }}" required>
-                    @error('postcode') <span class="auth-field-error">{{ $message }}</span> @enderror
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="phone">Phone Number</label>
-                    <input class="form-input auth-input" type="text" id="phone" name="phone" placeholder="Your contact number" value="{{ old('phone') }}">
-                    @error('phone') <span class="auth-field-error">{{ $message }}</span> @enderror
-                </div>
-            </div>
-
-            {{-- Extra fields for Dealer/Manufacturer --}}
-            <div id="businessExtraRow" style="display: none; margin-bottom: 1.5rem;">
-                <div class="reg-row">
-                    <div class="form-group">
-                        <label class="form-label" for="company_number">Company Number</label>
-                        <input class="form-input auth-input" type="text" id="company_number" name="company_number" placeholder="Your company number" value="{{ old('company_number') }}">
-                        @error('company_number') <span class="auth-field-error">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="vat_number">VAT Number</label>
-                        <input class="form-input auth-input" type="text" id="vat_number" name="vat_number" placeholder="Your VAT number" value="{{ old('vat_number') }}">
-                        @error('vat_number') <span class="auth-field-error">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="address">Address</label>
-                    <input class="form-input auth-input" type="text" id="address" name="address" placeholder="Your address" value="{{ old('address') }}">
-                    @error('address') <span class="auth-field-error">{{ $message }}</span> @enderror
-                </div>
-            </div>
-
             {{-- Password strength indicator --}}
             <div class="reg-pw-strength" id="pwStrength" style="display:none;">
                 <div class="reg-pw-strength__bars">
@@ -199,9 +205,9 @@
                     <line x1="19" y1="8" x2="19" y2="14"/>
                     <line x1="22" y1="11" x2="16" y2="11"/>
                 </svg>
-                Create Account
+                {{ $otpPending ? 'Verify OTP & Create Account' : 'Create Account' }}
             </button>
-            <p id="enquiryNotice" style="margin-top: 1.25rem; font-size: 0.85rem; color: #6b7280; text-align: center; line-height: 1.4; display: none;">
+            <p id="enquiryNotice" style="margin-top: 1.25rem; font-size: 0.85rem; color: #6b7280; text-align: center; line-height: 1.4;">
                 Buying a hot tub is exciting. Our platform connects you with trusted dealers who will support you from purchase to installation and long-term ownership.
             </p>
         </form>
@@ -215,30 +221,65 @@
 </div>
 
 <script>
-/* Role selector */
-function selectRole(role) {
-    document.getElementById('roleInput').value = role;
-    document.querySelectorAll('.reg-role-btn').forEach(btn => {
-        btn.classList.toggle('reg-role-btn--active', btn.dataset.role === role);
-    });
-
-    const businessExtraRow = document.getElementById('businessExtraRow');
-    const postcodeLabel = document.querySelector('label[for="postcode"]');
-    const enquiryNotice = document.getElementById('enquiryNotice');
+document.addEventListener('DOMContentLoaded', function() {
     const termsLabel = document.getElementById('termsLabel');
+    const roleInputs = document.querySelectorAll('input[name="role"]');
+    const otpBlock = document.getElementById('otpBlock');
+    const registrationStep = document.getElementById('registrationStep');
+    const resendOtpBtn = document.getElementById('resendOtpBtn');
+    const partnerOptionalFields = document.getElementById('partnerOptionalFields');
 
-    if (role === 'customer') {
-        businessExtraRow.style.display = 'none';
-        postcodeLabel.textContent = 'Postcode *';
-        enquiryNotice.style.display = 'block';
-        termsLabel.innerHTML = 'I agree to the <a href="{{ route('privacy') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Privacy Policy</a>';
-    } else {
-        businessExtraRow.style.display = 'block';
-        postcodeLabel.textContent = 'Business Postcode *';
-        enquiryNotice.style.display = 'none';
-        termsLabel.innerHTML = 'I agree to the <a href="{{ route('terms') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Terms &amp; Conditions</a>, <a href="{{ route('privacy') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Privacy Policy</a> and <a href="{{ route('dealer-agreement') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Dealer Agreement</a>';
+    function updateTermsAndStep() {
+        const selectedRole = document.querySelector('input[name="role"]:checked')?.value || 'customer';
+        const isPartner = selectedRole === 'dealer' || selectedRole === 'manufacturer';
+        const hasOtpBlockVisible = otpBlock && otpBlock.style.display !== 'none';
+
+        if (partnerOptionalFields) {
+            partnerOptionalFields.style.display = isPartner ? 'block' : 'none';
+            partnerOptionalFields.querySelectorAll('input').forEach(function (inp) {
+                inp.disabled = !isPartner;
+            });
+        }
+
+        if (termsLabel) {
+            if (isPartner) {
+                termsLabel.innerHTML = 'I agree to the <a href="{{ route('privacy') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Privacy Policy</a> and understand my account requires admin approval after OTP verification.';
+            } else {
+                termsLabel.innerHTML = 'I agree to the <a href="{{ route('privacy') }}" target="_blank" style="color:var(--teal);font-weight:600;text-decoration:underline;">Privacy Policy</a>';
+            }
+        }
+
+        if (registrationStep) {
+            registrationStep.value = hasOtpBlockVisible && isPartner ? 'verify_otp' : 'request_otp';
+        }
     }
-}
+
+    roleInputs.forEach(input => input.addEventListener('change', updateTermsAndStep));
+    updateTermsAndStep();
+
+    if (resendOtpBtn) {
+        let resendBusy = false;
+        resendOtpBtn.addEventListener('click', function () {
+            if (resendBusy) {
+                return;
+            }
+            resendBusy = true;
+            resendOtpBtn.disabled = true;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('register.otp.resend') }}";
+
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = "{{ csrf_token() }}";
+            form.appendChild(csrf);
+
+            document.body.appendChild(form);
+            form.submit();
+        });
+    }
+});
 
 /* Password show/hide */
 function togglePw(inputId, showId, hideId) {
@@ -276,8 +317,17 @@ document.getElementById('password').addEventListener('input', function() {
     label.style.color  = colors[score - 1] || '#ef4444';
 });
 
-/* Submit loading state */
+/* Block double-submit: two POSTs reuse one CSRF token → second request gets 419 */
+let registerFormSubmitting = false;
+
 function handleRegister(e) {
+    if (registerFormSubmitting) {
+        e.preventDefault();
+        return false;
+    }
+
+    const selectedRole = document.querySelector('input[name="role"]:checked')?.value || 'customer';
+    const step = document.getElementById('registrationStep')?.value || 'request_otp';
     const pw  = document.getElementById('password').value;
     const cpw = document.getElementById('password_confirmation').value;
     if (pw !== cpw) {
@@ -288,22 +338,21 @@ function handleRegister(e) {
         alert('Password must be at least 8 characters.');
         return false;
     }
+    if ((selectedRole === 'dealer' || selectedRole === 'manufacturer') && step === 'verify_otp') {
+        const code = document.getElementById('code')?.value?.trim();
+        if (!code || code.length !== 6) {
+            alert('Please enter the 6-digit OTP code.');
+            return false;
+        }
+    }
+
+    registerFormSubmitting = true;
+
     const btn = document.getElementById('registerBtn');
     btn.disabled = true;
     btn.innerHTML = `
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:spin .8s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
         Creating Account…`;
-    setTimeout(() => {
-        btn.disabled = false;
-        btn.innerHTML = `
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <line x1="19" y1="8" x2="19" y2="14"/>
-                <line x1="22" y1="11" x2="16" y2="11"/>
-            </svg>
-            Create Account`;
-    }, 8000);
     return true;
 }
 </script>
