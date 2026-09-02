@@ -19,6 +19,7 @@ use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Services\GeocodingService;
 use App\Support\MaintenancePlanDates;
+use App\Support\PanelTranslator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -515,13 +516,13 @@ class DealerController extends Controller
         $items = Notification::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->limit(250)
-            ->get(['id', 'message', 'created_at']);
+            ->get(['id', 'type', 'data', 'message', 'created_at']);
 
         return response()->json([
             'ok' => true,
             'items' => $items->map(fn (Notification $n) => [
                 'id' => $n->id,
-                'message' => $n->message,
+                'message' => PanelTranslator::notificationMessage($n),
                 'date' => $n->created_at->format('M d, Y'),
             ])->values(),
         ]);
@@ -841,9 +842,7 @@ class DealerController extends Controller
         $me = Auth::user();
         $plans = \App\Models\CreditPlan::where('is_active', true)->orderBy('credits', 'asc')->get();
         $settings = PaymentProcessorSetting::first();
-        $stripePublishableKey = $settings->stripe_publishable_key
-            ?? config('services.stripe.key')
-            ?? env('STRIPE_PUBLISHABLE_KEY');
+        $stripePublishableKey = PaymentProcessorSetting::stripePublishableKey();
 
         $historyQuery = \App\Models\CreditPurchase::where('user_id', $me->id)->orderBy('created_at', 'desc');
 
@@ -863,22 +862,29 @@ class DealerController extends Controller
 
         // Get Stripe secret key from settings or config
         $settings = PaymentProcessorSetting::first();
-        $stripeSecret = $settings->stripe_secret_key
-            ?? config('services.stripe.secret')
-            ?? env('STRIPE_SECRET_KEY');
+        $stripeSecret = PaymentProcessorSetting::stripeSecretKey();
+        if (! filled($stripeSecret)) {
+            return response()->json(['error' => 'Stripe is not configured. Add keys in .env or Admin → Pricing processor.'], 503);
+        }
         \Stripe\Stripe::setApiKey($stripeSecret);
 
         try {
+            $currencyService = app(\App\Services\CurrencyService::class);
+            $chargeCurrency = strtoupper($user->preferred_currency ?: 'GBP');
+            $chargeAmount = $currencyService->convert((float) $plan->price, 'GBP', $chargeCurrency);
+            $decimals = (int) config("localization.currencies.{$chargeCurrency}.decimals", 2);
+            $multiplier = (int) (10 ** $decimals);
+
             $session = \Stripe\Checkout\Session::create([
                 'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'gbp',
+                        'currency' => strtolower($chargeCurrency),
                         'product_data' => [
                             'name' => $plan->name . " ({$plan->credits} Credits)",
                             'description' => $plan->description,
                         ],
-                        'unit_amount' => (int) ($plan->price * 100),
+                        'unit_amount' => (int) round($chargeAmount * $multiplier),
                     ],
                     'quantity' => 1,
                 ]],
@@ -909,9 +915,10 @@ class DealerController extends Controller
         }
 
         $settings = PaymentProcessorSetting::first();
-        $stripeSecret = $settings->stripe_secret_key
-            ?? config('services.stripe.secret')
-            ?? env('STRIPE_SECRET_KEY');
+        $stripeSecret = PaymentProcessorSetting::stripeSecretKey();
+        if (! filled($stripeSecret)) {
+            return redirect()->route('dealer.credits')->with('error', 'Stripe is not configured.');
+        }
         \Stripe\Stripe::setApiKey($stripeSecret);
 
         try {
@@ -1038,7 +1045,7 @@ class DealerController extends Controller
         $method = $request->payment_method ?: ($settings ? $settings->active_processor : 'manual');
 
         if ($method === 'stripe') {
-            if (!$settings || !$settings->stripe_secret_key) {
+            if (! PaymentProcessorSetting::stripeIsConfigured()) {
                 return $request->ajax() ? response()->json(['ok' => false, 'msg' => 'Stripe payment is not yet configured.']) : back()->with('error', 'Stripe payment is not yet configured by the administrator.');
             }
             try {
@@ -1479,7 +1486,7 @@ class DealerController extends Controller
             if ($customer) {
                 \App\Models\Notification::create([
                     'user_id' => $customer->id,
-                    'message' => "Dealer {$dealer->name} has requested deposit confirmation for your lead.",
+                    'message' => 'Dealer '.$dealer->businessDisplayName().' has requested deposit confirmation for your lead.',
                     'type' => 'deposit_confirmation',
                     'data' => ['lead_id' => $lead->id, 'dealer_id' => $dealer->id]
                 ]);
@@ -1719,8 +1726,8 @@ class DealerController extends Controller
             'cabinet_colour' => ['nullable', 'string', 'max:255'],
             'accessories' => ['nullable', 'string', 'max:500'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
-            'invoice' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-            'warranty' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'invoice' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:51200'],
+            'warranty' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:51200'],
         ]);
 
         $details = [

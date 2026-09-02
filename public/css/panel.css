@@ -532,26 +532,53 @@ body {
     flex-shrink: 0;
 }
 
-/* Admin leads: wide table + readable product column */
+/* Admin leads: fit content area — no forced min-width / horizontal scroll */
 .table-responsive--leads {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: visible;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .table--leads {
-    min-width: 1080px;
+    min-width: 0;
     width: 100%;
-    table-layout: auto;
+    table-layout: fixed;
+}
+
+.table--leads th:nth-child(1),
+.table--leads td:nth-child(1) {
+    width: 4rem;
+}
+
+.table--leads th:nth-child(8),
+.table--leads td:nth-child(8) {
+    width: 6rem;
+}
+
+.table--leads thead th {
+    white-space: normal;
+    word-break: break-word;
+    vertical-align: bottom;
+    line-height: 1.25;
+}
+
+.table--leads tbody td {
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.table--leads .badge {
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
 }
 
 .table--leads .leads-col-customer {
-    min-width: 11rem;
-    max-width: 14rem;
+    min-width: 0;
 }
 
 .table--leads .leads-col-product {
-    min-width: 12rem;
-    max-width: 20rem;
+    min-width: 0;
 }
 
 .leads-product-cell {

@@ -1,14 +1,13 @@
 @extends('layouts.app')
-@section('title', 'Hot Tubs - Expert Reviews & Comparisons | Hot Tub Buyer')
-@section('meta_description', 'Browse and compare all major hot tub brands and models. Filter by tier, seats, brand and
-more.')
+@section('title', __('pages.hot_tubs.page_title'))
+@section('meta_description', __('pages.hot_tubs.meta'))
 
 @section('content')
 
 {{-- Page Header --}}
 <div class="ht-page-header">
     <div class="container">
-        <h1 class="ht-page-title">Hot Tubs</h1>
+        <h1 class="ht-page-title">{{ __('pages.hot_tubs.title') }}</h1>
     </div>
 </div>
 
@@ -18,29 +17,29 @@ more.')
         <div class="ht-filters-panel">
         <form class="ht-filters" method="GET" action="{{ route('hot-tubs') }}" id="filterForm">
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Tier</label>
+                <label class="ht-filter-label">{{ __('pages.filters.tier') }}</label>
                 <select class="ht-filter-select" name="tier" id="filter-tier">
                     @php $tierSel = request('tier'); @endphp
-                    <option value="">All Tiers</option>
+                    <option value="">{{ __('pages.filters.all_tiers') }}</option>
                     @foreach(($tierFilters ?? ['entry-level' => 'Entry Level', 'luxury' => 'Luxury', 'mid-range' => 'Mid-range']) as $val => $label)
-                        <option value="{{ $val }}" {{ $tierSel==$val ? 'selected' : '' }}>{{ $label }}</option>
+                        <option value="{{ $val }}" {{ $tierSel==$val ? 'selected' : '' }}>{{ __('pages.tiers.'.$val) }}</option>
                     @endforeach
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Minimum Seats</label>
+                <label class="ht-filter-label">{{ __('pages.filters.min_seats') }}</label>
                 <select class="ht-filter-select" name="min_seats" id="filter-seats">
                     @php $seatSel = request('min_seats'); @endphp
-                    <option value="">Any</option>
+                    <option value="">{{ __('pages.any') }}</option>
                     @foreach(($seatOptions ?? []) as $s)
                         <option value="{{ $s }}" {{ (string)$seatSel===(string)$s ? 'selected' : '' }}>{{ $s }}+</option>
                     @endforeach
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Brand</label>
+                <label class="ht-filter-label">{{ __('pages.filters.brand') }}</label>
                 <select class="ht-filter-select" name="brand" id="filter-brand">
-                    <option value="">All Brands</option>
+                    <option value="">{{ __('pages.all_brands') }}</option>
                     @if(isset($brands) && count($brands))
                         @foreach($brands as $b)
                             <option value="{{ $b->slug }}" {{ request('brand')===$b->slug ? 'selected' : '' }}>
@@ -51,14 +50,14 @@ more.')
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Model</label>
+                <label class="ht-filter-label">{{ __('pages.filters.model') }}</label>
                 <select class="ht-filter-select" name="model" id="filter-model">
-                    <option value="">All Models</option>
+                    <option value="">{{ __('pages.all_models') }}</option>
                 </select>
             </div>
             <div class="ht-filter-results">
                 @php $total = method_exists($items,'total') ? $items->total() : (isset($items) ? count($items) : 0); @endphp
-                <span id="results-count">{{ $total }} hot tub{{ $total==1?'':'s' }}</span>
+                <span id="results-count">{{ trans_choice('pages.hot_tubs.results', $total, ['count' => $total]) }}</span>
             </div>
         </form>
         </div>
@@ -81,13 +80,13 @@ more.')
         {{-- No results message --}}
         <div class="ht-no-results" id="no-results" style="{{ (isset($items) && count($items)) ? 'display:none;' : '' }}">
             <div class="ht-no-results__icon">🔍</div>
-            <h3>No hot tubs match your filters</h3>
-            <p>Try adjusting your filter criteria to see more results.</p>
-            <button class="btn btn--outline btn--pill" onclick="resetFilters()">Reset Filters</button>
+            <h3>{{ __('pages.hot_tubs.no_match_title') }}</h3>
+            <p>{{ __('pages.no_results.desc') }}</p>
+            <button class="btn btn--outline btn--pill" onclick="resetFilters()">{{ __('pages.no_results.reset') }}</button>
         </div>
         @if(method_exists($items,'hasMorePages') && $items->hasMorePages())
         <div class="mt-4" style="padding:1rem;text-align:center">
-            <button id="loadMore" class="btn btn--outline" data-next-page="{{ $items->currentPage()+1 }}">Load More</button>
+            <button id="loadMore" class="btn btn--outline" data-next-page="{{ $items->currentPage()+1 }}">{{ __('pages.load_more') }}</button>
         </div>
         @endif
     </div>
@@ -182,7 +181,7 @@ function populateModels(brandSlug, keepSelected=true){
     const brandName = slugMap[brandSlug] || '';
     const list = brandName && modelsByBrand[brandName] ? modelsByBrand[brandName] : [];
     const current = keepSelected ? '{{ request('model','') }}' : '';
-    selModel.innerHTML = '<option value=\"\">All Models</option>';
+    selModel.innerHTML = '<option value=\"\">{{ __('pages.all_models') }}</option>';
     list.forEach(m=>{
         const opt = document.createElement('option');
         opt.value = m;

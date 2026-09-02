@@ -1,18 +1,18 @@
 @extends('layouts.app')
-@section('title', $brand->name . ' – Hot Tub Brand Guide')
+@section('title', $brand->name . ' – ' . __('pages.brand_detail.page_title_suffix'))
 @section('content')
 
 @php
     $hotLink = route('hot-tubs', ['brand' => $brand->slug]);
     $swimLink = route('swim-spas', ['brand' => $brand->slug]);
-    $typeLabel = $brand->type ? ucfirst(str_replace('_', ' ', $brand->type)) : 'Brand';
+    $typeLabel = $brand->type ? ucfirst(str_replace('_', ' ', $brand->type)) : __('pages.brand_detail.brand');
 @endphp
 
 <section class="svc-hero" style="border-bottom:1px solid var(--gray-200);">
     <div class="container" style="text-align:center;">
         <span class="svc-hero__badge">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Brand profile
+            {{ __('pages.brand_detail.badge') }}
         </span>
         <h1 class="svc-hero__title">{{ $brand->name }}</h1>
         <p class="svc-hero__desc">{{ $typeLabel }}@if($brand->country_of_origin) · {{ $brand->country_of_origin }}@endif</p>
@@ -34,21 +34,21 @@
             </div>
             <div style="flex:1;min-width:240px;">
                 @if($brand->website)
-                    <p style="margin:0 0 .75rem;"><a href="{{ $brand->website }}" target="_blank" rel="noopener noreferrer" class="btn btn--outline btn--sm">Official website</a></p>
+                    <p style="margin:0 0 .75rem;"><a href="{{ $brand->website }}" target="_blank" rel="noopener noreferrer" class="btn btn--outline btn--sm">{{ __('pages.brand_detail.official_website') }}</a></p>
                 @endif
                 @if($brand->description)
                     <div style="color:var(--gray-700);line-height:1.65;">{!! nl2br(e($brand->description)) !!}</div>
                 @else
-                    <p style="color:var(--gray-500);">Explore {{ $brand->name }} models in our catalogue.</p>
+                    <p style="color:var(--gray-500);">{{ __('pages.brand_detail.explore_catalogue', ['brand' => $brand->name]) }}</p>
                 @endif
                 <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.25rem;">
-                    <span style="font-size:.85rem;background:#f1f5f9;color:var(--gray-700);padding:.35rem .75rem;border-radius:999px;font-weight:600">{{ $counts['hot_tub'] ?? 0 }} hot tubs</span>
-                    <span style="font-size:.85rem;background:#f1f5f9;color:var(--gray-700);padding:.35rem .75rem;border-radius:999px;font-weight:600">{{ $counts['swim_spa'] ?? 0 }} swim spas</span>
+                    <span style="font-size:.85rem;background:#f1f5f9;color:var(--gray-700);padding:.35rem .75rem;border-radius:999px;font-weight:600">{{ trans_choice('pages.brand_detail.hot_tubs_count', $counts['hot_tub'] ?? 0, ['count' => $counts['hot_tub'] ?? 0]) }}</span>
+                    <span style="font-size:.85rem;background:#f1f5f9;color:var(--gray-700);padding:.35rem .75rem;border-radius:999px;font-weight:600">{{ trans_choice('pages.brand_detail.swim_spas_count', $counts['swim_spa'] ?? 0, ['count' => $counts['swim_spa'] ?? 0]) }}</span>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem;">
-                    <a href="{{ $hotLink }}" class="btn btn--primary btn--pill">View hot tubs</a>
-                    <a href="{{ $swimLink }}" class="btn btn--outline btn--pill">View swim spas</a>
-                    <a href="{{ route('brands') }}" class="btn btn--ghost btn--pill">All brands</a>
+                    <a href="{{ $hotLink }}" class="btn btn--primary btn--pill">{{ __('pages.brand_detail.view_hot_tubs') }}</a>
+                    <a href="{{ $swimLink }}" class="btn btn--outline btn--pill">{{ __('pages.brand_detail.view_swim_spas') }}</a>
+                    <a href="{{ route('brands') }}" class="btn btn--ghost btn--pill">{{ __('pages.brand_detail.all_brands') }}</a>
                 </div>
             </div>
         </div>

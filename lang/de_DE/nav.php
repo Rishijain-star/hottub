@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'promo' => 'Sparen Sie bis zu :amount mit Hot Tub Buyer.',
+    'tagline' => 'Expertenbewertungen & Ratgeber',
+    'hot_tubs' => 'Whirlpools',
+    'swim_spas' => 'Swim Spas',
+    'outdoor_products' => 'Outdoor-Produkte',
+    'services' => 'Service',
+    'parts' => 'Ersatzteile',
+    'brands' => 'Marken',
+    'find_dealer' => 'Händler finden',
+    'care_guide' => 'Pflegeguide',
+    'faq' => 'FAQ',
+    'help' => 'Hilfe',
+    'login' => 'Anmelden',
+    'register' => 'Registrieren',
+    'logout' => 'Abmelden',
+    'admin' => 'Admin',
+    'dashboard' => 'Dashboard',
+    'customer_panel' => 'Kundenbereich',
+    'language' => '',
+    'currency' => '',
+    'apply' => 'Übernehmen',
+    'contact' => 'Kontakt',
+    'per_year' => '/Jahr',
+];

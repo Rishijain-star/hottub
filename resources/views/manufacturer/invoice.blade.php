@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice – Manufacturer Panel</title>
+    <title>{{ __('panel.invoice.title') }}</title>
     <style>
         :root{--teal:#0ea5a3;--gray-700:#374151;--gray-900:#111827;}
         body{font-family: 'DM Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;background:#f9fafb;color:var(--gray-700);margin:0}
@@ -31,23 +31,23 @@
             <div class="logo">HT</div>
             <div>
                 <h1>Hot Tub Buyer</h1>
-                <div class="subtitle">INVOICE</div>
+                <div class="subtitle">{{ __('panel.invoice.invoice') }}</div>
             </div>
         </div>
 
         <div class="dl">
-            <a class="btn" href="{{ route('manufacturer.invoice.download', $invoice) }}">Download HTML</a>
-            <button class="btn btn-outline" onclick="window.print()">Print / Save as PDF</button>
+            <a class="btn" href="{{ route('manufacturer.invoice.download', $invoice) }}">{{ __('panel.invoice.download_html') }}</a>
+            <button class="btn btn-outline" onclick="window.print()">{{ __('panel.invoice.print_save_pdf') }}</button>
         </div>
 
         <div class="card section">
-            <div class="card-head">Invoice Details</div>
+            <div class="card-head">{{ __('panel.invoice.invoice_details') }}</div>
             <div class="meta">
-                <div><b>Invoice Number:</b> {{ $invoice }}<br><b>Invoice Date:</b> {{ $date }} {{ isset($time)?$time:'' }}</div>
-                <div><b>Customer:</b> {{ $customer }}<br><span class="status">Status: <span class="badge badge-danger">{{ strtoupper($status) }}</span></span></div>
+                <div><b>{{ __('panel.invoice.invoice_number') }}</b> {{ $invoice }}<br><b>{{ __('panel.invoice.invoice_date') }}</b> {{ $date }} {{ isset($time)?$time:'' }}</div>
+                <div><b>{{ __('panel.invoice.customer') }}</b> {{ $customer }}<br><span class="status">{{ __('panel.invoice.status') }} <span class="badge badge-danger">{{ strtoupper($status) }}</span></span></div>
             </div>
             <table class="table">
-                <thead><tr><th>Description</th><th>Quantity</th><th>Unit Price</th><th>Total</th></tr></thead>
+                <thead><tr><th>{{ __('panel.invoice.description') }}</th><th>{{ __('panel.invoice.quantity') }}</th><th>{{ __('panel.invoice.unit_price') }}</th><th>{{ __('panel.invoice.total') }}</th></tr></thead>
                 <tbody>
                 @foreach($items as $it)
                     <tr>
@@ -69,33 +69,33 @@
                 $vat = $vatAmount ?? (isset($total) ? round($total - $net, 2) : 0);
             @endphp
             <div style="padding:12px 18px;border-top:1px solid var(--gray-200);font-size:13px;color:var(--gray-700)">
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Net (excl. VAT)</span><span>£{{ number_format($net, 2) }}</span></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>VAT ({{ $vatRatePercent ?? 20 }}%)</span><span>£{{ number_format($vat, 2) }}</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>{{ __('panel.invoice.net_ex_vat') }}</span><span>£{{ number_format($net, 2) }}</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>{{ __('panel.invoice.vat', ['rate' => $vatRatePercent ?? 20]) }}</span><span>£{{ number_format($vat, 2) }}</span></div>
             </div>
-            <div class="totals"><div class="total-line">Total (incl. VAT): £{{ number_format($total, 2) }} {{ $currency }}</div></div>
+            <div class="totals"><div class="total-line">{{ __('panel.invoice.total_inc_vat') }} £{{ number_format($total, 2) }} {{ $currency }}</div></div>
         </div>
 
         <div class="card section">
-            <div class="card-head">Plan & Inclusions</div>
+            <div class="card-head">{{ __('panel.invoice.plan_inclusions') }}</div>
             <div class="meta">
-                <div><b>Plan Name:</b> {{ $items[0]['title'] ?? 'Credit Plan' }}</div>
-                <div><b>Credits Purchased:</b> {{ $items[0]['qty'] ?? 0 }}</div>
+                <div><b>{{ __('panel.invoice.plan_name') }}</b> {{ $items[0]['title'] ?? __('panel.invoice.credit_plan') }}</div>
+                <div><b>{{ __('panel.invoice.credits_purchased') }}</b> {{ $items[0]['qty'] ?? 0 }}</div>
             </div>
             <div style="margin-top:.75rem;color:var(--gray-700);">
-                <b>What is included in the plan</b>
+                <b>{{ __('panel.invoice.included_title') }}</b>
                 <div style="white-space:pre-wrap;margin-top:6px;color:#6b7280;">{{ $items[0]['desc'] ?? '' }}</div>
             </div>
         </div>
 
         <div class="card section">
-            <div class="card-head">Payment Details</div>
+            <div class="card-head">{{ __('panel.invoice.payment_details') }}</div>
             <div style="margin-top:.5rem;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div><b>Payment ID:</b> {{ $paymentId ?? 'N/A' }}</div>
-                <div><b>Stripe Session ID:</b> {{ $stripeSessionId ?? 'N/A' }}</div>
-                <div><b>Payment Status:</b> {{ $paymentDetails['payment_status'] ?? $status }}</div>
-                <div><b>Payment Method:</b> {{ $paymentMethodText ?? 'N/A' }}</div>
-                <div style="grid-column:1/-1;"><b>Customer Email:</b> {{ $paymentDetails['customer_email'] ?? 'N/A' }}</div>
-                <div style="grid-column:1/-1;"><b>Amount Charged:</b> £{{ number_format((float)($paymentDetails['amount_total'] ?? $total), 2) }} {{ $currency }}</div>
+                <div><b>{{ __('panel.invoice.payment_id') }}</b> {{ $paymentId ?? 'N/A' }}</div>
+                <div><b>{{ __('panel.invoice.stripe_session_id') }}</b> {{ $stripeSessionId ?? 'N/A' }}</div>
+                <div><b>{{ __('panel.invoice.payment_status') }}</b> {{ $paymentDetails['payment_status'] ?? $status }}</div>
+                <div><b>{{ __('panel.invoice.payment_method') }}</b> {{ $paymentMethodText ?? 'N/A' }}</div>
+                <div style="grid-column:1/-1;"><b>{{ __('panel.invoice.customer_email') }}</b> {{ $paymentDetails['customer_email'] ?? 'N/A' }}</div>
+                <div style="grid-column:1/-1;"><b>{{ __('panel.invoice.amount_charged') }}</b> £{{ number_format((float)($paymentDetails['amount_total'] ?? $total), 2) }} {{ $currency }}</div>
             </div>
         </div>
 
@@ -103,30 +103,30 @@
             $biz = $siteBusinessDetails ?? ['company_name'=>'Hot Tub Buyer Ltd','company_email'=>'support@hottubbuyer.com','company_address'=>null,'vat_number'=>null,'company_number'=>null,'fca_number'=>null];
         @endphp
         <div class="card section">
-            <div class="card-head">Issuer Details</div>
+            <div class="card-head">{{ __('panel.invoice.issuer_details') }}</div>
             <div style="margin-top:.5rem;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.95rem;">
-                <div><b>Company:</b> {{ $biz['company_name'] ?? 'Hot Tub Buyer Ltd' }}</div>
+                <div><b>{{ __('panel.invoice.company') }}</b> {{ $biz['company_name'] ?? 'Hot Tub Buyer Ltd' }}</div>
                 @if(!empty($biz['company_email']))
-                    <div><b>Email:</b> {{ $biz['company_email'] }}</div>
+                    <div><b>{{ __('panel.invoice.email') }}</b> {{ $biz['company_email'] }}</div>
                 @endif
                 @if(!empty($biz['company_address']))
-                    <div style="grid-column:1/-1;"><b>Registered Address:</b> {{ $biz['company_address'] }}</div>
+                    <div style="grid-column:1/-1;"><b>{{ __('panel.invoice.registered_address') }}</b> {{ $biz['company_address'] }}</div>
                 @endif
                 @if(!empty($biz['vat_number']))
-                    <div><b>VAT Number:</b> {{ $biz['vat_number'] }}</div>
+                    <div><b>{{ __('panel.invoice.vat_number') }}</b> {{ $biz['vat_number'] }}</div>
                 @endif
                 @if(!empty($biz['company_number']))
-                    <div><b>Company Number:</b> {{ $biz['company_number'] }}</div>
+                    <div><b>{{ __('panel.invoice.company_number') }}</b> {{ $biz['company_number'] }}</div>
                 @endif
                 @if(!empty($biz['fca_number']))
-                    <div><b>FCA Number:</b> {{ $biz['fca_number'] }}</div>
+                    <div><b>{{ __('panel.invoice.fca_number') }}</b> {{ $biz['fca_number'] }}</div>
                 @endif
             </div>
         </div>
 
         <div class="footer">
             <div>{{ $biz['company_name'] ?? 'Hot Tub Buyer Ltd' }}</div>
-            <div>Thank you for your business. For support, contact: {{ $biz['company_email'] ?? 'support@hottubbuyer.com' }}</div>
+            <div>{{ __('panel.invoice.thank_you', ['email' => $biz['company_email'] ?? 'support@hottubbuyer.com']) }}</div>
         </div>
     </div>
 </body>

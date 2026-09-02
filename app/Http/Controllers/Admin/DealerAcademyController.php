@@ -39,8 +39,8 @@ class DealerAcademyController extends Controller
             'description' => 'nullable|string',
             'content_type' => 'required|in:video,pdf,article,link',
             'category' => 'required|string|max:255',
-            'file' => 'nullable|file|max:51200', // 50MB max
-            'thumbnail' => 'nullable|image|max:10240', // 10MB max
+            'file' => 'nullable|file|max:512000',
+            'thumbnail' => 'nullable|image|max:51200',
             'external_link' => 'nullable|url',
         ]);
 
@@ -71,8 +71,8 @@ class DealerAcademyController extends Controller
             'description' => 'nullable|string',
             'content_type' => 'required|in:video,pdf,article,link',
             'category' => 'required|string|max:255',
-            'file' => 'nullable|file|max:51200',
-            'thumbnail' => 'nullable|image|max:10240',
+            'file' => 'nullable|file|max:512000',
+            'thumbnail' => 'nullable|image|max:51200',
             'external_link' => 'nullable|url',
         ]);
 

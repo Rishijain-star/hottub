@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'promo' => 'Risparmia fino a :amount con Hot Tub Buyer.',
+    'tagline' => 'Recensioni di esperti e guide',
+    'hot_tubs' => 'Vasche idromassaggio',
+    'swim_spas' => 'Swim Spa',
+    'outdoor_products' => 'Prodotti outdoor',
+    'services' => 'Servizi',
+    'parts' => 'Ricambi',
+    'brands' => 'Marchi',
+    'find_dealer' => 'Trova rivenditore',
+    'care_guide' => 'Guida alla manutenzione',
+    'faq' => 'FAQ',
+    'help' => 'Aiuto',
+    'login' => 'Accedi',
+    'register' => 'Registrati',
+    'logout' => 'Esci',
+    'admin' => 'Admin',
+    'dashboard' => 'Dashboard',
+    'customer_panel' => 'Area cliente',
+    'language' => '',
+    'currency' => '',
+    'apply' => 'Applica',
+    'contact' => 'Contatto',
+    'per_year' => '/anno',
+];

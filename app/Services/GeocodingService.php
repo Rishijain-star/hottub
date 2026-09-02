@@ -53,11 +53,76 @@ class GeocodingService
                 return null;
             }
 
-            return ['lat' => (float)$lat, 'lng' => (float)$lng, 'timezone' => $timezone];
+            $countryCode = $data['results'][0]['components']['country_code'] ?? null;
+
+            return [
+                'lat' => (float) $lat,
+                'lng' => (float) $lng,
+                'timezone' => $timezone,
+                'country_code' => $countryCode ? strtoupper((string) $countryCode) : null,
+            ];
         } catch (\Exception $e) {
             Log::error('Geocoding service exception', ['message' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Reverse geocode coordinates to country (and timezone when available).
+     *
+     * @return array{lat: float, lng: float, country_code: ?string, timezone: ?string}|null
+     */
+    public function reverseGeocode(float $lat, float $lng): ?array
+    {
+        $key = config('services.opencage.key');
+        if ($key) {
+            try {
+                $resp = Http::timeout(10)->get('https://api.opencagedata.com/geocode/v1/json', [
+                    'q' => $lat.','.$lng,
+                    'key' => $key,
+                ]);
+
+                if ($resp->ok() && ! empty($resp->json('results'))) {
+                    $result = $resp->json('results.0');
+                    $countryCode = $result['components']['country_code'] ?? null;
+
+                    return [
+                        'lat' => $lat,
+                        'lng' => $lng,
+                        'country_code' => $countryCode ? strtoupper((string) $countryCode) : null,
+                        'timezone' => $result['annotations']['timezone']['name'] ?? null,
+                    ];
+                }
+            } catch (\Exception $e) {
+                Log::warning('OpenCage reverse geocode failed', ['message' => $e->getMessage()]);
+            }
+        }
+
+        try {
+            $resp = Http::timeout(10)
+                ->withHeaders(['User-Agent' => 'HotTubBuyer/1.0 (localization)'])
+                ->get('https://nominatim.openstreetmap.org/reverse', [
+                    'lat' => $lat,
+                    'lon' => $lng,
+                    'format' => 'json',
+                    'zoom' => 3,
+                ]);
+
+            if ($resp->ok()) {
+                $code = $resp->json('address.country_code');
+
+                return [
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'country_code' => $code ? strtoupper((string) $code) : null,
+                    'timezone' => null,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('Nominatim reverse geocode failed', ['message' => $e->getMessage()]);
+        }
+
+        return null;
     }
 
     /**

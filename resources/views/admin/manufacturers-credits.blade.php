@@ -1,9 +1,9 @@
 @extends('layouts.admin')
-@section('title', 'Add Credits – Admin Panel')
+@section('title', __('panel.admin.pages.manufacturers_credits.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Add Credits</h1><p class="panel-page-sub">{{ $manufacturer->name }} (Current: {{ $manufacturer->credits }})</p></div>
-    <a href="{{ route('admin.manufacturers') }}" class="btn">Back</a>
+    <div><h1 class="panel-page-title">{{ __('panel.admin.pages.manufacturers_credits.title') }}</h1><p class="panel-page-sub">{{ $manufacturer->name }} ({{ __('panel.admin.pages.manufacturers_credits.current') }}: {{ $manufacturer->credits }})</p></div>
+    <a href="{{ route('admin.manufacturers') }}" class="btn">{{ __('panel.admin.common.back') }}</a>
 </div>
 <div class="card">
     <form method="POST" action="{{ route('admin.manufacturers.credits.add', $manufacturer) }}">

@@ -12,8 +12,8 @@
 
     <div class="panel-sidebar__head">
         <div>
-            <div class="panel-sidebar__title">Dealer Panel</div>
-            <div class="panel-sidebar__sub">Manage your listings</div>
+            <div class="panel-sidebar__title">{{ __('panel.dealer_title') }}</div>
+            <div class="panel-sidebar__sub">{{ __('panel.dealer_sub') }}</div>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 <rect x="3" y="14" width="7" height="7" rx="1"/>
                 <rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
-            Overview
+            {{ __('panel.nav.overview') }}
         </a>
 
         <a href="{{ route('dealer.quotes') }}"
@@ -37,7 +37,7 @@
                 <circle cx="20" cy="21" r="1"/>
                 <path d="M1 1h4l2.68 12.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
             </svg>
-            Available Leads
+            {{ __('panel.nav.available_leads') }}
             @if($hasUnreadAvailableLeadsDot)
                 <span style="width:10px;height:10px;border-radius:999px;background:#ef4444;display:inline-block;margin-left:auto;"></span>
             @endif
@@ -51,7 +51,7 @@
                 <line x1="16" y1="13" x2="8" y2="13"/>
                 <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
-            My Leads
+            {{ __('panel.nav.my_leads') }}
         </a>
 
         <a href="{{ route('dealer.customers.index') }}"
@@ -59,7 +59,7 @@
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
-            My Customers
+            {{ __('panel.nav.my_customers') }}
         </a>
 
         <a href="{{ route('dealer.maintenance-packages') }}"
@@ -67,7 +67,7 @@
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
             </svg>
-            Maintenance Packages
+            {{ __('panel.nav.maintenance_packages') }}
         </a>
 
         <a href="{{ route('dealer.service-history') }}"
@@ -75,7 +75,7 @@
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
-            Service History
+            {{ __('panel.nav.service_history') }}
         </a>
 
         <a href="{{ route('dealer.service-requests') }}"
@@ -83,7 +83,7 @@
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
-        Service Requests
+        {{ __('panel.nav.service_requests') }}
         @php
             $pendingServices = \App\Models\ServiceRequest::where('dealer_id', auth()->id())->where('status', 'pending')->count();
         @endphp
@@ -97,7 +97,7 @@
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
-        Service Management
+        {{ __('panel.nav.service_management') }}
     </a>
 
     <a href="{{ route('dealer.package-requests') }}"
@@ -105,7 +105,7 @@
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
         </svg>
-        Follow-Up / Requests
+        {{ __('panel.nav.follow_up_requests') }}
         @php
             $pendingPackages = \App\Models\PackageRequest::where('dealer_id', auth()->id())->where('status', 'pending')->count();
         @endphp
@@ -121,7 +121,7 @@
             <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/>
         </svg>
-        Dealer Academy
+        {{ __('panel.nav.dealer_academy') }}
         @if($hasUnreadDealerAcademyDot)
             <span style="width:10px;height:10px;border-radius:999px;background:#ef4444;display:inline-block;margin-left:auto;"></span>
         @endif
@@ -133,7 +133,7 @@
                 <line x1="12" y1="1" x2="12" y2="23"/>
                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
             </svg>
-            Credits
+            {{ __('panel.nav.credits') }}
         </a>
 
         <a href="{{ route('dealer.profile') }}"
@@ -142,7 +142,7 @@
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
             </svg>
-            Profile
+            {{ __('panel.nav.profile') }}
         </a>
 
         <a href="{{ route('dealer.messages') }}"
@@ -150,7 +150,7 @@
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-14.7 8.38 8.38 0 0 1 3.8.9L21 3z"/>
             </svg>
-            Messages
+            {{ __('panel.nav.messages') }}
             @php
                 $unreadDealerMessages = \App\Models\Message::where('receiver_id', auth()->id())
                     ->whereNull('read_at')
@@ -166,7 +166,7 @@
                 <path d="M2 10h20"/>
                 <path d="M6 14h2"/>
             </svg>
-            Accounting
+            {{ __('panel.nav.accounting') }}
         </a>
 
     </nav>

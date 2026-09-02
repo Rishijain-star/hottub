@@ -62,7 +62,14 @@ class PhoneVerificationController extends Controller
         }
 
         if (!self::issueOtp($user, $sms)) {
-            return back()->with('error', 'Unable to send OTP right now. Please try again shortly.');
+            $reason = $sms->sendFailureReason($user->phone);
+            $message = $reason !== '' ? $reason : 'Unable to send OTP right now. Please try again shortly.';
+            $response = back()->with('error', $message);
+            if ($sms->wasRateLimited()) {
+                $response->with('show_toast', true);
+            }
+
+            return $response;
         }
 
         Cache::put($cacheKey, true, now()->addSeconds(self::OTP_RESEND_COOLDOWN_SECONDS));

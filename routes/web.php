@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\DealerManagementController;
 use App\Http\Controllers\Admin\FeaturedContentController;
@@ -15,7 +16,10 @@ use App\Http\Controllers\Admin\ServiceManagementController;
 use App\Http\Controllers\Dealer\DealerController;
 use App\Http\Controllers\Manufacturer\ManufacturerController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CaptchaController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LocalePreferenceController;
+use App\Http\Controllers\LocationPreferenceController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PhoneVerificationController;
@@ -23,6 +27,10 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 // Storage routes: routes/storage-public.php (loaded in bootstrap/app.php without web middleware).
+
+// ══ LOCALE / CURRENCY PREFERENCE ════════════════════════════════════════════
+Route::post('/locale-preference', [LocalePreferenceController::class, 'update'])->name('locale.preference');
+Route::post('/location-preference', [LocationPreferenceController::class, 'store'])->name('location.preference');
 
 // ══ PUBLIC PAGES ══════════════════════════════════════════════════════════════
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -48,9 +56,16 @@ Route::get('/care-guide', [PageController::class, 'careGuide'])->name('care-guid
 Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 
 // ══ AUTH ══════════════════════════════════════════════════════════════════════
+Route::get('/csrf-refresh', function () {
+    return response()->json(['token' => csrf_token()]);
+})->middleware('web')->name('csrf.refresh');
+
+Route::get('/captcha/image', [CaptchaController::class, 'image'])->name('captcha.image');
+Route::get('/captcha/refresh', [CaptchaController::class, 'refresh'])->name('captcha.refresh');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('verify.otp.captcha');
 
     // Forgot Password Routes
     Route::get('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'showEmailForm'])->name('password.request');
@@ -62,10 +77,15 @@ Route::middleware('guest')->group(function () {
     Route::get('/password-success', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'showSuccess'])->name('password.success');
 
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->name('register.submit')->middleware(['throttle:registration', 'verify.otp.captcha']);
+    Route::get('/register/verify-email-otp', [AuthController::class, 'showRegistrationEmailOtpForm'])->name('register.email.otp.form');
+    Route::post('/register/verify-email-otp', [AuthController::class, 'verifyRegistrationEmailOtp'])->name('register.email.otp.verify')->middleware('throttle:registration-otp');
+    Route::post('/register/resend-email-otp', [AuthController::class, 'resendRegistrationEmailOtp'])->name('register.email.otp.resend')->middleware(['throttle:registration-otp', 'verify.otp.captcha']);
+    Route::get('/register/security-check', [AuthController::class, 'showRegistrationSecurityCheck'])->name('register.security.check');
+    Route::post('/register/send-otp', [AuthController::class, 'sendRegistrationOtp'])->name('register.send.otp')->middleware(['throttle:registration-otp', 'verify.otp.captcha']);
     Route::get('/register/verify-otp', [AuthController::class, 'showRegistrationOtpForm'])->name('register.otp.form');
-    Route::post('/register/verify-otp', [AuthController::class, 'verifyRegistrationOtp'])->name('register.otp.verify');
-    Route::post('/register/resend-otp', [AuthController::class, 'resendRegistrationOtp'])->name('register.otp.resend');
+    Route::post('/register/verify-otp', [AuthController::class, 'verifyRegistrationOtp'])->name('register.otp.verify')->middleware('throttle:registration-otp');
+    Route::post('/register/resend-otp', [AuthController::class, 'resendRegistrationOtp'])->name('register.otp.resend')->middleware(['throttle:registration-otp', 'verify.otp.captcha']);
 });
 
 Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
@@ -97,13 +117,31 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/verify-phone', [PhoneVerificationController::class, 'show'])->name('verify.phone');
     Route::post('/verify-phone', [PhoneVerificationController::class, 'submit'])->name('verify.phone.submit');
-    Route::post('/verify-phone/resend', [PhoneVerificationController::class, 'resend'])->name('verify.phone.resend');
+    Route::post('/verify-phone/resend', [PhoneVerificationController::class, 'resend'])->name('verify.phone.resend')->middleware('verify.otp.captcha');
 });
 
 // ══ ADMIN PANEL ═══════════════════════════════════════════════════════════════
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/two-factor', [\App\Http\Controllers\Admin\AdminTwoFactorController::class, 'show'])->name('two-factor.show');
+    Route::post('/two-factor/send', [\App\Http\Controllers\Admin\AdminTwoFactorController::class, 'send'])->name('two-factor.send')->middleware('verify.otp.captcha');
+    Route::post('/two-factor', [\App\Http\Controllers\Admin\AdminTwoFactorController::class, 'verify'])->name('two-factor.verify');
+    Route::post('/two-factor/resend', [\App\Http\Controllers\Admin\AdminTwoFactorController::class, 'resend'])->name('two-factor.resend')->middleware('verify.otp.captcha');
+});
+
+Route::middleware(['auth', 'admin', 'admin.2fa'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'overview'])->name('overview');
     Route::get('/overview/report', [AdminController::class, 'downloadAnalyticsReport'])->name('overview.report');
+
+    Route::get('/security', [\App\Http\Controllers\Admin\AdminSecurityController::class, 'show'])->name('security');
+    Route::put('/security', [\App\Http\Controllers\Admin\AdminSecurityController::class, 'update'])->name('security.update');
+
+    // Google Analytics (GA4 Data API) — reporting only
+    Route::prefix('analytics')->name('analytics.')->group(function () {
+        Route::get('/', [AnalyticsController::class, 'index'])->name('index');
+        Route::get('/gsc-auth', [AnalyticsController::class, 'gscAuth'])->name('gsc-auth');
+        Route::get('/debug-config', [AnalyticsController::class, 'debugConfig'])->name('debug-config');
+        Route::get('/test', [AnalyticsController::class, 'test'])->name('test');
+    });
     // Hot Tubs CRUD
     Route::get('/hot-tubs', [\App\Http\Controllers\Admin\HotTubController::class, 'index'])->name('hot-tubs.index');
     Route::post('/hot-tubs', [\App\Http\Controllers\Admin\HotTubController::class, 'store'])->name('hot-tubs.store');
@@ -245,7 +283,7 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::put('/maintenance-packages/{package}', [DealerController::class, 'updateMaintenancePackage'])->name('maintenance-packages.update');
     Route::delete('/maintenance-packages/{package}', [DealerController::class, 'destroyMaintenancePackage'])->name('maintenance-packages.destroy');
 
-    Route::get('/package-requests', [DealerController::class, 'packageRequests'])->name('package-requests')->middleware('overdue');
+    Route::get('/package-requests', [DealerController::class, 'packageRequests'])->name('package-requests');
     Route::put('/package-requests/{packageRequest}', [DealerController::class, 'updatePackageRequestStatus'])->name('package-requests.update');
     Route::delete('/package-requests/{packageRequest}', [DealerController::class, 'destroyPackageRequest'])->name('package-requests.destroy');
     Route::post('/leads/{lead}/buy', [DealerController::class, 'buyLead'])->name('leads.buy');
@@ -265,7 +303,7 @@ Route::middleware(['auth', 'dealer'])->prefix('dealer')->name('dealer.')->group(
     Route::post('/leads/{lead}/service-checklist', [DealerController::class, 'storeServiceChecklist'])->name('leads.service-checklist');
     Route::get('/leads/{lead}/service-history', [DealerController::class, 'getServiceHistory'])->name('leads.service-history');
     Route::get('/service-history', [DealerController::class, 'serviceHistory'])->name('service-history');
-    Route::get('/service-requests', [DealerController::class, 'serviceRequests'])->name('service-requests')->middleware('overdue');
+    Route::get('/service-requests', [DealerController::class, 'serviceRequests'])->name('service-requests');
     Route::put('/service-requests/{serviceRequest}', [DealerController::class, 'updateServiceRequestStatus'])->name('service-requests.update');
     Route::get('/quotes', [DealerController::class, 'quotes'])->name('quotes');
     Route::get('/inventory', [DealerController::class, 'inventory'])->name('inventory');

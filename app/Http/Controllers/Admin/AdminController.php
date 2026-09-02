@@ -587,8 +587,8 @@ class AdminController extends Controller
     {
         $request->validate([
             'hero_images' => 'nullable|array',
-            'hero_images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
-            'cta_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
+            'hero_images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:51200',
+            'cta_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:51200',
             'existing_hero_paths' => 'nullable|array',
             'existing_hero_paths.*' => 'nullable|string|max:1000',
             'existing_hero_sorts' => 'nullable|array',

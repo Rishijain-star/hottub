@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'promo' => 'Bespaar tot :amount met Hot Tub Buyer.',
+    'tagline' => 'Expertreviews & gidsen',
+    'hot_tubs' => 'Hottubs',
+    'swim_spas' => 'Swim Spas',
+    'outdoor_products' => 'Outdoor producten',
+    'services' => 'Diensten',
+    'parts' => 'Onderdelen',
+    'brands' => 'Merken',
+    'find_dealer' => 'Dealer zoeken',
+    'care_guide' => 'Onderhoudsgids',
+    'faq' => 'FAQ',
+    'login' => 'Inloggen',
+    'register' => 'Registreren',
+    'logout' => 'Uitloggen',
+    'admin' => 'Admin',
+    'dashboard' => 'Dashboard',
+    'customer_panel' => 'Klantportaal',
+    'language' => '',
+    'currency' => '',
+    'apply' => 'Toepassen',
+    'contact' => 'Contact',
+    'per_year' => '/jaar',
+];

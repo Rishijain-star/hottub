@@ -1,27 +1,27 @@
 @extends('layouts.customer')
-@section('title', 'Service History – Customer Panel')
+@section('title', __('panel.service_history.title').' – '.__('panel.customer_title'))
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Service History</h1><p class="panel-page-sub">View your past service records and sign off on completions</p></div>
+    <div><h1 class="panel-page-title">{{ __('panel.service_history.title') }}</h1><p class="panel-page-sub">{{ __('panel.customer_panel.service_history_sub_customer') }}</p></div>
 </div>
 
 <div class="card" style="padding:0">
     <table class="table">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Dealer</th>
-                <th>Checklist</th>
-                <th>Notes</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th>{{ __('panel.common.date') }}</th>
+                <th>{{ __('panel.common.dealer') }}</th>
+                <th>{{ __('panel.service_history.checklist') }}</th>
+                <th>{{ __('panel.service_history.notes') }}</th>
+                <th>{{ __('panel.common.status') }}</th>
+                <th>{{ __('panel.common.actions') }}</th>
             </tr>
         </thead>
         <tbody>
             @forelse($history as $item)
             <tr>
                 <td>{{ $item->completed_at ? $item->completed_at->format('d M Y') : $item->created_at->format('d M Y') }}</td>
-                <td>{{ $item->dealer->name }}</td>
+                <td>{{ $item->dealer->businessDisplayName() }}</td>
                 <td>
                     <div style="font-size:12px;color:var(--gray-600)">
                         @foreach($item->checklist_data as $key => $val)
@@ -34,42 +34,41 @@
                 <td style="max-width:200px" class="text-sm">{{ $item->dealer_notes ?? '—' }}</td>
                 <td>
                     @if($item->customer_signature)
-                        <span class="badge badge--success">Signed</span>
+                        <span class="badge badge--success">{{ __('panel.service_history.signed') }}</span>
                     @else
-                        <span class="badge badge--warning">Pending Signature</span>
+                        <span class="badge badge--warning">{{ __('panel.service_history.pending_signature') }}</span>
                     @endif
                 </td>
                 <td>
                     @if(!$item->customer_signature)
-                        <button class="btn btn--primary btn--sm" onclick="openSignatureModal({{ $item->id }})">Sign Off</button>
+                        <button class="btn btn--primary btn--sm" onclick="openSignatureModal({{ $item->id }})">{{ __('panel.customer_panel.sign_off_service') }}</button>
                     @else
-                        <button class="btn btn--ghost btn--sm" disabled>Completed</button>
+                        <button class="btn btn--ghost btn--sm" disabled>{{ __('panel.service_history.completed') }}</button>
                     @endif
                 </td>
             </tr>
             @empty
-            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">No service records found.</td></tr>
+            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">{{ __('panel.common.no_service_records') }}</td></tr>
             @endforelse
         </tbody>
     </table>
 </div>
 
-{{-- Signature Modal --}}
 <div id="signatureModal" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
     <div class="card" style="width:400px;background:#fff;padding:25px;border-radius:12px;position:relative">
         <button type="button" class="icon-btn" 
                 style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
                 onclick="closeSignatureModal()">&times;</button>
-        <h3 style="margin-top:0; font-weight: 800; margin-bottom: 0.5rem;">Sign Off Service</h3>
-        <p class="text-sm text-muted" style="margin-bottom: 1.5rem;">Please sign below to confirm service completion.</p>
+        <h3 style="margin-top:0; font-weight: 800; margin-bottom: 0.5rem;">{{ __('panel.customer_panel.sign_off_service') }}</h3>
+        <p class="text-sm text-muted" style="margin-bottom: 1.5rem;">{{ __('panel.customer_panel.sign_off_service_sub') }}</p>
         <div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:15px;background:#f9fafb">
             <canvas id="sigCanvas" width="360" height="150" style="cursor:crosshair"></canvas>
         </div>
         <div class="modal-actions" style="justify-content:space-between">
-            <button class="btn btn--ghost btn--sm" onclick="clearSignature()">Clear</button>
+            <button class="btn btn--ghost btn--sm" onclick="clearSignature()">{{ __('panel.common.clear') }}</button>
             <div style="display:flex;gap:10px">
-                <button class="btn btn--ghost btn--sm" onclick="closeSignatureModal()">Cancel</button>
-                <button class="btn btn--primary btn--sm" onclick="saveSignature()">Save & Sign</button>
+                <button class="btn btn--ghost btn--sm" onclick="closeSignatureModal()">{{ __('panel.common.cancel') }}</button>
+                <button class="btn btn--primary btn--sm" onclick="saveSignature()">{{ __('panel.customer_panel.save_sign_off') }}</button>
             </div>
         </div>
     </div>
@@ -77,8 +76,16 @@
 
 @endsection
 
+@php
+    $serviceHistoryPanelI18n = [
+        'unableSave' => __('panel.customer_panel.unable_save_signature'),
+        'networkError' => __('panel.common.network_error'),
+    ];
+@endphp
+
 @section('scripts')
 <script>
+const panelI18n = @json($serviceHistoryPanelI18n);
 let currentChecklistId = null;
 const canvas = document.getElementById('sigCanvas');
 const ctx = canvas?.getContext('2d');
@@ -114,9 +121,9 @@ async function saveSignature() {
         if (res.ok && data.ok) {
             window.location.reload();
         } else {
-            alert('Unable to save signature.');
+            alert(panelI18n.unableSave);
         }
-    } catch(err) { alert('Network error'); }
+    } catch(err) { alert(panelI18n.networkError); }
 }
 </script>
 @endsection

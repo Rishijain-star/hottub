@@ -83,6 +83,26 @@ return [
             ]) : [],
         ],
 
+        /*
+        | Optional second connection for: php artisan db:compare-schema --remote
+        | Point REMOTE_DB_* at your live server (read-only user recommended).
+        */
+        'remote' => [
+            'driver' => env('REMOTE_DB_CONNECTION', 'mysql'),
+            'host' => env('REMOTE_DB_HOST', '127.0.0.1'),
+            'port' => env('REMOTE_DB_PORT', '3306'),
+            'database' => env('REMOTE_DB_DATABASE'),
+            'username' => env('REMOTE_DB_USERNAME'),
+            'password' => env('REMOTE_DB_PASSWORD'),
+            'unix_socket' => env('REMOTE_DB_SOCKET', ''),
+            'charset' => env('REMOTE_DB_CHARSET', 'utf8mb4'),
+            'collation' => env('REMOTE_DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),

@@ -1,32 +1,32 @@
 @extends('layouts.manufacturer')
-@section('title', 'Service Requests – Manufacturer Panel')
+@section('title', __('panel.service_requests.title').' – '.__('panel.manufacturer_title'))
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Service Requests</h1><p class="panel-page-sub">Manage incoming service and parts requests from your customers</p></div>
+    <div><h1 class="panel-page-title">{{ __('panel.service_requests.title') }}</h1><p class="panel-page-sub">{{ __('panel.service_requests.sub') }}</p></div>
 </div>
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
     <form method="GET" action="{{ route('manufacturer.service-requests') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
-            <label class="form-label">Search</label>
-            <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
+            <label class="form-label">{{ __('panel.common.search') }}</label>
+            <input type="text" name="search" class="form-input" placeholder="{{ __('panel.common.search_customer') }}" value="{{ request('search') }}">
         </div>
         <div class="form-group mb-0">
-            <label class="form-label">Status</label>
+            <label class="form-label">{{ __('panel.common.status') }}</label>
             <select name="status" class="form-input">
-                <option value="all">All statuses</option>
-                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="processing" {{ request('status') === 'processing' ? 'selected' : '' }}>Processing</option>
-                <option value="under_review" {{ request('status') === 'under_review' ? 'selected' : '' }}>Under Review</option>
-                <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
+                <option value="all">{{ __('panel.status.all') }}</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>{{ __('panel.status.pending') }}</option>
+                <option value="processing" {{ request('status') === 'processing' ? 'selected' : '' }}>{{ __('panel.status.processing') }}</option>
+                <option value="under_review" {{ request('status') === 'under_review' ? 'selected' : '' }}>{{ __('panel.status.under_review') }}</option>
+                <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>{{ __('panel.status.completed') }}</option>
             </select>
         </div>
         <div class="form-group mb-0 panel-filter-actions-col">
             <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
             <div class="panel-filter-actions">
-            <button type="submit" class="btn btn--primary">Filter</button>
-            <a href="{{ route('manufacturer.service-requests') }}" class="btn btn--ghost">Clear</a>
+            <button type="submit" class="btn btn--primary">{{ __('panel.common.filter') }}</button>
+            <a href="{{ route('manufacturer.service-requests') }}" class="btn btn--ghost">{{ __('panel.common.clear') }}</a>
             </div>
         </div>
     </form>
@@ -38,11 +38,11 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Customer</th>
-                <th>Request</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th>{{ __('panel.common.customer') }}</th>
+                <th>{{ __('panel.common.request') }}</th>
+                <th>{{ __('panel.common.status') }}</th>
+                <th>{{ __('panel.common.created') }}</th>
+                <th>{{ __('panel.common.actions') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -54,43 +54,35 @@
                 </td>
                 <td>
                     <div class="fw-700 text-dark">{{ $req->product_name }}</div>
-                    <div class="text-sm text-muted">{{ ucwords($req->type) }} Request</div>
+                    <div class="text-sm text-muted">{{ ucwords($req->type) }} {{ __('panel.service_requests.request_suffix') }}</div>
                 </td>
                 <td>
-                    @if($req->status === 'pending')
-                        <span class="badge">Pending</span>
-                    @elseif($req->status === 'processing')
-                        <span class="badge badge--warning">Processing</span>
-                    @elseif($req->status === 'under_review')
-                        <span class="badge badge--warning" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Under Review</span>
-                    @else
-                        <span class="badge badge--success">Completed</span>
-                    @endif
+                    <span class="badge @if($req->status === 'processing' || $req->status === 'under_review') badge--warning @elseif($req->status === 'completed') badge--success @endif" @if($req->status === 'under_review') style="background:#fef3c7;color:#92400e;border-color:#fde68a" @endif>{{ \App\Support\PanelTranslator::statusLabel($req->status) }}</span>
                 </td>
                 <td>{{ $req->created_at->format('d M Y') }}</td>
                 <td>
                     <div class="actions-row">
-                        <button class="btn btn--ghost btn--sm" onclick="viewRequest({{ json_encode($req) }})">View</button>
+                        <button class="btn btn--ghost btn--sm" onclick="viewRequest({{ json_encode($req) }})">{{ __('panel.common.view') }}</button>
                         
                         @if($req->status === 'pending')
                         <form method="POST" action="{{ route('manufacturer.service-requests.update', $req) }}" style="display:inline">
                             @csrf @method('PUT')
                             <input type="hidden" name="status" value="processing">
-                            <button class="btn btn--primary btn--sm">Process</button>
+                            <button class="btn btn--primary btn--sm">{{ __('panel.common.process') }}</button>
                         </form>
                         @endif
 
                         @if($req->status === 'processing')
                         <button class="btn btn--success btn--sm" onclick="openChecklistModal({{ json_encode($req) }})">
                             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                            <span>Complete</span>
+                            <span>{{ __('panel.common.complete') }}</span>
                         </button>
                         @endif
                     </div>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No active service requests.</td></tr>
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">{{ __('panel.common.no_service_requests') }}</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -105,10 +97,10 @@
         <button type="button" class="icon-btn" 
                 style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
                 onclick="document.getElementById('viewModal').style.display='none'">&times;</button>
-        <h3 id="modalTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">Request Details</h3>
+        <h3 id="modalTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">{{ __('panel.service_requests.request_details') }}</h3>
         <div id="modalBody"></div>
         <div id="modalSignature"></div>
-        <div class="modal-actions" style="justify-content: flex-end;"><button class="btn btn--ghost btn--sm" onclick="document.getElementById('viewModal').style.display='none'">Close</button></div>
+        <div class="modal-actions" style="justify-content: flex-end;"><button class="btn btn--ghost btn--sm" onclick="document.getElementById('viewModal').style.display='none'">{{ __('panel.common.close') }}</button></div>
     </div>
 </div>
 
@@ -126,7 +118,7 @@
         <button type="button" class="icon-btn" 
                 style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
                 onclick="document.getElementById('checklistModal').style.display='none'">&times;</button>
-        <h3 style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800;">Service Completion Checklist</h3>
+        <h3 style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800;">{{ __('panel.service_requests.checklist_title') }}</h3>
         
         <form id="checklistForm" method="POST">
             @csrf @method('PUT')
@@ -134,33 +126,33 @@
             
             <div class="grid grid--2">
                 <div class="form-group">
-                    <label class="form-label">Service Type</label>
-                    <input name="checklist[service_type]" class="form-input" required placeholder="e.g., Annual Maintenance">
+                    <label class="form-label">{{ __('panel.common.service_type') }}</label>
+                    <input name="checklist[service_type]" class="form-input" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Service Date</label>
+                    <label class="form-label">{{ __('panel.service_requests.service_date') }}</label>
                     <input type="date" name="checklist[service_date]" class="form-input" required value="{{ date('Y-m-d') }}">
                 </div>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Work Done Summary</label>
-                <textarea name="checklist[work_summary]" class="form-input" rows="3" required placeholder="Describe what was done..."></textarea>
+                <label class="form-label">{{ __('panel.service_requests.work_summary') }}</label>
+                <textarea name="checklist[work_summary]" class="form-input" rows="3" required></textarea>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Parts Replaced (if any)</label>
-                <input name="checklist[parts_replaced]" class="form-input" placeholder="e.g., Filter, Pump Seal">
+                <label class="form-label">{{ __('panel.service_requests.parts_replaced') }}</label>
+                <input name="checklist[parts_replaced]" class="form-input">
             </div>
 
             <div class="form-group">
-                <label class="form-label">Notes / Comments</label>
-                <textarea name="checklist[notes]" class="form-input" rows="2" placeholder="Additional observations..."></textarea>
+                <label class="form-label">{{ __('panel.service_requests.notes_comments') }}</label>
+                <textarea name="checklist[notes]" class="form-input" rows="2"></textarea>
             </div>
 
             <div class="modal-actions" style="justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                <button type="button" class="btn btn--ghost" onclick="document.getElementById('checklistModal').style.display='none'">Cancel</button>
-                <button type="submit" class="btn btn--primary">Send to Customer for Review</button>
+                <button type="button" class="btn btn--ghost" onclick="document.getElementById('checklistModal').style.display='none'">{{ __('panel.common.cancel') }}</button>
+                <button type="submit" class="btn btn--primary">{{ __('panel.service_requests.send_for_review') }}</button>
             </div>
         </form>
     </div>

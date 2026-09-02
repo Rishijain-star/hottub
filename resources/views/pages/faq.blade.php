@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Frequently Asked Questions – Hot Tub Buyer')
+@section('title', __('pages.faq.page_title'))
 @section('content')
 
 {{-- ══ HERO ══════════════════════════════════════════════════════════════════ --}}
 <section class="svc-hero" style="border-bottom:1px solid var(--gray-200);">
     <div class="container" style="text-align:center;">
-        <h1 class="svc-hero__title">Frequently Asked Questions</h1>
-        <p class="svc-hero__desc" style="margin-bottom:0;">Everything you need to know about hot tubs and swim spas</p>
+        <h1 class="svc-hero__title">{{ __('pages.faq.title') }}</h1>
+        <p class="svc-hero__desc" style="margin-bottom:0;">{{ __('pages.faq.desc') }}</p>
     </div>
 </section>
 
@@ -16,7 +16,7 @@
 
         {{-- ── Buying a Hot Tub ─────────────────────────────────────────── --}}
         <div class="faq-group">
-            <h2 class="faq-group__title">Buying a Hot Tub</h2>
+            <h2 class="faq-group__title">{{ __('pages.faq.group_buying') }}</h2>
             <div class="faq-list">
 
                 <div class="faq-item">
@@ -80,7 +80,7 @@
 
         {{-- ── Installation & Setup ─────────────────────────────────────── --}}
         <div class="faq-group">
-            <h2 class="faq-group__title">Installation &amp; Setup</h2>
+            <h2 class="faq-group__title">{{ __('pages.faq.group_install') }}</h2>
             <div class="faq-list">
 
                 <div class="faq-item">
@@ -157,7 +157,7 @@
 
         {{-- ── Running Costs & Maintenance ──────────────────────────────── --}}
         <div class="faq-group">
-            <h2 class="faq-group__title">Running Costs &amp; Maintenance</h2>
+            <h2 class="faq-group__title">{{ __('pages.faq.group_running') }}</h2>
             <div class="faq-list">
 
                 <div class="faq-item">
@@ -230,7 +230,7 @@
 
         {{-- ── Usage & Safety ───────────────────────────────────────────── --}}
         <div class="faq-group">
-            <h2 class="faq-group__title">Usage &amp; Safety</h2>
+            <h2 class="faq-group__title">{{ __('pages.faq.group_usage') }}</h2>
             <div class="faq-list">
 
                 <div class="faq-item">
@@ -308,7 +308,7 @@
 
         {{-- ── Troubleshooting ──────────────────────────────────────────── --}}
         <div class="faq-group">
-            <h2 class="faq-group__title">Troubleshooting</h2>
+            <h2 class="faq-group__title">{{ __('pages.faq.group_troubleshooting') }}</h2>
             <div class="faq-list">
 
                 <div class="faq-item">

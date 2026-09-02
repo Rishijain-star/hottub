@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Hot Tub Care Guide – Complete Maintenance Guide')
+@section('title', __('pages.care_guide.page_title'))
 @section('content')
 
 {{-- ══ HERO ══════════════════════════════════════════════════════════════════ --}}
 <section class="svc-hero" style="border-bottom:none;">
     <div class="container" style="text-align:center;">
-        <h1 class="svc-hero__title" style="font-size:clamp(2rem,4vw,2.8rem);">Hot Tub Care Guide</h1>
-        <p class="svc-hero__desc">Complete maintenance guide for keeping your hot tub in perfect condition</p>
+        <h1 class="svc-hero__title" style="font-size:clamp(2rem,4vw,2.8rem);">{{ __('pages.care_guide.title') }}</h1>
+        <p class="svc-hero__desc">{{ __('pages.care_guide.desc') }}</p>
     </div>
 </section>
 
@@ -20,7 +20,7 @@
                 <div class="care-block__icon" style="background:#e0f7f5;color:var(--teal);">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
-                <h2 class="care-block__title">Daily Maintenance</h2>
+                <h2 class="care-block__title">{{ __('pages.care_guide.daily') }}</h2>
             </div>
             <div class="care-items">
                 <div class="care-item">
@@ -59,7 +59,7 @@
                 <div class="care-block__icon" style="background:#e0f2fe;color:#0284c7;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/></svg>
                 </div>
-                <h2 class="care-block__title">Weekly Maintenance</h2>
+                <h2 class="care-block__title">{{ __('pages.care_guide.weekly') }}</h2>
             </div>
             <div class="care-items">
                 <div class="care-item">
@@ -113,7 +113,7 @@
                 <div class="care-block__icon" style="background:#ede9fe;color:#7c3aed;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                 </div>
-                <h2 class="care-block__title">Monthly Maintenance</h2>
+                <h2 class="care-block__title">{{ __('pages.care_guide.monthly') }}</h2>
             </div>
             <div class="care-items">
                 <div class="care-item">
@@ -161,7 +161,7 @@
                 <div class="care-block__icon" style="background:#fef9c3;color:#a16207;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 </div>
-                <h2 class="care-block__title">Every 3–4 Months</h2>
+                <h2 class="care-block__title">{{ __('pages.care_guide.quarterly') }}</h2>
             </div>
             <div class="care-items">
                 <div class="care-item">

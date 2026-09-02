@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Hot Tub Parts – Genuine Replacement Parts & Accessories')
+@section('title', __('pages.parts.page_title'))
 @section('content')
 
 {{-- ══ HERO HEADER ══════════════════════════════════════════════════════════ --}}
@@ -7,20 +7,20 @@
     <div class="container" style="text-align:center;">
         <span class="svc-hero__badge">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            Genuine Parts
+            {{ __('pages.parts.badge') }}
         </span>
-        <h1 class="svc-hero__title">Hot Tub Parts</h1>
-        <p class="svc-hero__desc">Quality replacement parts for all major hot tub brands. Fast UK delivery with expert support to help you find exactly what you need.</p>
+        <h1 class="svc-hero__title">{{ __('pages.parts.title') }}</h1>
+        <p class="svc-hero__desc">{{ __('pages.parts.desc') }}</p>
     </div>
 </section>
 
 {{-- ══ CATEGORY TABS ════════════════════════════════════════════════════════ --}}
 <section class="parts-cats-section">
     <div class="container" style="text-align:center;">
-        <h2 class="parts-cats__heading">Shop by Category</h2>
+        <h2 class="parts-cats__heading">{{ __('pages.parts.shop_category') }}</h2>
         <div class="parts-cats" id="catTabs">
             <button class="parts-cat-btn parts-cat-btn--active" data-cat="all">
-                All Parts
+                {{ __('pages.parts.all_parts') }}
             </button>
             <button class="parts-cat-btn" data-cat="Filters">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -118,7 +118,7 @@
                     <div class="parts-card__partno">Part #: {{ $p->part_number }}</div>
                     @endif
                     @if(!is_null($p->price))
-                    <div class="parts-card__price">£{{ number_format($p->price, 2) }}</div>
+                    <div class="parts-card__price"><x-money :amount="$p->price" /></div>
                     @endif
                     @if(count($compatible))
                     <div class="text-sm text-muted" style="margin-top:.4rem">Compatible with:</div>

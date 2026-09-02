@@ -1,5 +1,5 @@
 @extends('layouts.dealer')
-@section('title', 'Dealer Academy – Dealer Panel')
+@section('title', __('panel.academy.title').' - '.__('panel.dealer_title'))
 @section('content')
 
 <style>
@@ -215,20 +215,20 @@
 </style>
 
 <div class="academy-header">
-    <h1 class="academy-title">Dealer Academy</h1>
-    <p class="academy-sub">Enhance your knowledge with expert training modules, installation guides, and sales resources designed to grow your business.</p>
+    <h1 class="academy-title">{{ __('panel.academy.title') }}</h1>
+    <p class="academy-sub">{{ __('panel.academy.sub') }}</p>
 </div>
 
 <div class="academy-filters">
     <div class="academy-search-wrap">
         <svg class="search-icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <form action="{{ route('dealer.academy.index') }}" method="GET">
-            <input name="search" class="academy-search-input" placeholder="Search resources..." value="{{ request('search') }}">
+            <input name="search" class="academy-search-input" placeholder="{{ __('panel.academy.search_placeholder') }}" value="{{ request('search') }}">
         </form>
     </div>
     
     <div class="category-tabs">
-        <a href="{{ route('dealer.academy.index') }}" class="category-tab {{ !request('category') ? 'active' : '' }}">All Modules</a>
+        <a href="{{ route('dealer.academy.index') }}" class="category-tab {{ !request('category') ? 'active' : '' }}">{{ __('panel.academy.all_modules') }}</a>
         @foreach($categories as $cat)
             <a href="{{ route('dealer.academy.index', ['category' => $cat]) }}" class="category-tab {{ request('category') == $cat ? 'active' : '' }}">{{ $cat }}</a>
         @endforeach
@@ -273,7 +273,7 @@
                 <div style="display:flex; flex-direction:column; gap:4px">
                     <span style="font-size:0.75rem; font-weight:700; color:var(--gray-400); display:flex; align-items:center; gap:4px; text-transform: uppercase;">
                         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        Self-paced
+                        {{ __('panel.academy.self_paced') }}
                     </span>
                     <div style="width: 100px; height: 4px; background: var(--gray-100); border-radius: 2px; overflow: hidden;">
                         <div style="width: 0%; height: 100%; background: var(--primary-500);"></div>
@@ -283,24 +283,24 @@
                 @if($it->content_type === 'video')
                     @if($it->external_link)
                         <button class="btn-learn" onclick="openVideoModal('{{ $it->external_link }}', '{{ addslashes($it->title) }}')">
-                            Watch Now <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            {{ __('panel.academy.watch_now') }} <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
                     @elseif($it->file_path)
                         <a href="{{ \App\Support\PublicMedia::url($it->file_path) }}" target="_blank" class="btn-learn">
-                            Watch Video <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            {{ __('panel.academy.watch_video') }} <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </a>
                     @endif
                 @elseif($it->content_type === 'pdf')
                     <a href="{{ \App\Support\PublicMedia::url($it->file_path) }}" target="_blank" class="btn-learn">
-                        Read PDF <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        {{ __('panel.academy.read_pdf') }} <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </a>
                 @elseif($it->content_type === 'link')
                     <a href="{{ $it->external_link }}" target="_blank" class="btn-learn">
-                        Visit Link <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        {{ __('panel.academy.visit_link') }} <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </a>
                 @else
                     <button class="btn-learn" onclick="viewArticle(@json($it))">
-                        Read Article <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        {{ __('panel.academy.read_article') }} <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </button>
                 @endif
             </div>
@@ -309,9 +309,9 @@
     @empty
     <div class="card" style="grid-column: span 3; text-align:center; padding:5rem; background: #f9fafb; border-style: dashed;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
-        <h3 class="fw-800" style="color:var(--gray-900)">No resources found</h3>
-        <p class="text-muted">Try adjusting your search or category filters.</p>
-        <a href="{{ route('dealer.academy.index') }}" class="btn btn--primary mt-4">View All Modules</a>
+        <h3 class="fw-800" style="color:var(--gray-900)">{{ __('panel.academy.no_resources') }}</h3>
+        <p class="text-muted">{{ __('panel.academy.no_resources_sub') }}</p>
+        <a href="{{ route('dealer.academy.index') }}" class="btn btn--primary mt-4">{{ __('panel.academy.view_all_modules') }}</a>
     </div>
     @endforelse
 </div>
@@ -340,7 +340,7 @@
         </div>
         <div id="articleContent" class="text-muted" style="line-height:1.8; white-space: pre-wrap; font-size: 1.05rem; color: var(--gray-600);"></div>
         <div class="mt-5 text-right">
-            <button class="btn btn--primary" onclick="closeArticleModal()" style="padding: 0.75rem 2rem; border-radius: 12px;">Got it, thanks!</button>
+            <button class="btn btn--primary" onclick="closeArticleModal()" style="padding: 0.75rem 2rem; border-radius: 12px;">{{ __('panel.academy.got_it') }}</button>
         </div>
     </div>
 </div>

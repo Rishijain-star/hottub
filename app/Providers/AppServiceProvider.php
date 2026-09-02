@@ -2,11 +2,17 @@
 
 namespace App\Providers;
 
+use App\Services\CurrencyService;
+use App\Services\LocalizationService;
 use App\Models\DealerAcademyContent;
 use App\Models\Lead;
 use App\Models\Notification;
+use App\Models\PaymentProcessorSetting;
 use App\Models\SiteSetting;
 use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -28,6 +34,18 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // URL::forceScheme('https');
+
+        app()->setFallbackLocale(config('localization.fallback_locale', 'en_GB'));
+
+        RateLimiter::for('registration', function (Request $request) {
+            return Limit::perHour(20)->by((string) $request->ip());
+        });
+
+        RateLimiter::for('registration-otp', function (Request $request) {
+            return Limit::perHour(15)->by((string) $request->ip());
+        });
+
+        $this->syncStripeKeysFromEnvToPaymentSettings();
 
         // Share business details & social links with all views (footer, invoices, etc.).
         // Guard with Schema check so migrations can run without a populated table.
@@ -75,6 +93,15 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('siteBusinessDetails', $cache['businessDetails']);
             $view->with('siteSocialLinks', $cache['socialLinks']);
+
+            $localization = app(LocalizationService::class);
+            $currency = app(CurrencyService::class);
+            $view->with('currentLocale', $localization->currentLocale());
+            $view->with('currentCurrency', $currency->currentCurrency());
+            $view->with('availableLocales', $localization->availableLocales());
+            $view->with('availableCurrencies', config('localization.currencies', []));
+            $view->with('promoSavingsFormatted', $currency->format(3000));
+            $view->with('googleTranslateLang', $localization->googleTranslateTarget());
         });
 
         Lead::created(function (Lead $lead): void {
@@ -115,6 +142,54 @@ class AppServiceProvider extends ServiceProvider
         DealerAcademyContent::updated(function (DealerAcademyContent $content): void {
             $this->notifyDealersForAcademyUpdate($content->id, 'Dealer academy content has been updated.');
         });
+    }
+
+    /**
+     * Copy Stripe keys from .env into payment_processor_settings when DB fields are empty.
+     */
+    private function syncStripeKeysFromEnvToPaymentSettings(): void
+    {
+        try {
+            if (! Schema::hasTable('payment_processor_settings')) {
+                return;
+            }
+
+            $publishable = config('services.stripe.key');
+            $secret = config('services.stripe.secret');
+            if (! filled($publishable) || ! filled($secret)) {
+                return;
+            }
+
+            $settings = PaymentProcessorSetting::query()->first();
+            if (! $settings) {
+                PaymentProcessorSetting::create([
+                    'active_processor' => 'stripe',
+                    'mode' => str_starts_with($secret, 'sk_live_') ? 'live' : 'test',
+                    'stripe_publishable_key' => $publishable,
+                    'stripe_secret_key' => $secret,
+                    'stripe_webhook_secret' => config('services.stripe.webhook_secret'),
+                ]);
+
+                return;
+            }
+
+            $updates = [];
+            if (! filled($settings->stripe_publishable_key)) {
+                $updates['stripe_publishable_key'] = $publishable;
+            }
+            if (! filled($settings->stripe_secret_key)) {
+                $updates['stripe_secret_key'] = $secret;
+            }
+            if (! filled($settings->stripe_webhook_secret) && filled(config('services.stripe.webhook_secret'))) {
+                $updates['stripe_webhook_secret'] = config('services.stripe.webhook_secret');
+            }
+
+            if ($updates !== []) {
+                $settings->update($updates);
+            }
+        } catch (\Throwable $e) {
+            // Do not block app boot if DB is unavailable during deploy/migrate.
+        }
     }
 
     private function notifyDealersForAcademyUpdate(int $contentId, string $message): void

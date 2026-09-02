@@ -1,25 +1,25 @@
 @extends('layouts.customer')
-@section('title', 'Messages – Customer Panel')
+@section('title', __('panel.messages.title').' – '.__('panel.customer_title'))
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Messages</h1>
-        <p class="panel-page-sub">Communications about your hot tub</p>
+        <h1 class="panel-page-title">{{ __('panel.messages.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.customer_panel.sub_customer') }}</p>
     </div>
 </div>
 
 <div class="card" style="padding: 0; display: flex; height: 600px; overflow: hidden; border-radius: 12px;">
     <div style="width: 300px; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; background: #f9fafb;">
-        <div class="chat-sidebar-head">Inbox</div>
+        <div class="chat-sidebar-head">{{ __('panel.messages.inbox') }}</div>
         <div class="chat-sidebar-toolbar">
-            <input type="search" id="chat-user-search" class="form-input chat-search-input" placeholder="Search by name…" autocomplete="off" aria-label="Search conversations by name">
+            <input type="search" id="chat-user-search" class="form-input chat-search-input" placeholder="{{ __('panel.messages.search_name') }}" autocomplete="off" aria-label="{{ __('panel.messages.search_name_aria') }}">
             <div class="chat-filter-row">
-                <button type="button" id="chat-filter-all" class="chat-filter-btn is-active" aria-pressed="true">All</button>
-                <button type="button" id="chat-filter-unread" class="chat-filter-btn" aria-pressed="false">Unread</button>
+                <button type="button" id="chat-filter-all" class="chat-filter-btn is-active" aria-pressed="true">{{ __('panel.messages.all') }}</button>
+                <button type="button" id="chat-filter-unread" class="chat-filter-btn" aria-pressed="false">{{ __('panel.messages.unread') }}</button>
             </div>
         </div>
         <div id="conversations-list" style="flex-grow: 1; overflow-y: auto;">
-            <div class="chat-conv-empty">Loading…</div>
+            <div class="chat-conv-empty">{{ __('panel.messages.loading') }}</div>
         </div>
     </div>
 
@@ -31,21 +31,21 @@
         
         <div id="messages-container" style="flex-grow: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
             <div style="height: 100%; display: flex; align-items: center; justify-content: center; color: #9ca3af; text-align: center; padding: 2rem;">
-                Select a message to start chatting
+                {{ __('panel.messages.select_message_to_chat') }}
             </div>
         </div>
 
         <div id="chat-input-container" style="padding: 1.25rem; border-top: 1px solid #e5e7eb; display: none;">
             <div id="image-preview-wrap" style="display:none;margin-bottom:0.5rem;padding:0.5rem;border:1px dashed #cbd5e1;border-radius:8px;position:relative;">
                 <img id="image-preview-img" src="" alt="" style="max-height:120px;max-width:100%;border-radius:6px;display:block;">
-                <button type="button" id="image-preview-clear" class="btn btn--ghost btn--sm" style="margin-top:0.35rem;">Remove image</button>
+                <button type="button" id="image-preview-clear" class="btn btn--ghost btn--sm" style="margin-top:0.35rem;">{{ __('panel.messages.remove_image') }}</button>
             </div>
             <form id="message-form" style="display: flex; gap: 0.75rem; align-items:center;">
                 <button type="button" id="btn-attach" class="btn btn--ghost" aria-label="Attach image" title="Attach image" style="border-radius:50%;width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-8.49 8.49a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a1.5 1.5 0 1 1-2.12-2.12l8.14-8.13" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
                 <input type="file" id="chat-image-input" accept="image/*" style="display:none;">
-                <input type="text" id="message-input" class="form-input" placeholder="Type a message…" style="border-radius: 24px; padding-left: 1.25rem; padding-right: 1.25rem; flex: 1;">
+                <input type="text" id="message-input" class="form-input" placeholder="{{ __('panel.messages.type_message') }}" style="border-radius: 24px; padding-left: 1.25rem; padding-right: 1.25rem; flex: 1;">
                 <button type="submit" class="btn btn--primary" style="border-radius: 50%; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                 </button>
@@ -62,8 +62,21 @@
 </style>
 @endsection
 
+@php
+    $messagesPanelI18n = [
+        'noMessages' => __('panel.messages.no_messages'),
+        'loading' => __('panel.messages.loading'),
+        'noUnread' => __('panel.messages.no_unread_conversations'),
+        'noSearch' => __('panel.messages.no_search_match'),
+        'noConversations' => __('panel.messages.no_conversations'),
+        'sendFailed' => __('panel.messages.send_failed'),
+    ];
+@endphp
+
 @section('scripts')
 <script>
+const panelI18n = @json($messagesPanelI18n);
+
 let currentUserId = null;
 let pollInterval = null;
 let allConversations = [];
@@ -170,13 +183,13 @@ function renderConversationList() {
     updateNavUnreadBadge();
 
     if (!allConversations || allConversations.length === 0) {
-        listEl.innerHTML = '<div class="chat-conv-empty">No messages yet.</div>';
+        listEl.innerHTML = '<div class="chat-conv-empty">' + panelI18n.noConversations + '</div>';
         return;
     }
     if (filtered.length === 0) {
         const msg = chatUnreadOnly
-            ? 'No unread conversations.'
-            : (chatSearchQuery.trim() ? 'No conversations match your search.' : 'No conversations.');
+            ? panelI18n.noUnread
+            : (chatSearchQuery.trim() ? panelI18n.noSearch : panelI18n.noConversations);
         listEl.innerHTML = '<div class="chat-conv-empty">' + escapeHtml(msg) + '</div>';
         return;
     }
@@ -197,7 +210,7 @@ function renderConversationList() {
             ? '<span class="chat-conv-unread-badge' + badgeLg + '" aria-label="' + n + ' unread">' + n + '</span>'
             : '';
 
-        const lastPreview = (c.last_message && String(c.last_message).trim()) ? c.last_message : 'No messages';
+        const lastPreview = (c.last_message && String(c.last_message).trim()) ? c.last_message : panelI18n.noMessages;
         const lastTime = c.last_message_time || '';
 
         const nameCls = 'chat-conv-name text-sm text-dark ' + (hasUnread ? 'chat-conv-name--unread' : '');
@@ -303,7 +316,7 @@ document.getElementById('message-form').onsubmit = async function (e) {
         await loadMessages();
         await loadConversations();
     } else {
-        alert(data.msg || data.error || 'Unable to send message.');
+        alert(data.msg || data.error || panelI18n.sendFailed);
     }
 };
 

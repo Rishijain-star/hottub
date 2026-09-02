@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('title', 'Hot Tub Buyer - Expert Reviews & Guides')
-@section('meta_description', 'Find your perfect hot tub. Expert reviews, verified dealers, price comparisons and comprehensive guides.')
+@section('title', __('home.title'))
+@section('meta_description', __('home.meta_description'))
 
 @section('styles')
     @php
@@ -38,29 +38,29 @@
         <div class="hero__body">
             <span class="hero__badge">
                 <span class="hero__badge-dot"></span>
-                Expert Reviews &amp; Verified Dealers
+                {{ __('home.hero_badge') }}
             </span>
             <h1 class="hero__title">
-                <span class="hero__title-line">Find Your Perfect</span>
-                <span class="hero__title-line">Hot Tub Or Wellness</span>
-                <span class="hero__title-line">Products</span>
+                <span class="hero__title-line">{{ __('home.hero_title_1') }}</span>
+                <span class="hero__title-line">{{ __('home.hero_title_2') }}</span>
+                <span class="hero__title-line">{{ __('home.hero_title_3') }}</span>
             </h1>
             <div class="hero__actions">
                 <a href="{{ route('hot-tubs') }}" class="btn btn--primary btn--pill btn--lg">
-                    Browse Hot Tubs
+                    {{ __('home.hero_browse_hot_tubs') }}
                 </a>
                 <a href="{{ route('swim-spas') }}" class="btn btn--ghost btn--pill btn--lg">
-                    Explore Swim Spas
+                    {{ __('home.hero_explore_swim_spas') }}
                 </a>
             </div>
         </div>
         @if($heroSlides->count() > 1)
-            <button class="hero__nav-btn hero__nav-btn--prev" id="heroPrevBtn" type="button" aria-label="Previous image">
+            <button class="hero__nav-btn hero__nav-btn--prev" id="heroPrevBtn" type="button" aria-label="{{ __('home.hero_prev') }}">
                 <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
                     <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
-            <button class="hero__nav-btn hero__nav-btn--next" id="heroNextBtn" type="button" aria-label="Next image">
+            <button class="hero__nav-btn hero__nav-btn--next" id="heroNextBtn" type="button" aria-label="{{ __('home.hero_next') }}">
                 <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
                     <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -74,29 +74,26 @@
 ════════════════════════════════════════════ --}}
 <div class="trust-bar trust-bar--home">
     <div class="trust-bar__inner">
-        <p class="trust-bar__text">
-            Expert Reviews, Comprehensive Guides, And Competitive Quotes From Trusted UK Dealers.
-            Compare All Major Brands And Models In One Place.
-        </p>
+        <p class="trust-bar__text">{{ __('home.trust_text') }}</p>
         <div class="trust-bar__pills">
             <span class="trust-pill">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"/>
                 </svg>
-                Expert Reviews
+                {{ __('home.trust_expert_reviews') }}
             </span>
             <span class="trust-pill">
                 <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
                     <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0Z" stroke="currentColor" stroke-width="2"/>
                 </svg>
-                Verified Dealer Network
+                {{ __('home.trust_verified_dealers') }}
             </span>
             <span class="trust-pill">
                 <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
                     <path d="M12 8v4l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
-                Free Expert Guides
+                {{ __('home.trust_free_guides') }}
             </span>
         </div>
     </div>
@@ -109,14 +106,14 @@
 <section class="potm home-animate home-defer">
     <div class="potm__grid">
         <div class="potm__text">
-            <p class="potm__label">Product of the Month</p>
+            <p class="potm__label">{{ __('home.potm_label') }}</p>
             <h2 class="potm__title">{{ $potm->title }}</h2>
             <p class="potm__desc">
-                {{ $potm->description ?: ($potm->hotTub ? $potm->hotTub->description : 'Expertly reviewed for performance, luxury, and lasting quality.') }}
+                {{ $potm->description ?: ($potm->hotTub ? $potm->hotTub->description : __('home.potm_fallback_desc')) }}
             </p>
             @if($potm->hotTub)
             <a href="{{ route('hot-tubs.detail', $potm->hotTub->slug) }}" class="btn btn--outline btn--pill btn--sm">
-                View Product Details
+                {{ __('home.view_product_details') }}
             </a>
             @endif
         </div>
@@ -153,8 +150,8 @@
 ════════════════════════════════════════════ --}}
 <section class="why home-animate home-defer">
     <div class="container">
-        <h2 class="section-title text-center">Why Choose Hot Tub Buyer?</h2>
-        <p class="section-subtitle text-center">Your Complete Resource For Hot Tub Research And Purchasing</p>
+        <h2 class="section-title text-center">{{ __('home.why_title') }}</h2>
+        <p class="section-subtitle text-center">{{ __('home.why_subtitle') }}</p>
 
         <div class="why__grid">
             <div class="why-card">
@@ -164,8 +161,8 @@
                         <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                     </svg>
                 </div>
-                <h4>Expert Reviews</h4>
-                <p>In-depth evaluations with detailed scoring across 8 key metrics including jets, seats, features, energy efficiency and build quality.</p>
+                <h4>{{ __('home.why_expert_title') }}</h4>
+                <p>{{ __('home.why_expert_desc') }}</p>
             </div>
 
             <div class="why-card">
@@ -177,8 +174,8 @@
                         <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
                     </svg>
                 </div>
-                <h4>Tiered System</h4>
-                <p>Clear categorisation by budget, size and purpose. Comparing entry-level, mid-range and premium models fairly and accurately.</p>
+                <h4>{{ __('home.why_tier_title') }}</h4>
+                <p>{{ __('home.why_tier_desc') }}</p>
             </div>
 
             <div class="why-card">
@@ -187,8 +184,8 @@
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" stroke="currentColor" stroke-width="1.8"/>
                     </svg>
                 </div>
-                <h4>Get Quotes</h4>
-                <p>Receive competitive quotes from certified local dealers. Compare prices, features and installation packages hassle-free.</p>
+                <h4>{{ __('home.why_quotes_title') }}</h4>
+                <p>{{ __('home.why_quotes_desc') }}</p>
             </div>
 
             <div class="why-card">
@@ -199,8 +196,8 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.8"/>
                     </svg>
                 </div>
-                <h4>Trusted Network</h4>
-                <p>Only approved dealers within our verified customer network. We add only quality dealers that you can trust completely.</p>
+                <h4>{{ __('home.why_trusted_title') }}</h4>
+                <p>{{ __('home.why_trusted_desc') }}</p>
             </div>
         </div>
     </div>
@@ -211,8 +208,8 @@
 ════════════════════════════════════════════ --}}
 <section class="featured home-animate home-defer">
     <div class="featured__heading text-center">
-        <h2 class="featured__title">Featured Products</h2>
-        <p class="featured__sub">Top-Rated Models Across All Price Ranges</p>
+        <h2 class="featured__title">{{ __('home.featured_title') }}</h2>
+        <p class="featured__sub">{{ __('home.featured_sub') }}</p>
     </div>
 
     <div class="featured__slider-container">
@@ -242,7 +239,7 @@
                         if ($featuredInfo && $featuredInfo->image_url) {
                             $img = \App\Support\PublicMedia::url($featuredInfo->image_url) ?: $img;
                         }
-                        $badgeText = $featuredInfo ? $featuredInfo->title : 'Top Rated';
+                        $badgeText = $featuredInfo ? $featuredInfo->title : __('home.top_rated');
                     @endphp
                     <div class="featured__slide">
                         @include('components.hot-tub-card', ['it' => $it])
@@ -272,7 +269,7 @@
             }
             if (mb_strlen($mark) >= 2) break;
         }
-        $tag = $b->country_of_origin ? ('Made in ' . $b->country_of_origin) : 'Premium Brand';
+        $tag = $b->country_of_origin ? __('home.made_in', ['country' => $b->country_of_origin]) : __('home.premium_brand');
         return [
             'name' => $name,
             'tag' => $tag,
@@ -286,10 +283,10 @@
 @if($brandSlides->isNotEmpty())
 <section class="brands home-animate home-defer">
     <div class="container">
-        <h2 class="section-title text-center">Premium Brands We Feature</h2>
-        <p class="section-subtitle text-center">Industry Leaders In Hot Tub Innovation And Quality</p>
+        <h2 class="section-title text-center">{{ __('home.brands_title') }}</h2>
+        <p class="section-subtitle text-center">{{ __('home.brands_sub') }}</p>
 
-        <div class="brands__slider" aria-label="Premium brands">
+        <div class="brands__slider" aria-label="{{ __('home.brands_aria') }}">
             <div class="brands__track">
                 @foreach($brandLoop as $brand)
                     <a href="{{ !empty($brand['slug']) ? route('brands.detail', $brand['slug']) : route('brands') }}" class="brand-tile brand-tile--logo">
@@ -312,7 +309,7 @@
 
         <div class="text-center">
             <a href="{{ route('brands') }}" class="btn btn--outline btn--pill">
-                Explore All Brands &amp; Technologies
+                {{ __('home.explore_brands') }}
             </a>
         </div>
     </div>
@@ -327,8 +324,8 @@
     <div class="guides__overlay"></div>
     <div class="guides__inner">
         <div class="guides__heading">
-            <h2>Expert Guides &amp; Resources</h2>
-            <p>Everything You Need To Know About Hot Tub Ownership</p>
+            <h2>{{ __('home.guides_title') }}</h2>
+            <p>{{ __('home.guides_sub') }}</p>
         </div>
         <div class="guides__cards">
             <a href="{{ route('care-guide') }}" class="guide-card">
@@ -339,8 +336,8 @@
                     </svg>
                 </div>
                 <div class="guide-card__text">
-                    <strong>Complete Care Guide</strong>
-                    <span>Daily, Weekly &amp; Monthly Maintenance Schedules. Learn The 5-Step Hot Tub Care Protocol Step By Step.</span>
+                    <strong>{{ __('home.guide_care_title') }}</strong>
+                    <span>{{ __('home.guide_care_desc') }}</span>
                 </div>
                 <span class="guide-card__arrow">→</span>
             </a>
@@ -354,8 +351,8 @@
                     </svg>
                 </div>
                 <div class="guide-card__text">
-                    <strong>FAQ</strong>
-                    <span>Answers To Your Most Common Hot Tub Questions. Installation, Running Costs And Health Benefits.</span>
+                    <strong>{{ __('home.guide_faq_title') }}</strong>
+                    <span>{{ __('home.guide_faq_desc') }}</span>
                 </div>
                 <span class="guide-card__arrow">→</span>
             </a>
@@ -367,8 +364,8 @@
                     </svg>
                 </div>
                 <div class="guide-card__text">
-                    <strong>Brand Technologies</strong>
-                    <span>Discover Proprietary Technologies From Each Approved Brand. Filtration, Heating, Jet And Sanitation Systems.</span>
+                    <strong>{{ __('home.guide_brands_title') }}</strong>
+                    <span>{{ __('home.guide_brands_desc') }}</span>
                 </div>
                 <span class="guide-card__arrow">→</span>
             </a>
@@ -381,7 +378,7 @@
 ════════════════════════════════════════════ --}}
 <section class="stats home-animate home-defer">
     <div class="container">
-        <h2 class="stats__title">Our Success Stories</h2>
+        <h2 class="stats__title">{{ __('home.stats_title') }}</h2>
         <div class="stats__grid">
             <div class="stat-item">
                 <span class="stat-item__number">50+</span>
@@ -391,7 +388,7 @@
                         <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
                     </svg>
                 </div>
-                <span class="stat-item__label">Verified Dealers</span>
+                <span class="stat-item__label">{{ __('home.stat_dealers') }}</span>
             </div>
             <div class="stat-item">
                 <span class="stat-item__number">10,000+</span>
@@ -402,7 +399,7 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="white" stroke-width="1.8"/>
                     </svg>
                 </div>
-                <span class="stat-item__label">Happy Customers</span>
+                <span class="stat-item__label">{{ __('home.stat_customers') }}</span>
             </div>
             <div class="stat-item">
                 <span class="stat-item__number">4.8</span>
@@ -411,7 +408,7 @@
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"/>
                     </svg>
                 </div>
-                <span class="stat-item__label">Average Rating</span>
+                <span class="stat-item__label">{{ __('home.stat_rating') }}</span>
             </div>
         </div>
     </div>
@@ -423,10 +420,10 @@
 <section class="cta-home home-animate home-defer">
     <div class="cta-home__layout">
         <div class="cta-home__text">
-            <h2>Ready To Find Your Perfect Hot Tub?</h2>
-            <p>Get Free Expert Guides From Local Approved Dealers Today. Compare Prices, Features, And Installation Packages.</p>
+            <h2>{{ __('home.cta_title') }}</h2>
+            <p>{{ __('home.cta_desc') }}</p>
             <a href="{{ route('hot-tubs') }}" class="btn btn--outline btn--pill">
-                Start Your Search Now
+                {{ __('home.cta_button') }}
             </a>
         </div>
         <div class="cta-home__img">
@@ -436,7 +433,7 @@
             --}}
             <img
                 src="{{ !empty($ctaImageUrl) ? e($ctaImageUrl) : asset('images/hot-tub-cta-fallback.svg') }}"
-                alt="Hot Tub"
+                alt="{{ __('home.cta_alt') }}"
                 loading="lazy"
                 onerror="this.onerror=null;this.src='{{ asset('images/hot-tub-cta-fallback.svg') }}';"
                 style="max-width:100%;height:auto;object-fit:contain;"
@@ -452,11 +449,11 @@
 <section class="potm home-animate home-defer" style="margin-top:2rem;">
     <div class="potm__grid">
         <div class="potm__text">
-            <p class="potm__label">Delivery of the Week</p>
+            <p class="potm__label">{{ __('home.dotw_label') }}</p>
             <h2 class="potm__title">{{ $dotw->title }}</h2>
-            <p class="potm__desc">{{ $dotw->description ?: ($dotw->hotTub?->description ?? 'Celebrating outstanding deliveries from our dealer network.') }}</p>
+            <p class="potm__desc">{{ $dotw->description ?: ($dotw->hotTub?->description ?? __('home.dotw_fallback_desc')) }}</p>
             @if($dotw->hotTub)
-            <a href="{{ route('hot-tubs.detail', $dotw->hotTub->slug) }}" class="btn btn--outline btn--pill btn--sm">View Product</a>
+            <a href="{{ route('hot-tubs.detail', $dotw->hotTub->slug) }}" class="btn btn--outline btn--pill btn--sm">{{ __('home.view_product') }}</a>
             @endif
         </div>
         <div class="potm__img">

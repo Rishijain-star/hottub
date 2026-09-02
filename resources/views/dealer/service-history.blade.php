@@ -1,37 +1,37 @@
 @extends('layouts.dealer')
-@section('title', 'Service History – Dealer Panel')
+@section('title', __('panel.service_history.title').' - '.__('panel.dealer_title'))
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Service History</h1><p class="panel-page-sub">View all completed service checklists and customer signatures</p></div>
+    <div><h1 class="panel-page-title">{{ __('panel.service_history.title') }}</h1><p class="panel-page-sub">{{ __('panel.service_history.sub') }}</p></div>
 </div>
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
     <form method="GET" action="{{ route('dealer.service-history') }}" class="panel-filter-form panel-filter-form--2">
         <div class="form-group mb-0">
-            <label class="form-label">Search</label>
-            <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
+            <label class="form-label">{{ __('panel.common.search') }}</label>
+            <input type="text" name="search" class="form-input" placeholder="{{ __('panel.common.search_customer') }}" value="{{ request('search') }}">
         </div>
         <div class="form-group mb-0 panel-filter-actions-col">
             <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
             <div class="panel-filter-actions">
-            <button type="submit" class="btn btn--primary">Filter</button>
-            <a href="{{ route('dealer.service-history') }}" class="btn btn--ghost">Clear</a>
+            <button type="submit" class="btn btn--primary">{{ __('panel.common.filter') }}</button>
+            <a href="{{ route('dealer.service-history') }}" class="btn btn--ghost">{{ __('panel.common.clear') }}</a>
             </div>
         </div>
     </form>
 </div>
 
-<div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Digital Service Checklists</div>
+<div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">{{ __('panel.service_history.digital_checklists') }}</div>
 <div class="card" style="padding:0; margin-bottom: 2rem;">
     <table class="table">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Checklist</th>
-                <th>Notes</th>
-                <th>Status</th>
+                <th>{{ __('panel.service_history.date') }}</th>
+                <th>{{ __('panel.service_history.customer') }}</th>
+                <th>{{ __('panel.service_history.checklist') }}</th>
+                <th>{{ __('panel.service_history.notes') }}</th>
+                <th>{{ __('panel.service_history.status') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -46,7 +46,7 @@
                     <div style="display:flex; flex-wrap:wrap; gap:4px">
                         @foreach($item->checklist_data as $key => $val)
                             @if($val)
-                                <span class="badge" style="font-size:10px;padding:2px 6px">{{ ucwords(str_replace('_',' ',$key)) }}</span>
+                                <span class="badge" style="font-size:10px;padding:2px 6px">{{ \App\Support\PanelTranslator::interestLabel($key) }}</span>
                             @endif
                         @endforeach
                     </div>
@@ -54,32 +54,32 @@
                 <td style="max-width:200px" class="text-sm">{{ $item->dealer_notes ?? '—' }}</td>
                 <td>
                     @if($item->customer_signature)
-                        <span class="badge badge--success">Signed</span>
+                        <span class="badge badge--success">{{ __('panel.service_history.signed') }}</span>
                     @else
-                        <span class="badge badge--warning">Pending Signature</span>
+                        <span class="badge badge--warning">{{ __('panel.service_history.pending_signature') }}</span>
                     @endif
                 </td>
             </tr>
             @empty
-            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No service records found.</td></tr>
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">{{ __('panel.common.no_service_records') }}</td></tr>
             @endforelse
         </tbody>
     </table>
     @if($history->hasPages())
-        <div style="padding:1rem">{{ $history->links('components.pagination') }}</div>
+        <div style="padding:1rem">{{ $history->appends(request()->except('checklist_page'))->links('components.pagination') }}</div>
     @endif
 </div>
 
-<div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">Service & Part Requests</div>
+<div class="fw-800 mb-2" style="font-size:1.125rem;color:var(--gray-900)">{{ __('panel.service_history.service_part_requests') }}</div>
 <div class="card" style="padding:0">
     <table class="table">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Request</th>
-                <th>Message</th>
-                <th>Status</th>
+                <th>{{ __('panel.service_history.date') }}</th>
+                <th>{{ __('panel.service_history.customer') }}</th>
+                <th>{{ __('panel.service_history.request') }}</th>
+                <th>{{ __('panel.service_history.message') }}</th>
+                <th>{{ __('panel.service_history.status') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -92,15 +92,15 @@
                 </td>
                 <td>
                     <div class="fw-700 text-dark">{{ $req->product_name }}</div>
-                    <div class="text-sm text-muted">{{ ucwords($req->type) }}</div>
+                    <div class="text-sm text-muted">{{ \App\Support\PanelTranslator::interestLabel($req->type) }}</div>
                 </td>
                 <td style="max-width:200px" class="text-sm">
-                    <button class="btn btn--ghost btn--xs" onclick="viewHistoryDetails({{ json_encode($req) }})">View Details</button>
+                    <button class="btn btn--ghost btn--xs" onclick="viewHistoryDetails({{ json_encode($req) }})">{{ __('panel.service_history.view_details') }}</button>
                 </td>
-                <td><span class="badge badge--success">Completed</span></td>
+                <td><span class="badge badge--success">{{ __('panel.service_history.completed') }}</span></td>
             </tr>
             @empty
-            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No completed requests.</td></tr>
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">{{ __('panel.service_history.no_completed_requests') }}</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -115,12 +115,12 @@
         <button type="button" class="icon-btn" 
                 style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
                 onclick="document.getElementById('historyModal').style.display='none'">&times;</button>
-        <h3 id="historyTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800;">Service History Details</h3>
+        <h3 id="historyTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800;">{{ __('panel.service_history.service_history_details') }}</h3>
         
         <div id="historyBody"></div>
 
         <div class="modal-actions" style="justify-content: flex-end; margin-top: 20px;">
-            <button type="button" class="btn btn--ghost btn--sm" onclick="document.getElementById('historyModal').style.display='none'">Close</button>
+            <button type="button" class="btn btn--ghost btn--sm" onclick="document.getElementById('historyModal').style.display='none'">{{ __('panel.common.close') }}</button>
         </div>
     </div>
 </div>
@@ -163,31 +163,31 @@
     }
 
     function viewHistoryDetails(req) {
-        document.getElementById('historyTitle').textContent = 'Service History: ' + req.product_name;
+        document.getElementById('historyTitle').textContent = @json(__('panel.overview.service_history_for', ['name' => '___NAME___'])).replace('___NAME___', req.product_name);
         const data = req.checklist_data || {};
         document.getElementById('historyBody').innerHTML = `
             <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
-                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Work Checklist:</h4>
+                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">{{ __('panel.overview.work_checklist') }}</h4>
                 <div class="text-sm text-muted">
-                    <div style="margin-bottom:5px"><strong>Type:</strong> ${data.service_type || 'N/A'}</div>
-                    <div style="margin-bottom:5px"><strong>Date:</strong> ${data.service_date || 'N/A'}</div>
-                    <div style="margin-bottom:5px"><strong>Summary:</strong> ${data.work_summary || 'N/A'}</div>
-                    <div style="margin-bottom:5px"><strong>Parts:</strong> ${data.parts_replaced || 'None'}</div>
-                    <div style="margin-bottom:5px"><strong>Dealer Notes:</strong> ${data.notes || 'None'}</div>
+                    <div style="margin-bottom:5px"><strong>{{ __('panel.overview.type') }}</strong> ${data.service_type || '{{ __('panel.overview.n_a') }}'}</div>
+                    <div style="margin-bottom:5px"><strong>{{ __('panel.overview.date') }}:</strong> ${data.service_date || '{{ __('panel.overview.n_a') }}'}</div>
+                    <div style="margin-bottom:5px"><strong>{{ __('panel.overview.summary') }}</strong> ${data.work_summary || '{{ __('panel.overview.n_a') }}'}</div>
+                    <div style="margin-bottom:5px"><strong>{{ __('panel.overview.parts') }}</strong> ${data.parts_replaced || '{{ __('panel.overview.none') }}'}</div>
+                    <div style="margin-bottom:5px"><strong>{{ __('panel.overview.dealer_notes') }}</strong> ${data.notes || '{{ __('panel.overview.none') }}'}</div>
                 </div>
             </div>
             <div style="margin-bottom:15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
-                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Customer Feedback:</h4>
-                <div class="text-sm text-muted">${req.customer_review || 'No review provided.'}</div>
+                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">{{ __('panel.overview.customer_feedback') }}</h4>
+                <div class="text-sm text-muted">${req.customer_review || '{{ __('panel.overview.no_review_provided') }}'}</div>
             </div>
             <div>
-                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">Customer Signature:</h4>
+                <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:var(--gray-900)">{{ __('panel.overview.customer_signature') }}</h4>
                 ${req.customer_signature ? `
                     <div style="cursor:pointer;" onclick="openImagePreview(${JSON.stringify(publicMediaUrlClient(req.customer_signature))})">
-                        <img src=${JSON.stringify(publicMediaUrlClient(req.customer_signature))} alt="Signature" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
-                        <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">Click to enlarge</p>
+                        <img src=${JSON.stringify(publicMediaUrlClient(req.customer_signature))} alt="{{ __('panel.overview.customer_signature') }}" style="max-width: 200px; border: 1px solid #eee; border-radius: 4px;"/>
+                        <p style="font-size:10px; color:var(--gray-500); margin-top:4px;">{{ __('panel.overview.click_to_enlarge') }}</p>
                     </div>
-                ` : '<div class="text-sm text-muted">N/A</div>'}
+                ` : '<div class="text-sm text-muted">{{ __('panel.overview.n_a') }}</div>'}
             </div>
         `;
         document.getElementById('historyModal').style.display = 'flex';

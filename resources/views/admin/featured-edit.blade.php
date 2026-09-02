@@ -1,9 +1,9 @@
 @extends('layouts.admin')
-@section('title', 'Edit Featured Content – Admin Panel')
+@section('title', __('panel.admin.pages.featured_edit.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Edit Featured Content</h1><p class="panel-page-sub">{{ $item->title ?? '—' }}</p></div>
-    <a href="{{ route('admin.featured') }}" class="btn">Back</a>
+    <div><h1 class="panel-page-title">{{ __('panel.admin.pages.featured_edit.title') }}</h1><p class="panel-page-sub">{{ $item->title ?? '—' }}</p></div>
+    <a href="{{ route('admin.featured') }}" class="btn">{{ __('panel.admin.common.back') }}</a>
 </div>
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
 @if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif

@@ -1,0 +1,3547 @@
+<?php
+/**
+ * Plugin Name: Brnd Admin Suite
+ * Description: Custom login and CRM-style dashboard for bookings, leads, users, services, support, and automations.
+ * Version: 1.0.0
+ * Author: Brnd
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+define( 'GIDA_ADMIN_SUITE_VERSION', '1.0.0' );
+define( 'GIDA_ADMIN_SUITE_FILE', __FILE__ );
+define( 'GIDA_ADMIN_SUITE_DIR', plugin_dir_path( __FILE__ ) );
+define( 'GIDA_ADMIN_SUITE_URL', plugin_dir_url( __FILE__ ) );
+define( 'GIDA_RAZORPAY_KEY_ID', 'rzp_live_SlI7GpHiGZ2Yo4' );
+define( 'GIDA_RAZORPAY_KEY_SECRET', 'MV0ZM7cRlUxRh7XSc8Eloh7F' );
+/** Approved WhatsApp Content Template SID ({{1}} = customer name); override per trigger via option gida_twilio_template_sid_map. */
+define( 'GIDA_TWILIO_WP_CONTENT_SID_DEFAULT', 'HXcbcb6b457a82fbd011952a12774ecd93' );
+/**
+ * Twilio Messaging Service SID (MG…). Required for Content Template Builder sends with many accounts.
+ * Set here or save via dashboard → WhatsApp → "Messaging Service SID", or option gida_twilio_messaging_service_sid.
+ *
+ * @see https://www.twilio.com/docs/content/using-messaging-services-with-content-templates
+ */
+define( 'GIDA_TWILIO_MESSAGING_SERVICE_SID', '' );
+
+/**
+ * Twilio API credentials: prefer wp-config (do not commit secrets to git):
+ *   define( 'GIDA_TWILIO_ACCOUNT_SID', 'AC...' );
+ *   define( 'GIDA_TWILIO_AUTH_TOKEN', '...' );
+ * Fallback values must match the Twilio subaccount where the WhatsApp sender + ContentSid are registered.
+ */
+require_once GIDA_ADMIN_SUITE_DIR . 'includes/brnd-site-pages-cms.php';
+
+register_activation_hook( __FILE__, 'gida_admin_suite_activate' );
+
+function gida_admin_suite_activate() {
+	global $wpdb;
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+	$charset_collate = $wpdb->get_charset_collate();
+	$templates_table = $wpdb->prefix . 'gida_whatsapp_templates';
+	$logs_table      = $wpdb->prefix . 'gida_whatsapp_logs';
+
+	$sql_templates = "CREATE TABLE {$templates_table} (
+		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+		name VARCHAR(190) NOT NULL,
+		trigger_key VARCHAR(40) NOT NULL,
+		content_sid VARCHAR(80) NOT NULL DEFAULT '',
+		template_body LONGTEXT NOT NULL,
+		media_url TEXT NULL,
+		html_source LONGTEXT NULL,
+		sequence_no INT NOT NULL DEFAULT 1,
+		active TINYINT(1) NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		PRIMARY KEY (id),
+		KEY trigger_key (trigger_key),
+		KEY sequence_no (sequence_no),
+		KEY active (active)
+	) {$charset_collate};";
+
+	$sql_logs = "CREATE TABLE {$logs_table} (
+		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+		lead_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+		phone VARCHAR(40) NOT NULL,
+		direction VARCHAR(20) NOT NULL,
+		status VARCHAR(20) NOT NULL,
+		trigger_key VARCHAR(40) DEFAULT '' NOT NULL,
+		template_name VARCHAR(190) DEFAULT '' NOT NULL,
+		template_sid VARCHAR(80) DEFAULT '' NOT NULL,
+		content_variables LONGTEXT NULL,
+		message_text LONGTEXT NOT NULL,
+		provider_response LONGTEXT NULL,
+		created_at DATETIME NOT NULL,
+		PRIMARY KEY (id),
+		KEY lead_id (lead_id),
+		KEY status (status),
+		KEY created_at (created_at)
+	) {$charset_collate};";
+
+	dbDelta( $sql_templates );
+	dbDelta( $sql_logs );
+
+	gida_admin_suite_register_routes();
+	flush_rewrite_rules();
+}
+
+register_deactivation_hook(
+	__FILE__,
+	function() {
+		flush_rewrite_rules();
+	}
+);
+
+function gida_admin_suite_register_routes() {
+	add_rewrite_tag( '%gida_panel%', '([^&]+)' );
+	add_rewrite_rule( '^admin-login/?$', 'index.php?gida_panel=login', 'top' );
+	add_rewrite_rule( '^admin-register/?$', 'index.php?gida_panel=register', 'top' );
+	add_rewrite_rule( '^dashboard/?$', 'index.php?gida_panel=dashboard', 'top' );
+	add_rewrite_rule( '^my-dashboard/?$', 'index.php?gida_panel=customer_dashboard', 'top' );
+}
+add_action( 'init', 'gida_admin_suite_register_routes' );
+
+function gida_admin_suite_maybe_upgrade_whatsapp_templates_table() {
+	global $wpdb;
+	$table = $wpdb->prefix . 'gida_whatsapp_templates';
+	$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( $exists !== $table ) {
+		return;
+	}
+	$columns = $wpdb->get_col( "SHOW COLUMNS FROM {$table}", 0 ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( ! is_array( $columns ) ) {
+		return;
+	}
+	if ( ! in_array( 'html_source', $columns, true ) ) {
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN html_source LONGTEXT NULL AFTER template_body" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+	if ( ! in_array( 'media_url', $columns, true ) ) {
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN media_url TEXT NULL AFTER template_body" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+	if ( ! in_array( 'sequence_no', $columns, true ) ) {
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN sequence_no INT NOT NULL DEFAULT 1 AFTER html_source" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+	if ( ! in_array( 'content_sid', $columns, true ) ) {
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN content_sid VARCHAR(80) NOT NULL DEFAULT ''" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+}
+add_action( 'init', 'gida_admin_suite_maybe_upgrade_whatsapp_templates_table', 20 );
+
+/** Trigger keys saved on dashboard WhatsApp automation rows + used by Twilio SID map option. */
+function gida_admin_suite_whitelist_whatsapp_trigger_keys() {
+	return array(
+		'user_registered',
+		'booking_created',
+		'lead_created',
+		'payment_success',
+		'follow_up',
+	);
+}
+
+/**
+ * Labels for dashboard dropdown (which event fires automation rows).
+ *
+ * @return array<string,string>
+ */
+function gida_admin_suite_whatsapp_trigger_key_labels() {
+	return array(
+		'user_registered' => 'User registers',
+		'booking_created' => 'Booking submitted',
+		'lead_created'    => 'Contact / lead saved',
+		'payment_success' => 'Payment success',
+		'follow_up'       => 'Lead follow-up (scheduled)',
+	);
+}
+
+function gida_admin_suite_maybe_upgrade_whatsapp_logs_table() {
+	global $wpdb;
+	$table  = $wpdb->prefix . 'gida_whatsapp_logs';
+	$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( $exists !== $table ) {
+		return;
+	}
+	$columns = $wpdb->get_col( "SHOW COLUMNS FROM {$table}", 0 ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( ! is_array( $columns ) ) {
+		return;
+	}
+	if ( ! in_array( 'trigger_key', $columns, true ) ) {
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN trigger_key VARCHAR(40) DEFAULT '' NOT NULL AFTER status" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+	if ( ! in_array( 'template_sid', $columns, true ) ) {
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN template_sid VARCHAR(80) DEFAULT '' NOT NULL AFTER template_name" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+	if ( ! in_array( 'content_variables', $columns, true ) ) {
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN content_variables LONGTEXT NULL AFTER template_sid" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+}
+add_action( 'init', 'gida_admin_suite_maybe_upgrade_whatsapp_logs_table', 21 );
+
+function gida_admin_suite_get_current_panel() {
+	$panel = get_query_var( 'gida_panel' );
+	if ( $panel ) {
+		return (string) $panel;
+	}
+	$request_path = trim( (string) wp_parse_url( $_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH ), '/' );
+	if ( preg_match( '#(^|/)admin-login$#', $request_path ) ) {
+		return 'login';
+	}
+	if ( preg_match( '#(^|/)admin-register$#', $request_path ) ) {
+		return 'register';
+	}
+	if ( preg_match( '#(^|/)dashboard$#', $request_path ) ) {
+		return 'dashboard';
+	}
+	if ( preg_match( '#(^|/)my-dashboard$#', $request_path ) ) {
+		return 'customer_dashboard';
+	}
+	return '';
+}
+
+function gida_admin_suite_is_panel_request() {
+	$panel = gida_admin_suite_get_current_panel();
+	return in_array( $panel, array( 'login', 'register', 'dashboard', 'customer_dashboard' ), true );
+}
+
+function gida_admin_suite_hide_wp_admin_bar_on_panel( $show ) {
+	if ( ! is_admin() ) {
+		return false;
+	}
+	return $show;
+}
+add_filter( 'show_admin_bar', 'gida_admin_suite_hide_wp_admin_bar_on_panel', 99 );
+
+function gida_admin_suite_query_vars( $vars ) {
+	$vars[] = 'gida_panel';
+	return $vars;
+}
+add_filter( 'query_vars', 'gida_admin_suite_query_vars' );
+
+function gida_admin_suite_register_service_cpt() {
+	if ( post_type_exists( 'gida_service' ) ) {
+		return;
+	}
+	register_post_type(
+		'gida_service',
+		array(
+			'labels'       => array(
+				'name'          => 'Services',
+				'singular_name' => 'Service',
+				'add_new_item'  => 'Add Service',
+				'edit_item'     => 'Edit Service',
+			),
+			'public'       => true,
+			'show_ui'      => false,
+			'show_in_menu' => false,
+			'menu_icon'    => 'dashicons-screenoptions',
+			'has_archive'  => false,
+			'rewrite'      => array(
+				'slug'       => 'services',
+				'with_front' => false,
+			),
+			'supports'     => array( 'title', 'editor', 'thumbnail' ),
+		)
+	);
+}
+add_action( 'init', 'gida_admin_suite_register_service_cpt' );
+
+function gida_admin_suite_register_plan_cpt() {
+	if ( post_type_exists( 'gida_plan' ) ) {
+		return;
+	}
+	register_post_type(
+		'gida_plan',
+		array(
+			'labels'       => array(
+				'name'          => 'Plans',
+				'singular_name' => 'Plan',
+				'add_new_item'  => 'Add Plan',
+				'edit_item'     => 'Edit Plan',
+			),
+			'public'       => false,
+			'show_ui'      => false,
+			'show_in_menu' => false,
+			'supports'     => array( 'title', 'editor' ),
+		)
+	);
+}
+add_action( 'init', 'gida_admin_suite_register_plan_cpt' );
+
+function gida_admin_suite_maybe_flush_service_rewrite() {
+	$flag = (string) get_option( 'gida_service_rewrite_v2', '' );
+	if ( '1' === $flag ) {
+		return;
+	}
+	if ( ! post_type_exists( 'gida_service' ) ) {
+		return;
+	}
+	flush_rewrite_rules( false );
+	update_option( 'gida_service_rewrite_v2', '1' );
+}
+add_action( 'init', 'gida_admin_suite_maybe_flush_service_rewrite', 99 );
+
+function gida_admin_suite_enqueue_assets() {
+	$panel = gida_admin_suite_get_current_panel();
+	if ( ! in_array( $panel, array( 'login', 'register', 'dashboard', 'customer_dashboard' ), true ) ) {
+		return;
+	}
+	$module = gida_admin_suite_get_module();
+	$style_version  = file_exists( GIDA_ADMIN_SUITE_DIR . 'assets/admin-suite.css' ) ? (string) filemtime( GIDA_ADMIN_SUITE_DIR . 'assets/admin-suite.css' ) : GIDA_ADMIN_SUITE_VERSION;
+	$script_version = file_exists( GIDA_ADMIN_SUITE_DIR . 'assets/admin-suite.js' ) ? (string) filemtime( GIDA_ADMIN_SUITE_DIR . 'assets/admin-suite.js' ) : GIDA_ADMIN_SUITE_VERSION;
+
+	wp_enqueue_style( 'gida-admin-suite', GIDA_ADMIN_SUITE_URL . 'assets/admin-suite.css', array(), $style_version );
+	wp_enqueue_script( 'gida-admin-suite', GIDA_ADMIN_SUITE_URL . 'assets/admin-suite.js', array( 'jquery' ), $script_version, true );
+	if ( in_array( $module, array( 'page_privacy', 'page_terms', 'page_refund' ), true ) ) {
+		wp_enqueue_editor();
+	}
+	if ( 'chat' === $module ) {
+		wp_enqueue_script( 'gida-admin-suite-pusher', 'https://js.pusher.com/8.4.0/pusher.min.js', array(), '8.4.0', true );
+	}
+	wp_localize_script(
+		'gida-admin-suite',
+		'gidaAdminSuite',
+		array(
+			'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+			'nonce'         => wp_create_nonce( 'gida_admin_suite_nonce' ),
+			'chatAvailable' => gida_admin_suite_is_live_chat_available(),
+			'chatPusher'    => array(
+				'key'     => (string) get_option( 'gida_chat_pusher_key', '' ),
+				'cluster' => (string) get_option( 'gida_chat_pusher_cluster', '' ),
+			),
+		)
+	);
+}
+add_action( 'wp_enqueue_scripts', 'gida_admin_suite_enqueue_assets' );
+
+function gida_admin_suite_block_wp_admin_for_non_admins() {
+	if ( ! is_user_logged_in() ) {
+		return;
+	}
+	if ( wp_doing_ajax() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+		return;
+	}
+	if ( current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	wp_safe_redirect( home_url( '/my-dashboard/' ) );
+	exit;
+}
+add_action( 'admin_init', 'gida_admin_suite_block_wp_admin_for_non_admins' );
+
+function gida_admin_suite_handle_routes() {
+	$panel = gida_admin_suite_get_current_panel();
+	if ( ! in_array( $panel, array( 'login', 'register', 'dashboard', 'customer_dashboard' ), true ) ) {
+		return;
+	}
+
+	if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
+		gida_brnd_cms_maybe_process_save();
+		if ( isset( $_POST['gida_admin_login_action'] ) ) {
+			gida_admin_suite_process_login();
+		}
+		if ( isset( $_POST['gida_admin_register_send_otp'] ) ) {
+			gida_admin_suite_process_register_send_otp();
+		}
+		if ( isset( $_POST['gida_admin_register_verify_otp'] ) ) {
+			gida_admin_suite_process_register_verify_otp();
+		}
+	}
+
+	if ( 'login' === $panel ) {
+		gida_admin_suite_render_login();
+		exit;
+	}
+	if ( 'register' === $panel ) {
+		gida_admin_suite_render_register();
+		exit;
+	}
+
+	if ( ! is_user_logged_in() ) {
+		wp_safe_redirect( home_url( '/admin-login/' ) );
+		exit;
+	}
+
+	if ( current_user_can( 'manage_options' ) ) {
+		if ( 'customer_dashboard' === $panel ) {
+			wp_safe_redirect( home_url( '/dashboard/' ) );
+			exit;
+		}
+		gida_admin_suite_render_dashboard();
+		exit;
+	}
+
+	if ( 'dashboard' === $panel ) {
+		wp_safe_redirect( home_url( '/my-dashboard/' ) );
+		exit;
+	}
+	gida_admin_suite_render_customer_dashboard();
+	exit;
+}
+add_action( 'template_redirect', 'gida_admin_suite_handle_routes' );
+
+function gida_admin_suite_process_login() {
+	if ( empty( $_POST['gida_admin_login_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['gida_admin_login_nonce'] ) ), 'gida_admin_login' ) ) {
+		return;
+	}
+
+	$username = isset( $_POST['log'] ) ? sanitize_text_field( wp_unslash( $_POST['log'] ) ) : '';
+	$password = isset( $_POST['pwd'] ) ? (string) wp_unslash( $_POST['pwd'] ) : '';
+	if ( is_email( $username ) ) {
+		$user_by_email = get_user_by( 'email', $username );
+		if ( $user_by_email && ! empty( $user_by_email->user_login ) ) {
+			$username = (string) $user_by_email->user_login;
+		}
+	}
+
+	$result = wp_signon(
+		array(
+			'user_login'    => $username,
+			'user_password' => $password,
+			'remember'      => true,
+		),
+		is_ssl()
+	);
+
+	if ( is_wp_error( $result ) ) {
+		wp_safe_redirect( add_query_arg( 'login', 'failed', home_url( '/admin-login/' ) ) );
+		exit;
+	}
+
+	wp_safe_redirect( gida_admin_suite_get_post_login_redirect( $result->ID ) );
+	exit;
+}
+
+function gida_admin_suite_get_safe_redirect_from_request() {
+	$raw_redirect = isset( $_REQUEST['redirect_to'] ) ? (string) wp_unslash( $_REQUEST['redirect_to'] ) : '';
+	if ( '' === $raw_redirect ) {
+		return '';
+	}
+	return wp_validate_redirect( $raw_redirect, '' );
+}
+
+function gida_admin_suite_get_post_login_redirect( $user_id ) {
+	if ( user_can( $user_id, 'manage_options' ) ) {
+		return home_url( '/dashboard/' );
+	}
+	return home_url( '/my-dashboard/' );
+}
+
+function gida_admin_suite_get_user_purchase_url( $user_id ) {
+	$page_id = absint( get_user_meta( $user_id, '_gida_subscription_page_id', true ) );
+	if ( $page_id > 0 ) {
+		$link = get_permalink( $page_id );
+		if ( $link ) {
+			return $link;
+		}
+	}
+
+	$page_url = (string) get_user_meta( $user_id, '_gida_subscription_page_url', true );
+	if ( $page_url ) {
+		$validated = wp_validate_redirect( $page_url, '' );
+		if ( $validated ) {
+			return $validated;
+		}
+	}
+
+	$user = get_userdata( $user_id );
+	if ( ! $user || empty( $user->user_email ) ) {
+		return '';
+	}
+
+	$q = new WP_Query(
+		array(
+			'post_type'      => 'gida_booking',
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+			'meta_query'     => array(
+				array(
+					'key'     => '_gida_email',
+					'value'   => (string) $user->user_email,
+					'compare' => '=',
+				),
+			),
+		)
+	);
+	if ( ! $q->have_posts() ) {
+		return '';
+	}
+	$q->the_post();
+	$booking_id = get_the_ID();
+	wp_reset_postdata();
+
+	$service_name = (string) get_post_meta( $booking_id, '_gida_service', true );
+	if ( ! $service_name ) {
+		return '';
+	}
+
+	$mapped_url = gida_admin_suite_map_service_name_to_url( $service_name );
+	if ( $mapped_url ) {
+		update_user_meta( $user_id, '_gida_subscription_page_url', $mapped_url );
+	}
+	return $mapped_url;
+}
+
+function gida_admin_suite_map_service_name_to_url( $service_name ) {
+	$service_name = trim( (string) $service_name );
+	if ( '' === $service_name ) {
+		return '';
+	}
+
+	$map = array(
+		'Meta Ads Management'   => home_url( '/service-1/' ),
+		'Google Ads Management' => home_url( '/service-2/' ),
+		'WhatsApp Ads API'      => home_url( '/service-3/' ),
+		'WhatsApp Automation'   => home_url( '/service-4/' ),
+	);
+	$dynamic = get_posts(
+		array(
+			'post_type'      => 'gida_service',
+			'post_status'    => 'publish',
+			'posts_per_page' => 200,
+		)
+	);
+	foreach ( $dynamic as $service_post ) {
+		$map[ $service_post->post_title ] = gida_admin_suite_get_service_frontend_url( (int) $service_post->ID );
+	}
+
+	return isset( $map[ $service_name ] ) ? (string) $map[ $service_name ] : '';
+}
+
+function gida_admin_suite_get_service_frontend_url( $service_id ) {
+	$service_id = absint( $service_id );
+	if ( $service_id <= 0 || 'gida_service' !== get_post_type( $service_id ) ) {
+		return '';
+	}
+	$template_slug = 'gida-service-page-' . $service_id . '.php';
+	$mapped_pages  = get_posts(
+		array(
+			'post_type'      => 'page',
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'meta_key'       => '_wp_page_template',
+			'meta_value'     => $template_slug,
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+		)
+	);
+	if ( ! empty( $mapped_pages ) ) {
+		$page_link = get_permalink( (int) $mapped_pages[0]->ID );
+		if ( $page_link ) {
+			return (string) $page_link;
+		}
+	}
+	$service_link = get_permalink( $service_id );
+	return $service_link ? (string) $service_link : '';
+}
+
+function gida_admin_suite_render_login() {
+	$status = isset( $_GET['login'] ) ? sanitize_text_field( wp_unslash( $_GET['login'] ) ) : '';
+	$redirect_to     = gida_admin_suite_get_safe_redirect_from_request();
+	?>
+	<!doctype html>
+	<html <?php language_attributes(); ?>>
+	<head>
+		<meta charset="<?php bloginfo( 'charset' ); ?>">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<?php gida_admin_suite_render_auth_inline_styles(); ?>
+		<?php wp_head(); ?>
+	</head>
+	<body class="gida-panel-body">
+		<div class="gida-login-wrap">
+			<form class="gida-login-card" method="post">
+				<h1>Sign In</h1>
+				<p>Welcome back. Please login to continue.</p>
+				<?php if ( 'failed' === $status ) : ?>
+					<div class="gida-alert">Login failed. Please check credentials and try again.</div>
+				<?php endif; ?>
+				<label for="gida_admin_log">Username or Email</label>
+				<input id="gida_admin_log" type="text" name="log" required>
+				<label for="gida_admin_pwd">Password</label>
+				<input id="gida_admin_pwd" type="password" name="pwd" required>
+				<?php wp_nonce_field( 'gida_admin_login', 'gida_admin_login_nonce' ); ?>
+				<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>">
+				<input type="hidden" name="gida_admin_login_action" value="1">
+				<button type="submit">Sign In</button>
+				<p style="margin:8px 0 0;font-size:13px;color:#475467;">New user? <a href="<?php echo esc_url( home_url( '/admin-register/' ) ); ?>">Register</a></p>
+			</form>
+		</div>
+		<?php wp_footer(); ?>
+	</body>
+	</html>
+	<?php
+}
+
+function gida_admin_suite_render_register() {
+	$register_status = isset( $_GET['register'] ) ? sanitize_text_field( wp_unslash( $_GET['register'] ) ) : '';
+	$email_prefill   = isset( $_GET['email'] ) ? sanitize_email( wp_unslash( $_GET['email'] ) ) : '';
+	$redirect_to     = gida_admin_suite_get_safe_redirect_from_request();
+	$pending_data    = gida_admin_suite_get_pending_registration_data( $email_prefill );
+	$name_prefill    = isset( $pending_data['name'] ) ? (string) $pending_data['name'] : '';
+	$phone_prefill   = isset( $pending_data['phone'] ) ? (string) $pending_data['phone'] : '';
+	$password_prefill = isset( $pending_data['password'] ) ? (string) $pending_data['password'] : '';
+	$otp_preview     = isset( $pending_data['otp'] ) ? (string) $pending_data['otp'] : '';
+	?>
+	<!doctype html>
+	<html <?php language_attributes(); ?>>
+	<head>
+		<meta charset="<?php bloginfo( 'charset' ); ?>">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<?php gida_admin_suite_render_auth_inline_styles(); ?>
+		<?php wp_head(); ?>
+	</head>
+	<body class="gida-panel-body">
+		<div class="gida-login-wrap">
+			<form class="gida-login-card" method="post">
+				<h1>Create Account</h1>
+				<p>Register using OTP verification.</p>
+				<?php if ( 'otp_sent' === $register_status ) : ?>
+					<div class="gida-alert" style="background:#ecfdf3;border-color:#abefc6;color:#067647;">OTP sent to your email. Verify below to create account.</div>
+				<?php elseif ( 'otp_invalid' === $register_status ) : ?>
+					<div class="gida-alert">Invalid OTP. Please try again.</div>
+				<?php elseif ( 'otp_expired' === $register_status ) : ?>
+					<div class="gida-alert">OTP expired. Please request a new OTP.</div>
+				<?php elseif ( 'exists' === $register_status ) : ?>
+					<div class="gida-alert">Account already exists. Please login.</div>
+				<?php endif; ?>
+				<label for="gida_register_name">Full Name</label>
+				<input id="gida_register_name" type="text" name="register_name" value="<?php echo esc_attr( $name_prefill ); ?>" required>
+				<label for="gida_register_email">Email</label>
+				<input id="gida_register_email" type="email" name="register_email" value="<?php echo esc_attr( $email_prefill ); ?>" required>
+				<label for="gida_register_phone">Phone</label>
+				<input id="gida_register_phone" type="text" name="register_phone" value="<?php echo esc_attr( $phone_prefill ); ?>" required>
+				<label for="gida_register_password">Password</label>
+				<input id="gida_register_password" type="password" name="register_password" value="<?php echo esc_attr( $password_prefill ); ?>" required>
+				<?php wp_nonce_field( 'gida_admin_register_otp', 'gida_admin_register_nonce' ); ?>
+				<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>">
+				<button type="submit" name="gida_admin_register_send_otp" value="1">Send OTP</button>
+				<label for="gida_register_otp">OTP</label>
+				<input id="gida_register_otp" type="text" name="register_otp" placeholder="Enter 6 digit OTP">
+				<?php if ( $otp_preview ) : ?>
+					<p style="margin:0;font-size:12px;color:#667085;">Test OTP: <strong><?php echo esc_html( $otp_preview ); ?></strong></p>
+				<?php endif; ?>
+				<button type="submit" name="gida_admin_register_verify_otp" value="1">Verify OTP and Create Account</button>
+				<p style="margin:8px 0 0;font-size:13px;color:#475467;">Already have an account? <a href="<?php echo esc_url( home_url( '/admin-login/' ) ); ?>">Login</a></p>
+			</form>
+		</div>
+		<?php wp_footer(); ?>
+	</body>
+	</html>
+	<?php
+}
+
+function gida_admin_suite_render_auth_inline_styles() {
+	?>
+	<style>
+		.gida-panel-body{margin:0;min-height:100vh;background:#f4f7fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#1d2939}
+		.gida-login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+		.gida-login-card{width:100%;max-width:440px;background:#fff;border:1px solid #e4e7ec;border-radius:16px;padding:22px;box-shadow:0 18px 40px rgba(16,24,40,.1);display:grid;gap:10px}
+		.gida-login-card h1{margin:0;font-size:30px;line-height:1.1}
+		.gida-login-card p{margin:0 0 6px;color:#475467}
+		.gida-login-card label{font-size:13px;color:#344054}
+		.gida-login-card input{width:100%;border:1px solid #d0d5dd;border-radius:10px;padding:11px 12px;font-size:14px;outline:none}
+		.gida-login-card input:focus{border-color:#155eef;box-shadow:0 0 0 3px rgba(21,94,239,.14)}
+		.gida-login-card button{width:100%;border:0;border-radius:10px;background:#155eef;color:#fff;padding:11px 14px;font-size:14px;font-weight:600;cursor:pointer}
+		.gida-login-card button:hover{background:#114bd1}
+		.gida-alert{background:#fef3f2;border:1px solid #fecdca;color:#b42318;padding:10px;border-radius:10px;font-size:13px}
+	</style>
+	<?php
+}
+
+function gida_admin_suite_get_pending_registration_key( $email ) {
+	return 'gida_admin_pending_registration_' . md5( strtolower( trim( (string) $email ) ) );
+}
+
+function gida_admin_suite_get_pending_registration_data( $email ) {
+	if ( ! $email || ! is_email( $email ) ) {
+		return array();
+	}
+	$data = get_transient( gida_admin_suite_get_pending_registration_key( $email ) );
+	return is_array( $data ) ? $data : array();
+}
+
+function gida_admin_suite_process_register_send_otp() {
+	if ( empty( $_POST['gida_admin_register_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['gida_admin_register_nonce'] ) ), 'gida_admin_register_otp' ) ) {
+		return;
+	}
+
+	$name     = isset( $_POST['register_name'] ) ? sanitize_text_field( wp_unslash( $_POST['register_name'] ) ) : '';
+	$email    = isset( $_POST['register_email'] ) ? sanitize_email( wp_unslash( $_POST['register_email'] ) ) : '';
+	$phone    = isset( $_POST['register_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['register_phone'] ) ) : '';
+	$password = isset( $_POST['register_password'] ) ? (string) wp_unslash( $_POST['register_password'] ) : '';
+
+	if ( ! is_email( $email ) || '' === $name || '' === $phone || strlen( $password ) < 6 ) {
+		wp_safe_redirect( add_query_arg( 'register', 'otp_expired', home_url( '/admin-register/' ) ) );
+		exit;
+	}
+	if ( email_exists( $email ) ) {
+		wp_safe_redirect( add_query_arg( 'register', 'exists', home_url( '/admin-register/' ) ) );
+		exit;
+	}
+
+	$otp = (string) wp_rand( 100000, 999999 );
+	set_transient(
+		gida_admin_suite_get_pending_registration_key( $email ),
+		array(
+			'name'        => $name,
+			'email'       => $email,
+			'phone'       => $phone,
+			'password'    => $password,
+			'otp'         => $otp,
+			'redirect_to' => gida_admin_suite_get_safe_redirect_from_request(),
+		),
+		15 * MINUTE_IN_SECONDS
+	);
+
+	wp_mail(
+		$email,
+		'Your OTP for account creation',
+		"Hi {$name},\n\nYour OTP is: {$otp}\nThis OTP is valid for 15 minutes.\n\nThanks."
+	);
+
+	wp_safe_redirect(
+		add_query_arg(
+			array(
+				'register' => 'otp_sent',
+				'email'    => rawurlencode( $email ),
+			),
+			home_url( '/admin-register/' )
+		)
+	);
+	exit;
+}
+
+function gida_admin_suite_process_register_verify_otp() {
+	if ( empty( $_POST['gida_admin_register_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['gida_admin_register_nonce'] ) ), 'gida_admin_register_otp' ) ) {
+		return;
+	}
+
+	$email = isset( $_POST['register_email'] ) ? sanitize_email( wp_unslash( $_POST['register_email'] ) ) : '';
+	$otp   = isset( $_POST['register_otp'] ) ? sanitize_text_field( wp_unslash( $_POST['register_otp'] ) ) : '';
+	$data  = get_transient( gida_admin_suite_get_pending_registration_key( $email ) );
+	if ( ! is_array( $data ) ) {
+		wp_safe_redirect( add_query_arg( 'register', 'otp_expired', home_url( '/admin-register/' ) ) );
+		exit;
+	}
+	if ( empty( $data['otp'] ) || (string) $data['otp'] !== $otp ) {
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'register' => 'otp_invalid',
+					'email'    => rawurlencode( $email ),
+				),
+				home_url( '/admin-register/' )
+			)
+		);
+		exit;
+	}
+
+	$username_base = sanitize_user( current( explode( '@', $email ) ), true );
+	$username      = $username_base ? $username_base : 'user';
+	$suffix        = 1;
+	while ( username_exists( $username ) ) {
+		$username = $username_base . $suffix;
+		++$suffix;
+	}
+
+	$user_id = wp_create_user( $username, (string) $data['password'], $email );
+	if ( is_wp_error( $user_id ) ) {
+		wp_safe_redirect( add_query_arg( 'register', 'exists', home_url( '/admin-register/' ) ) );
+		exit;
+	}
+
+	wp_update_user(
+		array(
+			'ID'           => $user_id,
+			'display_name' => (string) $data['name'],
+			'first_name'   => (string) $data['name'],
+		)
+	);
+	update_user_meta( $user_id, '_gida_phone', (string) $data['phone'] );
+	$sent = gida_admin_suite_trigger_whatsapp( $user_id, (string) $data['name'], (string) $data['phone'], 'user_registered' );
+	if ( $sent <= 0 ) {
+		gida_admin_suite_trigger_whatsapp_content_template(
+			$user_id,
+			(string) $data['phone'],
+			'user_registered',
+			array(
+				'name'     => (string) $data['name'],
+				'services' => '',
+				'amount'   => '',
+			)
+		);
+	}
+	delete_transient( gida_admin_suite_get_pending_registration_key( $email ) );
+
+	wp_set_current_user( $user_id );
+	wp_set_auth_cookie( $user_id );
+	wp_safe_redirect( gida_admin_suite_get_post_login_redirect( $user_id ) );
+	exit;
+}
+
+function gida_admin_suite_get_module() {
+	$module = isset( $_GET['module'] ) ? sanitize_key( wp_unslash( $_GET['module'] ) ) : 'overview';
+	$allowed = array(
+		'overview',
+		'bookings',
+		'users',
+		'subscriptions',
+		'services',
+		'support',
+		'leads',
+		'whatsapp',
+		'chat',
+		'page_privacy',
+		'page_terms',
+		'page_refund',
+		'page_contact',
+	);
+	if ( ! in_array( $module, $allowed, true ) ) {
+		return 'overview';
+	}
+	return $module;
+}
+
+function gida_admin_suite_booking_status_label( $status ) {
+	$status = strtolower( trim( (string) $status ) );
+	if ( 'pending' === $status ) {
+		$status = 'new';
+	}
+	if ( 'resolved' === $status ) {
+		$status = 'contacted';
+	}
+	if ( ! in_array( $status, array( 'new', 'contacted' ), true ) ) {
+		$status = 'new';
+	}
+	return 'new' === $status ? 'New' : 'Contacted';
+}
+
+/**
+ * Human-readable dashboard module titles.
+ *
+ * @param string $module Module slug.
+ * @return string
+ */
+function gida_admin_suite_get_dashboard_module_title( $module ) {
+	$labels = array(
+		'overview'       => __( 'Overview', 'gida-admin-suite' ),
+		'bookings'       => __( 'Bookings', 'gida-admin-suite' ),
+		'users'          => __( 'Users', 'gida-admin-suite' ),
+		'subscriptions'  => __( 'Subscriptions', 'gida-admin-suite' ),
+		'services'       => __( 'Services', 'gida-admin-suite' ),
+		'support'        => __( 'Contact Support', 'gida-admin-suite' ),
+		'leads'          => __( 'Leads', 'gida-admin-suite' ),
+		'whatsapp'       => __( 'WhatsApp', 'gida-admin-suite' ),
+		'chat'           => __( 'Live Chat', 'gida-admin-suite' ),
+		'page_privacy'   => __( 'Privacy Policy Page', 'gida-admin-suite' ),
+		'page_terms'     => __( 'Terms & Conditions Page', 'gida-admin-suite' ),
+		'page_refund'    => __( 'Refund & Cancellation Page', 'gida-admin-suite' ),
+		'page_contact'   => __( 'Contact Us Page', 'gida-admin-suite' ),
+	);
+	return isset( $labels[ $module ] ) ? $labels[ $module ] : ucfirst( str_replace( '_', ' ', $module ) );
+}
+
+function gida_admin_suite_render_dashboard() {
+	$module = gida_admin_suite_get_module();
+	$user   = wp_get_current_user();
+	?>
+	<!doctype html>
+	<html <?php language_attributes(); ?>>
+	<head>
+		<meta charset="<?php bloginfo( 'charset' ); ?>">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<?php wp_head(); ?>
+	</head>
+	<body class="gida-panel-body">
+		<div class="gida-app">
+			<aside class="gida-sidebar">
+				<div class="gida-brand">Brnd Admin Suite</div>
+				<nav>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=overview' ) ); ?>" class="<?php echo esc_attr( 'overview' === $module ? 'active' : '' ); ?>">Overview</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=bookings' ) ); ?>" class="<?php echo esc_attr( 'bookings' === $module ? 'active' : '' ); ?>">Bookings</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=users' ) ); ?>" class="<?php echo esc_attr( 'users' === $module ? 'active' : '' ); ?>">Users</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=subscriptions' ) ); ?>" class="<?php echo esc_attr( 'subscriptions' === $module ? 'active' : '' ); ?>">Subscriptions</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=services' ) ); ?>" class="<?php echo esc_attr( 'services' === $module ? 'active' : '' ); ?>">Services</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=support' ) ); ?>" class="<?php echo esc_attr( 'support' === $module ? 'active' : '' ); ?>">Contact Support</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=leads' ) ); ?>" class="<?php echo esc_attr( 'leads' === $module ? 'active' : '' ); ?>">Leads</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=whatsapp' ) ); ?>" class="<?php echo esc_attr( 'whatsapp' === $module ? 'active' : '' ); ?>">WhatsApp</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=chat' ) ); ?>" class="<?php echo esc_attr( 'chat' === $module ? 'active' : '' ); ?>">Live Chat</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=page_privacy' ) ); ?>" class="<?php echo esc_attr( 'page_privacy' === $module ? 'active' : '' ); ?>">Privacy Policy</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=page_terms' ) ); ?>" class="<?php echo esc_attr( 'page_terms' === $module ? 'active' : '' ); ?>">Terms &amp; Conditions</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=page_refund' ) ); ?>" class="<?php echo esc_attr( 'page_refund' === $module ? 'active' : '' ); ?>">Refund &amp; Cancellation</a>
+					<a href="<?php echo esc_url( home_url( '/dashboard/?module=page_contact' ) ); ?>" class="<?php echo esc_attr( 'page_contact' === $module ? 'active' : '' ); ?>">Contact Us Page</a>
+				</nav>
+			</aside>
+			<main class="gida-main">
+				<header class="gida-topbar">
+					<div>
+						<h1 class="gida-module-title"><?php echo esc_html( gida_admin_suite_get_dashboard_module_title( $module ) ); ?></h1>
+						<p>Welcome, <?php echo esc_html( $user->display_name ); ?></p>
+					</div>
+					<a class="gida-logout" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">Logout</a>
+				</header>
+				<section class="gida-content">
+					<?php gida_admin_suite_render_module_content( $module ); ?>
+				</section>
+			</main>
+		</div>
+		<?php wp_footer(); ?>
+	</body>
+	</html>
+	<?php
+}
+
+function gida_admin_suite_render_customer_dashboard() {
+	$user = wp_get_current_user();
+	$section = gida_admin_suite_get_customer_dashboard_section();
+	?>
+	<!doctype html>
+	<html <?php language_attributes(); ?>>
+	<head>
+		<meta charset="<?php bloginfo( 'charset' ); ?>">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<?php wp_head(); ?>
+	</head>
+	<body class="gida-panel-body">
+		<?php get_template_part( 'template-parts/header-custom' ); ?>
+		<div class="gida-app">
+			<aside class="gida-sidebar">
+				<div class="gida-brand">My Dashboard</div>
+				<nav>
+					<a href="<?php echo esc_url( home_url( '/my-dashboard/?section=bookings' ) ); ?>" class="<?php echo esc_attr( 'bookings' === $section ? 'active' : '' ); ?>">My Bookings</a>
+					<a href="<?php echo esc_url( home_url( '/my-dashboard/?section=services' ) ); ?>" class="<?php echo esc_attr( 'services' === $section ? 'active' : '' ); ?>">My Services</a>
+					<a href="<?php echo esc_url( home_url( '/my-dashboard/?section=profile' ) ); ?>" class="<?php echo esc_attr( 'profile' === $section ? 'active' : '' ); ?>">Profile</a>
+				</nav>
+			</aside>
+			<main class="gida-main" style="padding-top:96px;">
+				<header class="gida-topbar">
+					<div>
+						<h1>My Dashboard</h1>
+						<p>Welcome, <?php echo esc_html( $user->display_name ); ?></p>
+					</div>
+					<a class="gida-logout" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">Logout</a>
+				</header>
+				<section class="gida-content">
+					<?php gida_admin_suite_render_customer_dashboard_content( $user->ID, $section ); ?>
+				</section>
+			</main>
+		</div>
+		<?php wp_footer(); ?>
+	</body>
+	</html>
+	<?php
+}
+
+function gida_admin_suite_get_customer_dashboard_section() {
+	$section = isset( $_GET['section'] ) ? sanitize_key( wp_unslash( $_GET['section'] ) ) : 'bookings';
+	$allowed = array( 'bookings', 'services', 'profile' );
+	if ( ! in_array( $section, $allowed, true ) ) {
+		return 'bookings';
+	}
+	return $section;
+}
+
+function gida_admin_suite_render_customer_dashboard_content( $user_id, $section = 'bookings' ) {
+	$user = get_userdata( $user_id );
+	if ( ! $user ) {
+		echo '<p>User not found.</p>';
+		return;
+	}
+
+	$bookings = new WP_Query(
+		array(
+			'post_type'      => 'gida_booking',
+			'posts_per_page' => 100,
+			'post_status'    => 'publish',
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+			'meta_query'     => array(
+				array(
+					'key'     => '_gida_email',
+					'value'   => (string) $user->user_email,
+					'compare' => '=',
+				),
+			),
+		)
+	);
+
+	$services = array();
+	if ( $bookings->have_posts() ) {
+		while ( $bookings->have_posts() ) {
+			$bookings->the_post();
+			$booking_id   = get_the_ID();
+			$service_name = (string) get_post_meta( $booking_id, '_gida_service', true );
+			$services[]   = $service_name;
+		}
+		wp_reset_postdata();
+	}
+
+	$services = array_values( array_unique( array_filter( $services ) ) );
+
+	if ( 'bookings' === $section ) {
+		echo '<h2>My Bookings</h2>';
+		$bookings_list = new WP_Query(
+			array(
+				'post_type'      => 'gida_booking',
+				'posts_per_page' => 100,
+				'post_status'    => 'publish',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'meta_query'     => array(
+					array(
+						'key'     => '_gida_email',
+						'value'   => (string) $user->user_email,
+						'compare' => '=',
+					),
+				),
+			)
+		);
+		echo '<table class="gida-table"><thead><tr><th>Service</th><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody>';
+		if ( $bookings_list->have_posts() ) {
+			while ( $bookings_list->have_posts() ) {
+				$bookings_list->the_post();
+				$booking_id = get_the_ID();
+				$status = gida_admin_suite_booking_status_label( get_post_meta( $booking_id, '_gida_booking_status', true ) );
+				echo '<tr><td>' . esc_html( (string) get_post_meta( $booking_id, '_gida_service', true ) ) . '</td><td>' . esc_html( (string) get_post_meta( $booking_id, '_gida_meeting_date', true ) ) . '</td><td>' . esc_html( (string) get_post_meta( $booking_id, '_gida_meeting_time', true ) ) . '</td><td>' . esc_html( $status ) . '</td></tr>';
+			}
+			wp_reset_postdata();
+		} else {
+			echo '<tr><td colspan="4">No bookings found.</td></tr>';
+		}
+		echo '</tbody></table>';
+		return;
+	}
+
+	if ( 'services' === $section ) {
+		echo '<h2>My Services</h2>';
+		$paid_records = gida_admin_suite_get_paid_subscription_records( $user->ID );
+		if ( ! empty( $paid_records ) ) {
+			echo '<div class="gida-paid-services-wrap">';
+			foreach ( $paid_records as $record ) {
+				echo '<article class="gida-paid-service-card">';
+				echo '<div class="gida-paid-service-head"><strong>Subscribed Services</strong><span class="gida-paid-status">Success</span></div>';
+				echo '<ul class="gida-paid-service-list">';
+				foreach ( $record['selected_services'] as $service_row ) {
+					$service_name = isset( $service_row['name'] ) ? (string) $service_row['name'] : '';
+					if ( '' === trim( $service_name ) ) {
+						continue;
+					}
+					$page_url = gida_admin_suite_map_service_name_to_url( $service_name );
+					echo '<li><span>' . esc_html( $service_name ) . '</span>';
+					if ( $page_url ) {
+						echo '<a href="' . esc_url( $page_url ) . '" target="_blank" rel="noopener noreferrer">Open Service</a>';
+					}
+					echo '</li>';
+				}
+				echo '</ul>';
+				echo '<div class="gida-paid-service-meta">';
+				if ( ! empty( $record['total_amount'] ) ) {
+					echo '<div><strong>Amount:</strong> INR ' . esc_html( number_format_i18n( (float) $record['total_amount'], 2 ) ) . '</div>';
+				}
+				if ( ! empty( $record['razorpay_payment_id'] ) ) {
+					echo '<div><strong>Payment ID:</strong> ' . esc_html( (string) $record['razorpay_payment_id'] ) . '</div>';
+				}
+				if ( ! empty( $record['date'] ) ) {
+					echo '<div><strong>Date:</strong> ' . esc_html( (string) $record['date'] ) . '</div>';
+				}
+				echo '</div>';
+				echo '<div class="gida-paid-proof">';
+				if ( ! empty( $record['payment_proof_url'] ) ) {
+					echo '<a href="' . esc_url( (string) $record['payment_proof_url'] ) . '" target="_blank" rel="noopener noreferrer"><img src="' . esc_url( (string) $record['payment_proof_url'] ) . '" alt="Payment proof"></a>';
+				} elseif ( ! empty( $record['razorpay_payment_id'] ) ) {
+					echo '<div class="gida-paid-proof-fallback">Payment proof available via Razorpay Payment ID above.</div>';
+				} else {
+					echo '<div class="gida-paid-proof-fallback">Payment proof not available.</div>';
+				}
+				echo '</div>';
+				echo '</article>';
+			}
+			echo '</div>';
+		} else {
+			echo '<table class="gida-table"><thead><tr><th>Service</th><th>Page</th></tr></thead><tbody>';
+			if ( ! empty( $services ) ) {
+				foreach ( $services as $service_name ) {
+					$page_url = gida_admin_suite_map_service_name_to_url( $service_name );
+					$link     = $page_url ? '<a href="' . esc_url( $page_url ) . '" target="_blank" rel="noopener noreferrer">Open Service</a>' : 'N/A';
+					echo '<tr><td>' . esc_html( $service_name ) . '</td><td>' . wp_kses_post( $link ) . '</td></tr>';
+				}
+			} else {
+				echo '<tr><td colspan="2">No services found.</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+		return;
+	}
+
+	$phone = (string) get_user_meta( $user->ID, '_gida_phone', true );
+	echo '<h2>Profile</h2>';
+	echo '<table class="gida-table"><tbody>';
+	echo '<tr><th style="width:180px;">Name</th><td>' . esc_html( $user->display_name ) . '</td></tr>';
+	echo '<tr><th>Email</th><td>' . esc_html( $user->user_email ) . '</td></tr>';
+	echo '<tr><th>Phone</th><td>' . esc_html( $phone ? $phone : '-' ) . '</td></tr>';
+	echo '<tr><th>Total Services Used</th><td>' . esc_html( (string) count( $services ) ) . '</td></tr>';
+	echo '</tbody></table>';
+}
+
+function gida_admin_suite_render_module_content( $module ) {
+	if ( 'overview' === $module ) {
+		$bookings = wp_count_posts( 'gida_booking' );
+		$leads    = wp_count_posts( 'gida_booking' );
+		$services = wp_count_posts( 'gida_service' );
+		$users    = count_users();
+		echo '<div class="gida-cards">';
+		echo '<article><h3>Total Bookings</h3><strong>' . esc_html( (string) ( $bookings ? $bookings->publish : 0 ) ) . '</strong></article>';
+		echo '<article><h3>Total Leads</h3><strong>' . esc_html( (string) ( $leads ? $leads->publish : 0 ) ) . '</strong></article>';
+		echo '<article><h3>Total Services</h3><strong>' . esc_html( (string) ( $services ? $services->publish : 0 ) ) . '</strong></article>';
+		echo '<article><h3>Total Users</h3><strong>' . esc_html( (string) $users['total_users'] ) . '</strong></article>';
+		echo '</div>';
+		echo '<div class="gida-overview-sections">';
+
+		$recent_leads = new WP_Query(
+			array(
+				'post_type'      => array( 'gida_booking' ),
+				'posts_per_page' => 4,
+				'post_status'    => 'publish',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+		echo '<article class="gida-overview-block"><div class="gida-overview-head"><h3>Recent Leads</h3><a class="gida-overview-link" href="' . esc_url( home_url( '/dashboard/?module=leads' ) ) . '">View All</a></div><table class="gida-table"><thead><tr><th>Name</th><th>Type</th><th>Date</th></tr></thead><tbody>';
+		if ( $recent_leads->have_posts() ) {
+			while ( $recent_leads->have_posts() ) {
+				$recent_leads->the_post();
+				$lead_id = get_the_ID();
+				$name    = (string) get_post_meta( $lead_id, '_gida_name', true );
+				echo '<tr><td>' . esc_html( $name ) . '</td><td>booking</td><td>' . esc_html( get_the_date( 'Y-m-d H:i' ) ) . '</td></tr>';
+			}
+			wp_reset_postdata();
+		} else {
+			echo '<tr><td colspan="3">No leads found.</td></tr>';
+		}
+		echo '</tbody></table></article>';
+
+		$recent_bookings = new WP_Query(
+			array(
+				'post_type'      => 'gida_booking',
+				'posts_per_page' => 4,
+				'post_status'    => 'publish',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+		echo '<article class="gida-overview-block"><div class="gida-overview-head"><h3>Recent Bookings</h3><a class="gida-overview-link" href="' . esc_url( home_url( '/dashboard/?module=bookings' ) ) . '">View All</a></div><table class="gida-table"><thead><tr><th>Name</th><th>Service</th><th>Date</th></tr></thead><tbody>';
+		if ( $recent_bookings->have_posts() ) {
+			while ( $recent_bookings->have_posts() ) {
+				$recent_bookings->the_post();
+				$booking_id = get_the_ID();
+				echo '<tr><td>' . esc_html( (string) get_post_meta( $booking_id, '_gida_name', true ) ) . '</td><td>' . esc_html( (string) get_post_meta( $booking_id, '_gida_service', true ) ) . '</td><td>' . esc_html( get_the_date( 'Y-m-d H:i' ) ) . '</td></tr>';
+			}
+			wp_reset_postdata();
+		} else {
+			echo '<tr><td colspan="3">No bookings found.</td></tr>';
+		}
+		echo '</tbody></table></article>';
+
+		$recent_support = new WP_Query(
+			array(
+				'post_type'      => 'gida_contact_lead',
+				'posts_per_page' => 4,
+				'post_status'    => 'publish',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+		echo '<article class="gida-overview-block"><div class="gida-overview-head"><h3>Recent Contact Support Requests</h3><a class="gida-overview-link" href="' . esc_url( home_url( '/dashboard/?module=support' ) ) . '">View All</a></div><table class="gida-table"><thead><tr><th>Name</th><th>Email</th><th>Date</th></tr></thead><tbody>';
+		if ( $recent_support->have_posts() ) {
+			while ( $recent_support->have_posts() ) {
+				$recent_support->the_post();
+				$support_id = get_the_ID();
+				echo '<tr><td>' . esc_html( (string) get_post_meta( $support_id, '_gida_contact_name', true ) ) . '</td><td>' . esc_html( (string) get_post_meta( $support_id, '_gida_contact_email', true ) ) . '</td><td>' . esc_html( get_the_date( 'Y-m-d H:i' ) ) . '</td></tr>';
+			}
+			wp_reset_postdata();
+		} else {
+			echo '<tr><td colspan="3">No support requests found.</td></tr>';
+		}
+		echo '</tbody></table></article>';
+
+		echo '</div>';
+		return;
+	}
+
+	if ( 'bookings' === $module ) {
+		$q = new WP_Query(
+			array(
+				'post_type'      => 'gida_booking',
+				'posts_per_page' => 100,
+				'post_status'    => 'publish',
+			)
+		);
+		echo '<table class="gida-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody>';
+		if ( $q->have_posts() ) {
+			while ( $q->have_posts() ) {
+				$q->the_post();
+				$id = get_the_ID();
+				$phone = (string) get_post_meta( $id, '_gida_whatsapp', true );
+				if ( '' === $phone ) {
+					$phone = (string) get_post_meta( $id, '_gida_phone', true );
+				}
+				$status_label = gida_admin_suite_booking_status_label( get_post_meta( $id, '_gida_booking_status', true ) );
+				$status       = 'Contacted' === $status_label ? 'contacted' : 'new';
+				echo '<tr data-booking-id="' . esc_attr( (string) $id ) . '"><td>' . esc_html( (string) get_post_meta( $id, '_gida_name', true ) ) . '</td><td>' . esc_html( (string) get_post_meta( $id, '_gida_email', true ) ) . '</td><td>' . esc_html( $phone ) . '</td><td>' . esc_html( (string) get_post_meta( $id, '_gida_service', true ) ) . '</td><td>' . esc_html( trim( (string) get_post_meta( $id, '_gida_meeting_date', true ) . ' ' . (string) get_post_meta( $id, '_gida_meeting_time', true ) ) ) . '</td><td><select class="gida-booking-status" data-booking-id="' . esc_attr( (string) $id ) . '"><option value="new"' . selected( $status, 'new', false ) . '>New</option><option value="contacted"' . selected( $status, 'contacted', false ) . '>Contacted</option></select></td></tr>';
+			}
+			wp_reset_postdata();
+		} else {
+			echo '<tr><td colspan="6">No bookings found.</td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '<div id="gida-booking-details" class="gida-panel"></div>';
+		return;
+	}
+
+	if ( 'users' === $module ) {
+		$users = get_users( array( 'number' => 200 ) );
+		echo '<table class="gida-table"><thead><tr><th>User</th><th>Email</th><th>Phone</th><th>Role</th><th>Subscription History</th></tr></thead><tbody>';
+		foreach ( $users as $user ) {
+			$history = get_user_meta( $user->ID, '_gida_subscription_history', true );
+			$phone   = (string) get_user_meta( $user->ID, '_gida_phone', true );
+			$history_html = gida_admin_suite_render_subscription_history_html( $history );
+			echo '<tr><td>' . esc_html( $user->display_name ) . '</td><td>' . esc_html( $user->user_email ) . '</td><td>' . esc_html( $phone ) . '</td><td>' . esc_html( implode( ',', $user->roles ) ) . '</td><td>' . $history_html . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+		echo '</tbody></table>';
+		return;
+	}
+
+	if ( 'subscriptions' === $module ) {
+		echo '<form id="gida-plan-form" class="gida-inline-form">';
+		echo '<input type="hidden" name="plan_id" value="">';
+		echo '<input type="text" name="plan_name" placeholder="Plan name (e.g. Starter Plan)" required>';
+		echo '<input type="number" name="plan_price" step="0.01" placeholder="Base price (optional; default 0)">';
+		echo '<textarea name="plan_subtitle" placeholder="Short subtitle / description" required></textarea>';
+		echo '<div class="gida-plan-items-wrap"><div class="gida-plan-items-head"><strong>Service Items</strong><button type="button" class="gida-add-plan-item">Add Item</button></div><div class="gida-plan-items-list"></div></div>';
+		echo '<input type="text" name="plan_button_label" placeholder="Button label (e.g. Buy / Subscribe)" required>';
+		echo '<input type="url" name="plan_button_url" placeholder="Button URL (optional; defaults to /book-now/)">';
+		echo '<button type="submit">Save Plan</button>';
+		echo '</form>';
+		$q = new WP_Query(
+			array(
+				'post_type'      => 'gida_plan',
+				'posts_per_page' => 100,
+				'post_status'    => array( 'publish', 'draft' ),
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+		echo '<div class="gida-cards">';
+		if ( $q->have_posts() ) {
+			while ( $q->have_posts() ) {
+				$q->the_post();
+				$id           = get_the_ID();
+				$is_published = 'publish' === get_post_status( $id );
+				$status_badge = $is_published ? 'Active' : 'Deactivated';
+				$toggle_label = $is_published ? 'Deactivate' : 'Activate';
+				$next_status  = $is_published ? 'deactivate' : 'activate';
+				$price         = (string) get_post_meta( $id, '_gida_plan_price', true );
+				$items_json    = (string) get_post_meta( $id, '_gida_plan_items', true );
+				$plan_items    = json_decode( $items_json, true );
+				if ( ! is_array( $plan_items ) ) {
+					$features_raw = (string) get_post_meta( $id, '_gida_plan_features', true );
+					$features     = preg_split( '/\r\n|\r|\n/', $features_raw );
+					$features     = array_values( array_filter( array_map( 'trim', is_array( $features ) ? $features : array() ) ) );
+					$plan_items   = array();
+					foreach ( $features as $feature ) {
+						$plan_items[] = array(
+							'name'  => $feature,
+							'price' => 0,
+						);
+					}
+				}
+				$item_count = count( $plan_items );
+				echo '<article class="gida-service-card"><h3>' . esc_html( get_the_title() ) . '</h3><p><strong>Status:</strong> ' . esc_html( $status_badge ) . '</p><p><strong>Base Price:</strong> ' . esc_html( $price ? $price : '0' ) . '</p><p><strong>Items:</strong> ' . esc_html( (string) $item_count ) . '</p><p><button type="button" data-edit-plan="' . esc_attr( (string) $id ) . '">Edit</button> <button type="button" data-toggle-plan="' . esc_attr( (string) $id ) . '" data-next-status="' . esc_attr( $next_status ) . '">' . esc_html( $toggle_label ) . '</button> <button type="button" data-delete-plan="' . esc_attr( (string) $id ) . '">Remove</button></p></article>';
+			}
+			wp_reset_postdata();
+		}
+		echo '</div>';
+		return;
+	}
+
+	if ( 'services' === $module ) {
+		echo '<form id="gida-service-form" class="gida-inline-form">';
+		echo '<input type="hidden" name="service_id" value="">';
+		echo '<input type="text" name="service_title" placeholder="Service title" required>';
+		echo '<input type="number" name="service_price" step="0.01" placeholder="Price" required>';
+		echo '<textarea name="service_description" placeholder="Description" required></textarea>';
+		echo '<input type="text" name="hero_title" placeholder="Hero title" required>';
+		echo '<textarea name="hero_description" placeholder="Hero description" required></textarea>';
+		echo '<div class="gida-media-picker-row"><input type="hidden" name="hero_image_url"><input type="file" class="gida-service-image-file" data-target-input="hero_image_url" accept="image/*"><div class="gida-media-picker-preview" data-preview-for="hero_image_url"></div></div>';
+		echo '<input type="text" name="section2_heading" placeholder="Section 2 heading" required>';
+		echo '<textarea name="section2_description" placeholder="Section 2 description" required></textarea>';
+		echo '<div class="gida-media-picker-row"><input type="hidden" name="section2_image_url"><input type="file" class="gida-service-image-file" data-target-input="section2_image_url" accept="image/*"><div class="gida-media-picker-preview" data-preview-for="section2_image_url"></div></div>';
+		echo '<input type="text" name="cta_text" placeholder="CTA button text" required>';
+		echo '<input type="url" name="cta_link" placeholder="CTA link (https://...)">';
+		echo '<input type="text" name="feature_1_title" placeholder="Feature box 1 title" required>';
+		echo '<textarea name="feature_1_description" placeholder="Feature box 1 description" required></textarea>';
+		echo '<input type="text" name="feature_2_title" placeholder="Feature box 2 title" required>';
+		echo '<textarea name="feature_2_description" placeholder="Feature box 2 description" required></textarea>';
+		echo '<input type="text" name="feature_3_title" placeholder="Feature box 3 title" required>';
+		echo '<textarea name="feature_3_description" placeholder="Feature box 3 description" required></textarea>';
+		echo '<input type="text" name="feature_4_title" placeholder="Feature box 4 title" required>';
+		echo '<textarea name="feature_4_description" placeholder="Feature box 4 description" required></textarea>';
+		echo '<input type="text" name="impact_heading" placeholder="Impact section heading" required>';
+		echo '<input type="text" name="impact_1_value" placeholder="Impact 1 value (e.g. 2x)" required>';
+		echo '<input type="text" name="impact_1_label" placeholder="Impact 1 label" required>';
+		echo '<input type="text" name="impact_2_value" placeholder="Impact 2 value (e.g. +35%)" required>';
+		echo '<input type="text" name="impact_2_label" placeholder="Impact 2 label" required>';
+		echo '<input type="text" name="impact_3_value" placeholder="Impact 3 value (e.g. -30%)" required>';
+		echo '<input type="text" name="impact_3_label" placeholder="Impact 3 label" required>';
+		echo '<textarea name="included_items" placeholder="Included items (one per line)" required></textarea>';
+		echo '<textarea name="why_choose_us" placeholder="Why choose us" required></textarea>';
+		echo '<button type="submit">Publish Service</button>';
+		echo '</form>';
+		$q = new WP_Query(
+			array(
+				'post_type'      => 'gida_service',
+				'posts_per_page' => 100,
+				'post_status'    => array( 'publish', 'draft' ),
+			)
+		);
+		echo '<div class="gida-cards">';
+		if ( $q->have_posts() ) {
+			while ( $q->have_posts() ) {
+				$q->the_post();
+				$id = get_the_ID();
+				$is_published = 'publish' === get_post_status( $id );
+				$status_badge = $is_published ? 'Active' : 'Deactivated';
+				$page_link    = gida_admin_suite_get_service_frontend_url( $id );
+				$page_html    = $is_published ? '<a href="' . esc_url( $page_link ) . '" target="_blank" rel="noopener noreferrer">Open page</a>' : '<span style="color:#667085;">Inactive</span>';
+				$toggle_label = $is_published ? 'Deactivate' : 'Activate';
+				$next_status  = $is_published ? 'deactivate' : 'activate';
+				echo '<article class="gida-service-card"><h3>' . esc_html( get_the_title() ) . '</h3><p><strong>Status:</strong> ' . esc_html( $status_badge ) . '</p><p>Price: ' . esc_html( (string) get_post_meta( $id, '_gida_service_price', true ) ) . '</p><p>' . esc_html( wp_trim_words( get_the_content(), 20 ) ) . '</p><p>' . wp_kses_post( $page_html ) . '</p><p><button type="button" data-edit-service="' . esc_attr( (string) $id ) . '">Edit</button> <button type="button" data-toggle-service="' . esc_attr( (string) $id ) . '" data-next-status="' . esc_attr( $next_status ) . '">' . esc_html( $toggle_label ) . '</button> <button type="button" data-delete-service="' . esc_attr( (string) $id ) . '">Remove</button></p></article>';
+			}
+			wp_reset_postdata();
+		}
+		echo '</div>';
+		return;
+	}
+
+	if ( 'support' === $module ) {
+		$q = new WP_Query( array( 'post_type' => 'gida_contact_lead', 'posts_per_page' => 100 ) );
+		echo '<table class="gida-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Message</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+		if ( $q->have_posts() ) {
+			while ( $q->have_posts() ) {
+				$q->the_post();
+				$id = get_the_ID();
+				$phone = (string) get_post_meta( $id, '_gida_contact_whatsapp', true );
+				if ( '' === $phone ) {
+					$phone = (string) get_post_meta( $id, '_gida_contact_phone', true );
+				}
+				$status = (string) get_post_meta( $id, '_gida_support_status', true );
+				if ( '' === $status ) {
+					$status = 'pending';
+				}
+				echo '<tr><td>' . esc_html( (string) get_post_meta( $id, '_gida_contact_name', true ) ) . '</td><td>' . esc_html( (string) get_post_meta( $id, '_gida_contact_email', true ) ) . '</td><td>' . esc_html( $phone ) . '</td><td>' . esc_html( (string) get_post_meta( $id, '_gida_contact_message', true ) ) . '</td><td><select class="gida-support-status" data-support-id="' . esc_attr( (string) $id ) . '"><option value="pending"' . selected( $status, 'pending', false ) . '>Pending</option><option value="resolved"' . selected( $status, 'resolved', false ) . '>Resolved</option></select></td><td>' . esc_html( get_the_date( 'Y-m-d H:i' ) ) . '</td></tr>';
+			}
+			wp_reset_postdata();
+		}
+		echo '</tbody></table>';
+		return;
+	}
+
+	if ( 'leads' === $module ) {
+		$q = new WP_Query(
+			array(
+				'post_type'      => array( 'gida_booking' ),
+				'posts_per_page' => 100,
+				'post_status'    => 'publish',
+			)
+		);
+		echo '<table class="gida-table"><thead><tr><th>Type</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+		if ( $q->have_posts() ) {
+			while ( $q->have_posts() ) {
+				$q->the_post();
+				$id     = get_the_ID();
+				$type   = 'gida_booking';
+				$name   = get_post_meta( $id, '_gida_name', true );
+				$email  = get_post_meta( $id, '_gida_email', true );
+				$phone  = get_post_meta( $id, '_gida_whatsapp', true );
+				if ( '' === $phone ) {
+					$phone = get_post_meta( $id, '_gida_phone', true );
+				}
+				$status = get_post_meta( $id, '_gida_lead_status', true );
+				if ( ! $status ) {
+					$status = 'new';
+				}
+				echo '<tr><td>' . esc_html( $type ) . '</td><td>' . esc_html( (string) $name ) . '</td><td>' . esc_html( (string) $email ) . '</td><td>' . esc_html( (string) $phone ) . '</td><td>' . esc_html( (string) $status ) . '</td><td><select class="gida-lead-status" data-lead-id="' . esc_attr( (string) $id ) . '"><option value="new">new</option><option value="contacted">contacted</option></select></td></tr>';
+			}
+			wp_reset_postdata();
+		}
+		echo '</tbody></table>';
+		return;
+	}
+
+	if ( 'whatsapp' === $module ) {
+		echo '<h3>WhatsApp Template Management</h3>';
+		echo '<div class="gida-twilio-messaging-sid" style="margin-bottom:22px;padding:14px;border:1px solid #e4e7ec;border-radius:10px;background:#fafafa;">';
+		echo '<h4 style="margin:0 0 8px;font-size:15px;">Twilio Messaging Service (required for Content templates)</h4>';
+		echo '<p style="margin:0 0 12px;font-size:13px;color:#475467;">Twilio expects a <strong>Messaging Service SID</strong> (<code style="background:#eef2ff;padding:1px 6px;border-radius:4px;">MG…</code>) with Content Template Builder. Add your WhatsApp sender to that service\'s Sender Pool. ';
+		echo '<a href="https://www.twilio.com/docs/content/using-messaging-services-with-content-templates" target="_blank" rel="noopener noreferrer">Documentation</a></p>';
+		echo '<form id="gida-twilio-messaging-sid-form" class="gida-inline-form" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
+		echo '<input type="text" name="messaging_service_sid" value="' . esc_attr( trim( preg_replace( '/\s+/', '', (string) get_option( 'gida_twilio_messaging_service_sid', '' ) ) ) ) . '" placeholder="MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" maxlength="34" style="min-width:300px;font-family:monospace;font-size:13px;" autocomplete="off">';
+		echo '<button type="submit">Save Messaging Service SID</button>';
+		echo '</form>';
+		echo '<p id="gida-twilio-messaging-sid-status" style="display:none;margin-top:10px;font-size:13px;"></p>';
+		$warn_no_mg = true;
+		if ( preg_match( '/^MG[0-9a-f]{32}$/i', preg_replace( '/\s+/', '', (string) get_option( 'gida_twilio_messaging_service_sid', '' ) ) ) ) {
+			$warn_no_mg = false;
+		} elseif ( defined( 'GIDA_TWILIO_MESSAGING_SERVICE_SID' ) ) {
+			$ct = preg_replace( '/\s+/', '', trim( (string) GIDA_TWILIO_MESSAGING_SERVICE_SID ) );
+			if ( preg_match( '/^MG[0-9a-f]{32}$/i', $ct ) ) {
+				$warn_no_mg = false;
+			}
+		}
+		if ( $warn_no_mg ) {
+			echo '<p style="margin:10px 0 0;font-size:12px;color:#b54708;"><strong>Note:</strong> Until this is set (or <code>GIDA_TWILIO_MESSAGING_SERVICE_SID</code> in wp-config), Twilio may return HTTP 400 / code <strong>21656</strong> for <code>ContentVariables</code> even when the JSON is correct.</p>';
+		}
+		echo '</div>';
+		echo '<div class="gida-whatsapp-custom-send">';
+		echo '<h4>Send to Custom Number</h4>';
+		echo '<p style="margin:0 0 10px;font-size:13px;color:#667085;">Uses Twilio <code>ContentSid</code> + <code>ContentVariables</code>. Sender: whatsapp:+918528779057. Requires Messaging Service SID above.</p>';
+		echo '<form id="gida-whatsapp-custom-send-form" class="gida-inline-form gida-whatsapp-custom-send-form">';
+		echo '<input type="tel" name="custom_phone" placeholder="WhatsApp number (e.g. +919876543210 or 9876543210)" required autocomplete="tel">';
+		echo '<input type="text" name="recipient_name" placeholder="Customer name (used as {{1}} variable)">';
+		echo '<input type="text" name="recipient_services" placeholder="Services (used as {{2}} variable, e.g. Logo Design, SEO)">';
+		echo '<button type="submit">Send Template</button>';
+		echo '</form>';
+		echo '<p id="gida-whatsapp-custom-send-status" class="gida-whatsapp-custom-send-status" style="display:none;margin-top:10px;font-size:13px;"></p>';
+		echo '</div>';
+		echo '<form id="gida-template-form" class="gida-inline-form gida-whatsapp-form">';
+		echo '<input type="hidden" name="template_id" value="">';
+		echo '<div style="display:grid;gap:6px;max-width:560px;margin:0 0 12px;">';
+		echo '<label for="gida_tpl_trigger"><strong>When to send</strong></label>';
+		echo '<select id="gida_tpl_trigger" name="trigger_key">';
+		foreach ( gida_admin_suite_whatsapp_trigger_key_labels() as $tk => $lbl ) {
+			echo '<option value="' . esc_attr( $tk ) . '">' . esc_html( $lbl ) . '</option>';
+		}
+		echo '</select>';
+		echo '<label for="gida_tpl_content_sid"><strong>Twilio Content template SID</strong> (HX… optional)</label>';
+		echo '<input id="gida_tpl_content_sid" type="text" name="content_sid" maxlength="40" placeholder="HX… — empty = plugin default SID for this trigger" autocomplete="off" style="font-family:monospace;min-width:280px">';
+		echo '<p style="margin:0;font-size:12px;color:#667085;line-height:1.45;">Approved templates in Console each have their own HX. Save <strong>one row per Twilio template</strong>; smaller <strong>Order / Sequence</strong> sends first. Blank HX uses <code>GIDA_TWILIO_WP_CONTENT_SID_DEFAULT</code> or per-trigger overrides in WP option <code>gida_twilio_template_sid_map</code>.</p>';
+		echo '</div>';
+		echo '<input type="text" name="template_name" placeholder="Internal label (e.g. Welcome – step 2)" required>';
+		echo '<input type="number" min="1" step="1" name="sequence_no" placeholder="Order / Sequence (1,2,3...)" required>';
+		echo '<input type="url" name="media_url" placeholder="Top image URL (optional, shown above text)">';
+		echo '<p style="margin:-4px 0 0;font-size:12px;color:#667085;">Use a direct public HTTPS image URL (e.g. https://your-domain.com/wp-content/uploads/file.jpg). Localhost/private links will not work on Twilio.</p>';
+		echo '<div class="gida-media-picker-row gida-whatsapp-media-row">';
+		echo '<input type="file" class="gida-whatsapp-image-file" accept="image/*" data-target-input="media_url">';
+		echo '<div class="gida-media-picker-preview gida-whatsapp-media-preview" data-preview-for="media_url"></div>';
+		echo '</div>';
+		echo '<div class="gida-whatsapp-message-head"><strong>Final Message (sent to WhatsApp)</strong><button type="button" class="gida-whatsapp-more-btn" aria-label="More options">⋮</button><div class="gida-whatsapp-more-menu" hidden><button type="button" class="gida-whatsapp-open-helper">Write HTML/CSS</button></div></div>';
+		echo '<textarea name="template_body" placeholder="Final WhatsApp message text..." required></textarea>';
+		echo '<div class="gida-whatsapp-helper" hidden><textarea name="html_source" placeholder="Write HTML/CSS here..."></textarea><div><button type="button" class="gida-whatsapp-convert-btn">Convert</button></div></div>';
+		echo '<button type="submit">Save Template</button>';
+		echo '</form>';
+		echo '<div id="gida-whatsapp-template-list" class="gida-cards"></div>';
+		return;
+	}
+
+	if ( 'chat' === $module ) {
+		if ( ! gida_admin_suite_is_live_chat_available() ) {
+			echo '<p>Live chat plugin is not active. Please activate <strong>Brnd Live Chat</strong> plugin.</p>';
+			return;
+		}
+		echo '<div class="gida-chat-admin-panel" id="gidaCustomAdminChatRoot"></div>';
+		return;
+	}
+
+	if ( in_array( $module, array( 'page_privacy', 'page_terms', 'page_refund', 'page_contact' ), true ) ) {
+		gida_brnd_cms_render_form( $module );
+		return;
+	}
+}
+
+function gida_admin_suite_is_live_chat_available() {
+	return function_exists( 'gida_live_chat_insert_message' );
+}
+
+function gida_admin_suite_upload_chat_image_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	if ( empty( $_FILES['chat_image'] ) || ! is_array( $_FILES['chat_image'] ) ) {
+		wp_send_json_error( array( 'message' => 'No image provided' ), 400 );
+	}
+	$file = $_FILES['chat_image'];
+	if ( ! empty( $file['error'] ) ) {
+		wp_send_json_error( array( 'message' => 'Upload failed' ), 400 );
+	}
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	$uploaded = wp_handle_upload(
+		$file,
+		array(
+			'test_form' => false,
+			'mimes'     => array(
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			),
+		)
+	);
+	if ( ! empty( $uploaded['error'] ) ) {
+		wp_send_json_error( array( 'message' => (string) $uploaded['error'] ), 400 );
+	}
+	$url = isset( $uploaded['url'] ) ? esc_url_raw( (string) $uploaded['url'] ) : '';
+	if ( '' === $url ) {
+		wp_send_json_error( array( 'message' => 'Image URL not available' ), 500 );
+	}
+	wp_send_json_success( array( 'url' => $url ) );
+}
+add_action( 'wp_ajax_gida_chat_upload_image', 'gida_admin_suite_upload_chat_image_ajax' );
+
+function gida_admin_suite_get_chat_conversations_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	global $wpdb;
+	$conv_table = $wpdb->prefix . 'gida_chat_conversations';
+	$msg_table  = $wpdb->prefix . 'gida_chat_messages';
+	$user_id    = get_current_user_id();
+	$pins       = get_user_meta( $user_id, '_gida_live_chat_pins', true );
+	$pins       = is_array( $pins ) ? array_values( array_filter( array_map( 'absint', $pins ) ) ) : array();
+	$rows       = $wpdb->get_results(
+		"SELECT c.id, c.visitor_name, c.visitor_email, c.last_message_at, c.created_at,
+			(SELECT m.message FROM {$msg_table} m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS last_message,
+			(SELECT m.sender_label FROM {$msg_table} m WHERE m.conversation_id = c.id AND m.sender_type = 'user' ORDER BY m.id DESC LIMIT 1) AS latest_user_label,
+			(SELECT m.id FROM {$msg_table} m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS last_message_id
+		FROM {$conv_table} c
+		ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
+		LIMIT 200",
+		ARRAY_A
+	); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	$list       = array();
+	$pinned     = array();
+	$normal     = array();
+	foreach ( $rows as $row ) {
+		if ( '' === trim( (string) $row['visitor_name'] ) && ! empty( $row['visitor_email'] ) ) {
+			$user = get_user_by( 'email', sanitize_email( (string) $row['visitor_email'] ) );
+			if ( $user ) {
+				$row['visitor_name'] = (string) $user->display_name;
+			}
+		}
+		$conversation_id = (int) $row['id'];
+		$last_message_id = (int) $row['last_message_id'];
+		$last_read_id    = (int) get_user_meta( $user_id, '_gida_chat_read_' . $conversation_id, true );
+		$row['unread']   = $last_message_id > $last_read_id ? 1 : 0;
+		$row['is_pinned'] = in_array( $conversation_id, $pins, true ) ? 1 : 0;
+		if ( $row['is_pinned'] ) {
+			$pinned[] = $row;
+		} else {
+			$normal[] = $row;
+		}
+	}
+	$list = array_merge( $pinned, $normal );
+	wp_send_json_success( array( 'conversations' => $list ) );
+}
+add_action( 'wp_ajax_gida_chat_conversations', 'gida_admin_suite_get_chat_conversations_ajax' );
+
+function gida_admin_suite_toggle_chat_pin_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	$conversation_id = isset( $_POST['conversation_id'] ) ? absint( $_POST['conversation_id'] ) : 0;
+	$pin             = isset( $_POST['pin'] ) ? absint( $_POST['pin'] ) : 0;
+	if ( $conversation_id <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Invalid conversation' ), 400 );
+	}
+	$user_id = get_current_user_id();
+	$pins    = get_user_meta( $user_id, '_gida_live_chat_pins', true );
+	$pins    = is_array( $pins ) ? array_values( array_filter( array_map( 'absint', $pins ) ) ) : array();
+	if ( 1 === $pin ) {
+		if ( ! in_array( $conversation_id, $pins, true ) ) {
+			if ( count( $pins ) >= 2 ) {
+				wp_send_json_error( array( 'message' => 'Maximum 2 pinned chats allowed' ), 400 );
+			}
+			$pins[] = $conversation_id;
+		}
+	} else {
+		$pins = array_values(
+			array_filter(
+				$pins,
+				function( $id ) use ( $conversation_id ) {
+					return (int) $id !== $conversation_id;
+				}
+			)
+		);
+	}
+	update_user_meta( $user_id, '_gida_live_chat_pins', $pins );
+	wp_send_json_success( array( 'pins' => $pins ) );
+}
+add_action( 'wp_ajax_gida_chat_toggle_pin', 'gida_admin_suite_toggle_chat_pin_ajax' );
+
+function gida_admin_suite_delete_chat_conversation_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	$conversation_id = isset( $_POST['conversation_id'] ) ? absint( $_POST['conversation_id'] ) : 0;
+	if ( $conversation_id <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Invalid conversation' ), 400 );
+	}
+
+	$ok = false;
+	if ( function_exists( 'gida_live_chat_delete_conversation' ) ) {
+		$ok = gida_live_chat_delete_conversation( $conversation_id );
+	} else {
+		global $wpdb;
+		$msg_table  = $wpdb->prefix . 'gida_chat_messages';
+		$conv_table = $wpdb->prefix . 'gida_chat_conversations';
+		$wpdb->delete( $msg_table, array( 'conversation_id' => $conversation_id ), array( '%d' ) );
+		$ok = (bool) $wpdb->delete( $conv_table, array( 'id' => $conversation_id ), array( '%d' ) );
+	}
+	if ( ! $ok ) {
+		wp_send_json_error( array( 'message' => 'Delete failed' ), 500 );
+	}
+
+	$user_id = get_current_user_id();
+	$pins    = get_user_meta( $user_id, '_gida_live_chat_pins', true );
+	$pins    = is_array( $pins ) ? array_values( array_filter( array_map( 'absint', $pins ) ) ) : array();
+	$pins    = array_values(
+		array_filter(
+			$pins,
+			function( $id ) use ( $conversation_id ) {
+				return (int) $id !== $conversation_id;
+			}
+		)
+	);
+	update_user_meta( $user_id, '_gida_live_chat_pins', $pins );
+
+	delete_user_meta( $user_id, '_gida_chat_read_' . $conversation_id );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_chat_delete_conversation', 'gida_admin_suite_delete_chat_conversation_ajax' );
+
+function gida_admin_suite_get_chat_messages_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	$conversation_id = isset( $_POST['conversation_id'] ) ? absint( $_POST['conversation_id'] ) : 0;
+	if ( $conversation_id <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Invalid conversation' ), 400 );
+	}
+	global $wpdb;
+	$msg_table = $wpdb->prefix . 'gida_chat_messages';
+	$list      = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT id, conversation_id, sender_type, sender_label, message, is_system, created_at
+			FROM {$msg_table}
+			WHERE conversation_id = %d
+			ORDER BY id ASC",
+			$conversation_id
+		),
+		ARRAY_A
+	); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	wp_send_json_success( array( 'messages' => $list ) );
+}
+add_action( 'wp_ajax_gida_chat_messages', 'gida_admin_suite_get_chat_messages_ajax' );
+
+function gida_admin_suite_mark_chat_read_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	$conversation_id = isset( $_POST['conversation_id'] ) ? absint( $_POST['conversation_id'] ) : 0;
+	$message_id      = isset( $_POST['message_id'] ) ? absint( $_POST['message_id'] ) : 0;
+	if ( $conversation_id <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Invalid conversation' ), 400 );
+	}
+	update_user_meta( get_current_user_id(), '_gida_chat_read_' . $conversation_id, $message_id );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_chat_mark_read', 'gida_admin_suite_mark_chat_read_ajax' );
+
+function gida_admin_suite_reply_chat_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	if ( ! function_exists( 'gida_live_chat_insert_message' ) ) {
+		wp_send_json_error( array( 'message' => 'Live chat unavailable' ), 400 );
+	}
+	$conversation_id = isset( $_POST['conversation_id'] ) ? absint( $_POST['conversation_id'] ) : 0;
+	$message         = isset( $_POST['message'] ) ? wp_kses_post( wp_unslash( $_POST['message'] ) ) : '';
+	if ( $conversation_id <= 0 || '' === trim( wp_strip_all_tags( $message ) ) ) {
+		wp_send_json_error( array( 'message' => 'Message is required' ), 400 );
+	}
+	$current_user = wp_get_current_user();
+	$label        = $current_user && $current_user->display_name ? $current_user->display_name : 'Support';
+	$item         = gida_live_chat_insert_message( $conversation_id, 'admin', $label, $message, 0 );
+	if ( ! $item ) {
+		wp_send_json_error( array( 'message' => 'Unable to send reply' ), 500 );
+	}
+	if ( function_exists( 'gida_live_chat_emit_event' ) ) {
+		gida_live_chat_emit_event(
+			'chat-message',
+			array(
+				'conversation_id' => $conversation_id,
+				'message'         => $item,
+			)
+		);
+	}
+	update_user_meta( get_current_user_id(), '_gida_chat_read_' . $conversation_id, (int) $item['id'] );
+	wp_send_json_success( array( 'message' => $item ) );
+}
+add_action( 'wp_ajax_gida_chat_reply', 'gida_admin_suite_reply_chat_ajax' );
+
+function gida_admin_suite_booking_details_ajax() {
+	gida_admin_suite_verify_ajax();
+	$booking_id = isset( $_POST['booking_id'] ) ? absint( $_POST['booking_id'] ) : 0;
+	if ( $booking_id <= 0 || 'gida_booking' !== get_post_type( $booking_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid booking' ), 400 );
+	}
+	$status_label = gida_admin_suite_booking_status_label( get_post_meta( $booking_id, '_gida_booking_status', true ) );
+	$status       = 'Contacted' === $status_label ? 'contacted' : 'new';
+	wp_send_json_success(
+		array(
+			'name'    => get_post_meta( $booking_id, '_gida_name', true ),
+			'email'   => get_post_meta( $booking_id, '_gida_email', true ),
+			'phone'   => get_post_meta( $booking_id, '_gida_whatsapp', true ) ? get_post_meta( $booking_id, '_gida_whatsapp', true ) : get_post_meta( $booking_id, '_gida_phone', true ),
+			'service' => get_post_meta( $booking_id, '_gida_service', true ),
+			'date'    => get_post_meta( $booking_id, '_gida_meeting_date', true ),
+			'time'    => get_post_meta( $booking_id, '_gida_meeting_time', true ),
+			'status'  => $status,
+		)
+	);
+}
+add_action( 'wp_ajax_gida_booking_details', 'gida_admin_suite_booking_details_ajax' );
+
+function gida_admin_suite_update_booking_status_ajax() {
+	gida_admin_suite_verify_ajax();
+	$booking_id = isset( $_POST['booking_id'] ) ? absint( $_POST['booking_id'] ) : 0;
+	$status     = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+	if ( $booking_id <= 0 || 'gida_booking' !== get_post_type( $booking_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid booking' ), 400 );
+	}
+	if ( ! in_array( $status, array( 'new', 'contacted' ), true ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid status' ), 400 );
+	}
+	update_post_meta( $booking_id, '_gida_booking_status', $status );
+	update_post_meta( $booking_id, '_gida_lead_status', $status );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_update_booking_status', 'gida_admin_suite_update_booking_status_ajax' );
+
+function gida_admin_suite_update_lead_status_ajax() {
+	gida_admin_suite_verify_ajax();
+	$lead_id = isset( $_POST['lead_id'] ) ? absint( $_POST['lead_id'] ) : 0;
+	$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+	if ( ! in_array( $status, array( 'new', 'contacted' ), true ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid status' ), 400 );
+	}
+	update_post_meta( $lead_id, '_gida_lead_status', $status );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_update_lead_status', 'gida_admin_suite_update_lead_status_ajax' );
+
+function gida_admin_suite_update_support_status_ajax() {
+	gida_admin_suite_verify_ajax();
+	$support_id = isset( $_POST['support_id'] ) ? absint( $_POST['support_id'] ) : 0;
+	$status     = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+	if ( $support_id <= 0 || 'gida_contact_lead' !== get_post_type( $support_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid request' ), 400 );
+	}
+	if ( ! in_array( $status, array( 'pending', 'resolved' ), true ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid status' ), 400 );
+	}
+	update_post_meta( $support_id, '_gida_support_status', $status );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_update_support_status', 'gida_admin_suite_update_support_status_ajax' );
+
+function gida_admin_suite_save_service_ajax() {
+	gida_admin_suite_verify_ajax();
+	$service_id   = isset( $_POST['service_id'] ) ? absint( $_POST['service_id'] ) : 0;
+	$title        = isset( $_POST['service_title'] ) ? sanitize_text_field( wp_unslash( $_POST['service_title'] ) ) : '';
+	$price        = isset( $_POST['service_price'] ) ? sanitize_text_field( wp_unslash( $_POST['service_price'] ) ) : '';
+	$description  = isset( $_POST['service_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['service_description'] ) ) : '';
+	$hero_title   = isset( $_POST['hero_title'] ) ? sanitize_text_field( wp_unslash( $_POST['hero_title'] ) ) : '';
+	$hero_description = isset( $_POST['hero_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['hero_description'] ) ) : '';
+	$hero_image_url = isset( $_POST['hero_image_url'] ) ? esc_url_raw( wp_unslash( $_POST['hero_image_url'] ) ) : '';
+	$section2_heading = isset( $_POST['section2_heading'] ) ? sanitize_text_field( wp_unslash( $_POST['section2_heading'] ) ) : '';
+	$section2_description = isset( $_POST['section2_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['section2_description'] ) ) : '';
+	$section2_image_url = isset( $_POST['section2_image_url'] ) ? esc_url_raw( wp_unslash( $_POST['section2_image_url'] ) ) : '';
+	$cta_text     = isset( $_POST['cta_text'] ) ? sanitize_text_field( wp_unslash( $_POST['cta_text'] ) ) : '';
+	$cta_link     = isset( $_POST['cta_link'] ) ? esc_url_raw( wp_unslash( $_POST['cta_link'] ) ) : '';
+	$feature_1_title = isset( $_POST['feature_1_title'] ) ? sanitize_text_field( wp_unslash( $_POST['feature_1_title'] ) ) : '';
+	$feature_1_description = isset( $_POST['feature_1_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['feature_1_description'] ) ) : '';
+	$feature_2_title = isset( $_POST['feature_2_title'] ) ? sanitize_text_field( wp_unslash( $_POST['feature_2_title'] ) ) : '';
+	$feature_2_description = isset( $_POST['feature_2_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['feature_2_description'] ) ) : '';
+	$feature_3_title = isset( $_POST['feature_3_title'] ) ? sanitize_text_field( wp_unslash( $_POST['feature_3_title'] ) ) : '';
+	$feature_3_description = isset( $_POST['feature_3_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['feature_3_description'] ) ) : '';
+	$feature_4_title = isset( $_POST['feature_4_title'] ) ? sanitize_text_field( wp_unslash( $_POST['feature_4_title'] ) ) : '';
+	$feature_4_description = isset( $_POST['feature_4_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['feature_4_description'] ) ) : '';
+	$impact_heading = isset( $_POST['impact_heading'] ) ? sanitize_text_field( wp_unslash( $_POST['impact_heading'] ) ) : '';
+	$impact_1_value = isset( $_POST['impact_1_value'] ) ? sanitize_text_field( wp_unslash( $_POST['impact_1_value'] ) ) : '';
+	$impact_1_label = isset( $_POST['impact_1_label'] ) ? sanitize_text_field( wp_unslash( $_POST['impact_1_label'] ) ) : '';
+	$impact_2_value = isset( $_POST['impact_2_value'] ) ? sanitize_text_field( wp_unslash( $_POST['impact_2_value'] ) ) : '';
+	$impact_2_label = isset( $_POST['impact_2_label'] ) ? sanitize_text_field( wp_unslash( $_POST['impact_2_label'] ) ) : '';
+	$impact_3_value = isset( $_POST['impact_3_value'] ) ? sanitize_text_field( wp_unslash( $_POST['impact_3_value'] ) ) : '';
+	$impact_3_label = isset( $_POST['impact_3_label'] ) ? sanitize_text_field( wp_unslash( $_POST['impact_3_label'] ) ) : '';
+	$included_items = isset( $_POST['included_items'] ) ? sanitize_textarea_field( wp_unslash( $_POST['included_items'] ) ) : '';
+	$why_choose_us = isset( $_POST['why_choose_us'] ) ? sanitize_textarea_field( wp_unslash( $_POST['why_choose_us'] ) ) : '';
+	$post_payload = array(
+		'post_type'    => 'gida_service',
+		'post_title'   => $title,
+		'post_content' => $description,
+		'post_status'  => 'publish',
+	);
+	if ( $service_id > 0 ) {
+		$post_payload['ID'] = $service_id;
+		wp_update_post( $post_payload );
+	} else {
+		$service_id = wp_insert_post( $post_payload );
+	}
+	update_post_meta( $service_id, '_gida_service_price', $price );
+	update_post_meta( $service_id, '_gida_hero_title', $hero_title );
+	update_post_meta( $service_id, '_gida_hero_description', $hero_description );
+	update_post_meta( $service_id, '_gida_hero_image_url', $hero_image_url );
+	update_post_meta( $service_id, '_gida_section2_heading', $section2_heading );
+	update_post_meta( $service_id, '_gida_section2_description', $section2_description );
+	update_post_meta( $service_id, '_gida_section2_image_url', $section2_image_url );
+	update_post_meta( $service_id, '_gida_cta_text', $cta_text );
+	update_post_meta( $service_id, '_gida_cta_link', $cta_link );
+	update_post_meta( $service_id, '_gida_feature_1_title', $feature_1_title );
+	update_post_meta( $service_id, '_gida_feature_1_description', $feature_1_description );
+	update_post_meta( $service_id, '_gida_feature_2_title', $feature_2_title );
+	update_post_meta( $service_id, '_gida_feature_2_description', $feature_2_description );
+	update_post_meta( $service_id, '_gida_feature_3_title', $feature_3_title );
+	update_post_meta( $service_id, '_gida_feature_3_description', $feature_3_description );
+	update_post_meta( $service_id, '_gida_feature_4_title', $feature_4_title );
+	update_post_meta( $service_id, '_gida_feature_4_description', $feature_4_description );
+	update_post_meta( $service_id, '_gida_impact_heading', $impact_heading );
+	update_post_meta( $service_id, '_gida_impact_1_value', $impact_1_value );
+	update_post_meta( $service_id, '_gida_impact_1_label', $impact_1_label );
+	update_post_meta( $service_id, '_gida_impact_2_value', $impact_2_value );
+	update_post_meta( $service_id, '_gida_impact_2_label', $impact_2_label );
+	update_post_meta( $service_id, '_gida_impact_3_value', $impact_3_value );
+	update_post_meta( $service_id, '_gida_impact_3_label', $impact_3_label );
+	update_post_meta( $service_id, '_gida_included_items', $included_items );
+	update_post_meta( $service_id, '_gida_why_choose_us', $why_choose_us );
+	$service_url = gida_admin_suite_get_service_frontend_url( $service_id );
+	wp_send_json_success(
+		array(
+			'service_id'  => $service_id,
+			'service_url' => $service_url ? $service_url : '',
+		)
+	);
+}
+add_action( 'wp_ajax_gida_save_service', 'gida_admin_suite_save_service_ajax' );
+
+function gida_admin_suite_upload_service_image_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( empty( $_FILES['service_image'] ) || ! is_array( $_FILES['service_image'] ) ) {
+		wp_send_json_error( array( 'message' => 'No image provided' ), 400 );
+	}
+	$file = $_FILES['service_image'];
+	if ( ! empty( $file['error'] ) ) {
+		wp_send_json_error( array( 'message' => 'Upload failed' ), 400 );
+	}
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	$uploaded = wp_handle_upload(
+		$file,
+		array(
+			'test_form' => false,
+			'mimes'     => array(
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			),
+		)
+	);
+	if ( ! empty( $uploaded['error'] ) ) {
+		wp_send_json_error( array( 'message' => (string) $uploaded['error'] ), 400 );
+	}
+	$url = isset( $uploaded['url'] ) ? esc_url_raw( (string) $uploaded['url'] ) : '';
+	if ( '' === $url ) {
+		wp_send_json_error( array( 'message' => 'Image URL not available' ), 500 );
+	}
+	wp_send_json_success( array( 'url' => $url ) );
+}
+add_action( 'wp_ajax_gida_upload_service_image', 'gida_admin_suite_upload_service_image_ajax' );
+
+function gida_admin_suite_get_service_ajax() {
+	gida_admin_suite_verify_ajax();
+	$service_id = isset( $_POST['service_id'] ) ? absint( $_POST['service_id'] ) : 0;
+	if ( $service_id <= 0 || 'gida_service' !== get_post_type( $service_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid service' ), 400 );
+	}
+	wp_send_json_success(
+		array(
+			'service_id'           => $service_id,
+			'service_title'        => get_the_title( $service_id ),
+			'service_description'  => get_post_field( 'post_content', $service_id ),
+			'service_price'        => get_post_meta( $service_id, '_gida_service_price', true ),
+			'hero_title'           => get_post_meta( $service_id, '_gida_hero_title', true ),
+			'hero_description'     => get_post_meta( $service_id, '_gida_hero_description', true ),
+			'hero_image_url'       => get_post_meta( $service_id, '_gida_hero_image_url', true ),
+			'section2_heading'     => get_post_meta( $service_id, '_gida_section2_heading', true ),
+			'section2_description' => get_post_meta( $service_id, '_gida_section2_description', true ),
+			'section2_image_url'   => get_post_meta( $service_id, '_gida_section2_image_url', true ),
+			'cta_text'             => get_post_meta( $service_id, '_gida_cta_text', true ),
+			'cta_link'             => get_post_meta( $service_id, '_gida_cta_link', true ),
+			'feature_1_title'      => get_post_meta( $service_id, '_gida_feature_1_title', true ),
+			'feature_1_description'=> get_post_meta( $service_id, '_gida_feature_1_description', true ),
+			'feature_2_title'      => get_post_meta( $service_id, '_gida_feature_2_title', true ),
+			'feature_2_description'=> get_post_meta( $service_id, '_gida_feature_2_description', true ),
+			'feature_3_title'      => get_post_meta( $service_id, '_gida_feature_3_title', true ),
+			'feature_3_description'=> get_post_meta( $service_id, '_gida_feature_3_description', true ),
+			'feature_4_title'      => get_post_meta( $service_id, '_gida_feature_4_title', true ),
+			'feature_4_description'=> get_post_meta( $service_id, '_gida_feature_4_description', true ),
+			'impact_heading'       => get_post_meta( $service_id, '_gida_impact_heading', true ),
+			'impact_1_value'       => get_post_meta( $service_id, '_gida_impact_1_value', true ),
+			'impact_1_label'       => get_post_meta( $service_id, '_gida_impact_1_label', true ),
+			'impact_2_value'       => get_post_meta( $service_id, '_gida_impact_2_value', true ),
+			'impact_2_label'       => get_post_meta( $service_id, '_gida_impact_2_label', true ),
+			'impact_3_value'       => get_post_meta( $service_id, '_gida_impact_3_value', true ),
+			'impact_3_label'       => get_post_meta( $service_id, '_gida_impact_3_label', true ),
+			'included_items'       => get_post_meta( $service_id, '_gida_included_items', true ),
+			'why_choose_us'        => get_post_meta( $service_id, '_gida_why_choose_us', true ),
+		)
+	);
+}
+add_action( 'wp_ajax_gida_get_service', 'gida_admin_suite_get_service_ajax' );
+
+function gida_admin_suite_delete_service_ajax() {
+	gida_admin_suite_verify_ajax();
+	$service_id = isset( $_POST['service_id'] ) ? absint( $_POST['service_id'] ) : 0;
+	wp_delete_post( $service_id, true );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_delete_service', 'gida_admin_suite_delete_service_ajax' );
+
+function gida_admin_suite_toggle_service_status_ajax() {
+	gida_admin_suite_verify_ajax();
+	$service_id = isset( $_POST['service_id'] ) ? absint( $_POST['service_id'] ) : 0;
+	$mode       = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : '';
+	if ( $service_id <= 0 || 'gida_service' !== get_post_type( $service_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid service' ), 400 );
+	}
+	if ( ! in_array( $mode, array( 'activate', 'deactivate' ), true ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid mode' ), 400 );
+	}
+	$new_status = 'activate' === $mode ? 'publish' : 'draft';
+	wp_update_post(
+		array(
+			'ID'          => $service_id,
+			'post_status' => $new_status,
+		)
+	);
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_toggle_service_status', 'gida_admin_suite_toggle_service_status_ajax' );
+
+function gida_admin_suite_save_plan_ajax() {
+	gida_admin_suite_verify_ajax();
+	$plan_id       = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0;
+	$plan_name     = isset( $_POST['plan_name'] ) ? sanitize_text_field( wp_unslash( $_POST['plan_name'] ) ) : '';
+	$plan_price    = isset( $_POST['plan_price'] ) ? sanitize_text_field( wp_unslash( $_POST['plan_price'] ) ) : '';
+	$plan_subtitle = isset( $_POST['plan_subtitle'] ) ? sanitize_textarea_field( wp_unslash( $_POST['plan_subtitle'] ) ) : '';
+	$plan_items_raw = isset( $_POST['plan_items'] ) ? wp_unslash( $_POST['plan_items'] ) : '[]';
+	$button_label  = isset( $_POST['plan_button_label'] ) ? sanitize_text_field( wp_unslash( $_POST['plan_button_label'] ) ) : '';
+	$button_url    = isset( $_POST['plan_button_url'] ) ? esc_url_raw( wp_unslash( $_POST['plan_button_url'] ) ) : '';
+	if ( '' === $plan_name || '' === $button_label ) {
+		wp_send_json_error( array( 'message' => 'Missing required fields' ), 400 );
+	}
+	$decoded_items = json_decode( (string) $plan_items_raw, true );
+	$plan_items    = array();
+	if ( is_array( $decoded_items ) ) {
+		foreach ( $decoded_items as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+			$item_name  = isset( $item['name'] ) ? sanitize_text_field( (string) $item['name'] ) : '';
+			$item_price = isset( $item['price'] ) ? (float) $item['price'] : 0;
+			if ( '' === $item_name ) {
+				continue;
+			}
+			$plan_items[] = array(
+				'name'  => $item_name,
+				'price' => round( $item_price, 2 ),
+			);
+		}
+	}
+	if ( empty( $plan_items ) ) {
+		wp_send_json_error( array( 'message' => 'Add at least one service item.' ), 400 );
+	}
+	$features_lines = array();
+	foreach ( $plan_items as $line_item ) {
+		$features_lines[] = $line_item['name'];
+	}
+	$plan_features = implode( "\n", $features_lines );
+	$post_payload = array(
+		'post_type'    => 'gida_plan',
+		'post_title'   => $plan_name,
+		'post_content' => $plan_subtitle,
+		'post_status'  => 'publish',
+	);
+	if ( $plan_id > 0 ) {
+		$post_payload['ID'] = $plan_id;
+		wp_update_post( $post_payload );
+	} else {
+		$plan_id = wp_insert_post( $post_payload );
+	}
+	update_post_meta( $plan_id, '_gida_plan_price', $plan_price );
+	update_post_meta( $plan_id, '_gida_plan_features', $plan_features );
+	update_post_meta( $plan_id, '_gida_plan_items', wp_json_encode( $plan_items ) );
+	update_post_meta( $plan_id, '_gida_plan_button_label', $button_label );
+	update_post_meta( $plan_id, '_gida_plan_button_url', $button_url );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_save_plan', 'gida_admin_suite_save_plan_ajax' );
+
+function gida_admin_suite_get_plan_ajax() {
+	gida_admin_suite_verify_ajax();
+	$plan_id = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0;
+	if ( $plan_id <= 0 || 'gida_plan' !== get_post_type( $plan_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid plan' ), 400 );
+	}
+	wp_send_json_success(
+		array(
+			'plan_id'           => $plan_id,
+			'plan_name'         => get_the_title( $plan_id ),
+			'plan_price'        => get_post_meta( $plan_id, '_gida_plan_price', true ),
+			'plan_subtitle'     => get_post_field( 'post_content', $plan_id ),
+			'plan_features'     => get_post_meta( $plan_id, '_gida_plan_features', true ),
+			'plan_items'        => get_post_meta( $plan_id, '_gida_plan_items', true ),
+			'plan_button_label' => get_post_meta( $plan_id, '_gida_plan_button_label', true ),
+			'plan_button_url'   => get_post_meta( $plan_id, '_gida_plan_button_url', true ),
+		)
+	);
+}
+add_action( 'wp_ajax_gida_get_plan', 'gida_admin_suite_get_plan_ajax' );
+
+function gida_admin_suite_toggle_plan_status_ajax() {
+	gida_admin_suite_verify_ajax();
+	$plan_id = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0;
+	$mode    = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : '';
+	if ( $plan_id <= 0 || 'gida_plan' !== get_post_type( $plan_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid plan' ), 400 );
+	}
+	if ( ! in_array( $mode, array( 'activate', 'deactivate' ), true ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid mode' ), 400 );
+	}
+	$new_status = 'activate' === $mode ? 'publish' : 'draft';
+	wp_update_post(
+		array(
+			'ID'          => $plan_id,
+			'post_status' => $new_status,
+		)
+	);
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_toggle_plan_status', 'gida_admin_suite_toggle_plan_status_ajax' );
+
+function gida_admin_suite_delete_plan_ajax() {
+	gida_admin_suite_verify_ajax();
+	$plan_id = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0;
+	if ( $plan_id <= 0 || 'gida_plan' !== get_post_type( $plan_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid plan' ), 400 );
+	}
+	wp_delete_post( $plan_id, true );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_delete_plan', 'gida_admin_suite_delete_plan_ajax' );
+
+function gida_admin_suite_parse_selected_services( $raw_items ) {
+	$decoded = json_decode( (string) $raw_items, true );
+	$items   = array();
+	if ( ! is_array( $decoded ) ) {
+		return $items;
+	}
+	foreach ( $decoded as $item ) {
+		if ( ! is_array( $item ) ) {
+			continue;
+		}
+		$name  = isset( $item['name'] ) ? sanitize_text_field( (string) $item['name'] ) : '';
+		$price = isset( $item['price'] ) ? (float) $item['price'] : 0;
+		if ( '' === $name ) {
+			continue;
+		}
+		$items[] = array(
+			'name'  => $name,
+			'price' => round( $price, 2 ),
+		);
+	}
+	return $items;
+}
+
+function gida_admin_suite_append_subscription_history( $user_id, $entry ) {
+	$user_id = absint( $user_id );
+	if ( $user_id <= 0 || ! is_array( $entry ) ) {
+		return;
+	}
+	$history = get_user_meta( $user_id, '_gida_subscription_history', true );
+	if ( ! is_array( $history ) ) {
+		$history = array();
+	}
+	$history[] = $entry;
+	update_user_meta( $user_id, '_gida_subscription_history', array_slice( $history, -50 ) );
+}
+
+function gida_admin_suite_render_subscription_history_html( $history ) {
+	if ( ! is_array( $history ) || empty( $history ) ) {
+		return 'No history';
+	}
+	$history = array_reverse( $history );
+	$output  = '';
+	foreach ( $history as $entry ) {
+		if ( ! is_array( $entry ) ) {
+			continue;
+		}
+		$service_label = '';
+		if ( ! empty( $entry['selected_services'] ) && is_array( $entry['selected_services'] ) ) {
+			$names = array();
+			foreach ( $entry['selected_services'] as $service_row ) {
+				if ( is_array( $service_row ) && ! empty( $service_row['name'] ) ) {
+					$names[] = sanitize_text_field( (string) $service_row['name'] );
+				}
+			}
+			$service_label = implode( ', ', $names );
+		}
+		if ( '' === $service_label ) {
+			$service_label = isset( $entry['service'] ) ? sanitize_text_field( (string) $entry['service'] ) : '';
+		}
+		$status = isset( $entry['payment_status'] ) ? sanitize_text_field( (string) $entry['payment_status'] ) : 'Success';
+		$amount = isset( $entry['total_amount'] ) ? (float) $entry['total_amount'] : 0;
+		$pid    = isset( $entry['razorpay_payment_id'] ) ? sanitize_text_field( (string) $entry['razorpay_payment_id'] ) : '';
+		$date   = isset( $entry['date'] ) ? sanitize_text_field( (string) $entry['date'] ) : '';
+		$output .= '<div style="margin-bottom:8px;padding:8px;border:1px solid #e4e7ec;border-radius:8px;background:#fff;">';
+		$output .= '<div><strong>Services:</strong> ' . esc_html( '' !== $service_label ? $service_label : 'N/A' ) . '</div>';
+		$output .= '<div><strong>Status:</strong> ' . esc_html( $status ) . '</div>';
+		if ( $amount > 0 ) {
+			$output .= '<div><strong>Amount:</strong> INR ' . esc_html( number_format_i18n( $amount, 2 ) ) . '</div>';
+		}
+		if ( '' !== $pid ) {
+			$output .= '<div><strong>Payment ID:</strong> ' . esc_html( $pid ) . '</div>';
+		}
+		if ( '' !== $date ) {
+			$output .= '<div><strong>Date:</strong> ' . esc_html( $date ) . '</div>';
+		}
+		$output .= '</div>';
+	}
+	return '' !== $output ? $output : 'No history';
+}
+
+function gida_admin_suite_get_paid_subscription_records( $user_id ) {
+	$user_id = absint( $user_id );
+	if ( $user_id <= 0 ) {
+		return array();
+	}
+	$history = get_user_meta( $user_id, '_gida_subscription_history', true );
+	if ( ! is_array( $history ) || empty( $history ) ) {
+		return array();
+	}
+	$records = array();
+	foreach ( $history as $entry ) {
+		if ( ! is_array( $entry ) ) {
+			continue;
+		}
+		$status = isset( $entry['payment_status'] ) ? strtolower( trim( (string) $entry['payment_status'] ) ) : '';
+		if ( '' !== $status && 'success' !== $status ) {
+			continue;
+		}
+		$selected_services = array();
+		if ( ! empty( $entry['selected_services'] ) && is_array( $entry['selected_services'] ) ) {
+			foreach ( $entry['selected_services'] as $service_row ) {
+				if ( ! is_array( $service_row ) || empty( $service_row['name'] ) ) {
+					continue;
+				}
+				$selected_services[] = array(
+					'name'  => sanitize_text_field( (string) $service_row['name'] ),
+					'price' => isset( $service_row['price'] ) ? (float) $service_row['price'] : 0,
+				);
+			}
+		}
+		if ( empty( $selected_services ) && ! empty( $entry['service'] ) ) {
+			$selected_services[] = array(
+				'name'  => sanitize_text_field( (string) $entry['service'] ),
+				'price' => 0,
+			);
+		}
+		if ( empty( $selected_services ) ) {
+			continue;
+		}
+		$records[] = array(
+			'selected_services'   => $selected_services,
+			'total_amount'        => isset( $entry['total_amount'] ) ? (float) $entry['total_amount'] : 0,
+			'payment_status'      => 'Success',
+			'razorpay_payment_id' => isset( $entry['razorpay_payment_id'] ) ? sanitize_text_field( (string) $entry['razorpay_payment_id'] ) : '',
+			'payment_proof_url'   => isset( $entry['payment_proof_url'] ) ? esc_url_raw( (string) $entry['payment_proof_url'] ) : '',
+			'date'                => isset( $entry['date'] ) ? sanitize_text_field( (string) $entry['date'] ) : '',
+		);
+	}
+	return array_reverse( $records );
+}
+
+function gida_admin_suite_create_razorpay_order_ajax() {
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'gida_payment_nonce' ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid nonce.' ), 403 );
+	}
+	$plan_id        = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0;
+	$selected_items = gida_admin_suite_parse_selected_services( wp_unslash( $_POST['selected_items'] ?? '[]' ) );
+	$total_amount   = isset( $_POST['total_amount'] ) ? (float) wp_unslash( $_POST['total_amount'] ) : 0;
+	if ( $plan_id <= 0 || 'gida_plan' !== get_post_type( $plan_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid plan.' ), 400 );
+	}
+	if ( $total_amount <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Invalid payment amount.' ), 400 );
+	}
+	$total_paise = (int) round( $total_amount * 100 );
+	$request     = wp_remote_post(
+		'https://api.razorpay.com/v1/orders',
+		array(
+			'timeout' => 15,
+			'headers' => array(
+				'Authorization' => 'Basic ' . base64_encode( GIDA_RAZORPAY_KEY_ID . ':' . GIDA_RAZORPAY_KEY_SECRET ),
+				'Content-Type'  => 'application/json',
+			),
+			'body'    => wp_json_encode(
+				array(
+					'amount'          => $total_paise,
+					'currency'        => 'INR',
+					'receipt'         => 'gida_plan_' . $plan_id . '_' . time(),
+					'payment_capture' => 1,
+					'notes'           => array(
+						'plan_id'   => (string) $plan_id,
+						'user_id'   => (string) get_current_user_id(),
+						'item_count'=> (string) count( $selected_items ),
+					),
+				)
+			),
+		)
+	);
+	if ( is_wp_error( $request ) ) {
+		wp_send_json_error( array( 'message' => $request->get_error_message() ), 500 );
+	}
+	$body = json_decode( (string) wp_remote_retrieve_body( $request ), true );
+	if ( ! is_array( $body ) || empty( $body['id'] ) ) {
+		wp_send_json_error( array( 'message' => 'Unable to create Razorpay order.' ), 500 );
+	}
+	$user = wp_get_current_user();
+	$user_id = get_current_user_id();
+	wp_send_json_success(
+		array(
+			'order_id'     => sanitize_text_field( (string) $body['id'] ),
+			'key_id'       => GIDA_RAZORPAY_KEY_ID,
+			'amount_paise' => $total_paise,
+			'prefill'      => array(
+				'name'    => $user_id > 0 ? (string) $user->display_name : '',
+				'email'   => $user_id > 0 ? (string) $user->user_email : '',
+				'contact' => $user_id > 0 ? (string) get_user_meta( $user_id, '_gida_phone', true ) : '',
+			),
+		)
+	);
+}
+add_action( 'wp_ajax_gida_create_razorpay_order', 'gida_admin_suite_create_razorpay_order_ajax' );
+add_action( 'wp_ajax_nopriv_gida_create_razorpay_order', 'gida_admin_suite_create_razorpay_order_ajax' );
+
+function gida_admin_suite_verify_razorpay_payment_ajax() {
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'gida_payment_nonce' ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid nonce.' ), 403 );
+	}
+	$plan_id             = isset( $_POST['plan_id'] ) ? absint( $_POST['plan_id'] ) : 0;
+	$total_amount        = isset( $_POST['total_amount'] ) ? (float) wp_unslash( $_POST['total_amount'] ) : 0;
+	$selected_items      = gida_admin_suite_parse_selected_services( wp_unslash( $_POST['selected_items'] ?? '[]' ) );
+	$razorpay_order_id   = isset( $_POST['razorpay_order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['razorpay_order_id'] ) ) : '';
+	$razorpay_payment_id = isset( $_POST['razorpay_payment_id'] ) ? sanitize_text_field( wp_unslash( $_POST['razorpay_payment_id'] ) ) : '';
+	$razorpay_signature  = isset( $_POST['razorpay_signature'] ) ? sanitize_text_field( wp_unslash( $_POST['razorpay_signature'] ) ) : '';
+	if ( $plan_id <= 0 || 'gida_plan' !== get_post_type( $plan_id ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid plan.' ), 400 );
+	}
+	if ( '' === $razorpay_order_id || '' === $razorpay_payment_id || '' === $razorpay_signature ) {
+		wp_send_json_error( array( 'message' => 'Missing Razorpay payment details.' ), 400 );
+	}
+	$payload           = $razorpay_order_id . '|' . $razorpay_payment_id;
+	$expected_signature = hash_hmac( 'sha256', $payload, GIDA_RAZORPAY_KEY_SECRET );
+	if ( ! hash_equals( $expected_signature, $razorpay_signature ) ) {
+		wp_send_json_error( array( 'message' => 'Payment signature verification failed.' ), 400 );
+	}
+	$user_id = get_current_user_id();
+	if ( $user_id > 0 ) {
+		$entry = array(
+			'plan_id'              => $plan_id,
+			'plan_name'            => get_the_title( $plan_id ),
+			'selected_services'    => $selected_items,
+			'total_amount'         => round( $total_amount, 2 ),
+			'payment_status'       => 'Success',
+			'razorpay_order_id'    => $razorpay_order_id,
+			'razorpay_payment_id'  => $razorpay_payment_id,
+			'date'                 => current_time( 'mysql' ),
+		);
+		gida_admin_suite_append_subscription_history( $user_id, $entry );
+		update_user_meta( $user_id, '_gida_subscription_status', 'subscribed' );
+		update_user_meta( $user_id, '_gida_is_subscribed', 1 );
+		update_user_meta( $user_id, '_gida_last_payment_id', $razorpay_payment_id );
+		update_user_meta( $user_id, '_gida_last_payment_amount', round( $total_amount, 2 ) );
+		update_user_meta( $user_id, '_gida_last_payment_date', current_time( 'mysql' ) );
+		$service_names = array();
+		if ( is_array( $selected_items ) ) {
+			foreach ( $selected_items as $line_item ) {
+				if ( is_array( $line_item ) && ! empty( $line_item['name'] ) ) {
+					$service_names[] = sanitize_text_field( (string) $line_item['name'] );
+				}
+			}
+		}
+		gida_admin_suite_trigger_whatsapp_content_template(
+			$user_id,
+			(string) get_user_meta( $user_id, '_gida_phone', true ),
+			'payment_success',
+			array(
+				'name'     => (string) wp_get_current_user()->display_name,
+				'services' => implode( ', ', $service_names ),
+				'amount'   => 'INR ' . number_format( (float) $total_amount, 2, '.', '' ),
+			)
+		);
+	}
+	wp_send_json_success(
+		array(
+			'message'    => $user_id > 0 ? 'Payment successful.' : 'Payment successful. Subscription history is linked when user is logged in.',
+			'payment_id' => $razorpay_payment_id,
+		)
+	);
+}
+add_action( 'wp_ajax_gida_verify_razorpay_payment', 'gida_admin_suite_verify_razorpay_payment_ajax' );
+add_action( 'wp_ajax_nopriv_gida_verify_razorpay_payment', 'gida_admin_suite_verify_razorpay_payment_ajax' );
+
+function gida_admin_suite_save_template_ajax() {
+	gida_admin_suite_verify_ajax();
+	global $wpdb;
+	$table       = $wpdb->prefix . 'gida_whatsapp_templates';
+	$now         = current_time( 'mysql' );
+	$template_id = isset( $_POST['template_id'] ) ? absint( $_POST['template_id'] ) : 0;
+	$name        = isset( $_POST['template_name'] ) ? sanitize_text_field( wp_unslash( $_POST['template_name'] ) ) : '';
+	$body        = isset( $_POST['template_body'] ) ? sanitize_textarea_field( wp_unslash( $_POST['template_body'] ) ) : '';
+	$media_url   = isset( $_POST['media_url'] ) ? esc_url_raw( trim( (string) wp_unslash( $_POST['media_url'] ) ) ) : '';
+	$html_source = isset( $_POST['html_source'] ) ? wp_kses_post( wp_unslash( $_POST['html_source'] ) ) : '';
+	$sequence_no = isset( $_POST['sequence_no'] ) ? absint( $_POST['sequence_no'] ) : 1;
+	$trigger     = isset( $_POST['trigger_key'] ) ? sanitize_key( wp_unslash( $_POST['trigger_key'] ) ) : 'user_registered';
+	if ( ! in_array( $trigger, gida_admin_suite_whitelist_whatsapp_trigger_keys(), true ) ) {
+		$trigger = 'user_registered';
+	}
+	$content_sid = isset( $_POST['content_sid'] ) ? preg_replace( '/\s+/', '', sanitize_text_field( wp_unslash( $_POST['content_sid'] ) ) ) : '';
+	if ( '' !== $content_sid && ! preg_match( '/^HX[0-9a-f]{32}$/i', $content_sid ) ) {
+		wp_send_json_error(
+			array( 'message' => 'Invalid Twilio Content Template SID. Use HX followed by 32 hex characters (from Twilio Console), or leave empty for the site default for that event.' ),
+			400
+		);
+	}
+	if ( '' === $name || '' === $body ) {
+		wp_send_json_error( array( 'message' => 'Template name and final message are required.' ), 400 );
+	}
+	if ( $sequence_no <= 0 ) {
+		$sequence_no = 1;
+	}
+	if ( '' !== $media_url && '' === gida_admin_suite_prepare_twilio_media_url( $media_url ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid image URL for Twilio. Please use a direct public HTTPS image URL (not localhost/private/page URL).' ), 400 );
+	}
+	$data = array(
+		'name'          => $name,
+		'trigger_key'   => $trigger,
+		'template_body' => $body,
+		'media_url'     => $media_url,
+		'html_source'   => $html_source,
+		'sequence_no'   => $sequence_no,
+		'active'        => 1,
+		'content_sid'   => $content_sid,
+		'updated_at'    => $now,
+	);
+	if ( $template_id > 0 ) {
+		$wpdb->update(
+			$table,
+			$data,
+			array( 'id' => $template_id ),
+			array( '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s' ),
+			array( '%d' )
+		);
+	} else {
+		$data['created_at'] = $now;
+		$wpdb->insert(
+			$table,
+			$data,
+			array( '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s' )
+		);
+	}
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_save_whatsapp_template', 'gida_admin_suite_save_template_ajax' );
+
+function gida_admin_suite_get_whatsapp_templates_ajax() {
+	gida_admin_suite_verify_ajax();
+	global $wpdb;
+	$table = $wpdb->prefix . 'gida_whatsapp_templates';
+	$list  = $wpdb->get_results( "SELECT id, name, trigger_key, content_sid, template_body, media_url, html_source, sequence_no, active, created_at, updated_at FROM {$table} ORDER BY trigger_key ASC, sequence_no ASC, id ASC", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	wp_send_json_success( array( 'templates' => is_array( $list ) ? $list : array() ) );
+}
+add_action( 'wp_ajax_gida_get_whatsapp_templates', 'gida_admin_suite_get_whatsapp_templates_ajax' );
+
+function gida_admin_suite_delete_whatsapp_template_ajax() {
+	gida_admin_suite_verify_ajax();
+	global $wpdb;
+	$table       = $wpdb->prefix . 'gida_whatsapp_templates';
+	$template_id = isset( $_POST['template_id'] ) ? absint( $_POST['template_id'] ) : 0;
+	if ( $template_id <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Invalid template.' ), 400 );
+	}
+	$wpdb->delete( $table, array( 'id' => $template_id ), array( '%d' ) );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_gida_delete_whatsapp_template', 'gida_admin_suite_delete_whatsapp_template_ajax' );
+
+/**
+ * Admin: send approved content template to any WhatsApp number (manual test / outreach).
+ *
+ * If admin templates exist for user_registered, sends them in sequence via ContentSid.
+ * Otherwise sends a single approved template with the given name and services.
+ */
+function gida_admin_suite_send_whatsapp_templates_custom_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	$phone    = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
+	$name     = isset( $_POST['recipient_name'] ) ? sanitize_text_field( wp_unslash( $_POST['recipient_name'] ) ) : '';
+	$services = isset( $_POST['recipient_services'] ) ? sanitize_text_field( wp_unslash( $_POST['recipient_services'] ) ) : '';
+	if ( '' === trim( $phone ) ) {
+		wp_send_json_error( array( 'message' => 'WhatsApp number is required.' ), 400 );
+	}
+	if ( '' === gida_admin_suite_normalize_whatsapp_to( $phone ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid WhatsApp number. Use country code or 10-digit Indian number.' ), 400 );
+	}
+
+	$sent = gida_admin_suite_trigger_whatsapp( 0, $name, $phone, 'user_registered', $services );
+
+	if ( $sent <= 0 ) {
+		$template_sid = gida_admin_suite_get_whatsapp_content_template_sid( 'user_registered' );
+		if ( '' === $template_sid ) {
+			wp_send_json_error( array( 'message' => 'No approved template SID configured. Cannot send.' ), 400 );
+		}
+		$variables = gida_admin_suite_build_twilio_content_variables(
+			'user_registered',
+			array(
+				'name'     => $name,
+				'services' => $services,
+				'amount'   => '',
+			)
+		);
+		$result = gida_admin_suite_send_twilio_whatsapp_content_template( 0, $phone, 'user_registered', $template_sid, $variables );
+		$sent   = $result > 0 ? 1 : 0;
+	}
+
+	if ( $sent <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Failed to send WhatsApp message. Check Twilio logs.' ), 400 );
+	}
+	wp_send_json_success( array( 'sent_count' => $sent ) );
+}
+add_action( 'wp_ajax_gida_send_whatsapp_templates_custom', 'gida_admin_suite_send_whatsapp_templates_custom_ajax' );
+
+function gida_admin_suite_save_twilio_messaging_service_sid_ajax() {
+	gida_admin_suite_verify_ajax();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
+	$mg = isset( $_POST['messaging_service_sid'] ) ? sanitize_text_field( wp_unslash( $_POST['messaging_service_sid'] ) ) : '';
+	$mg = preg_replace( '/\s+/', '', $mg );
+	if ( '' !== $mg && ! preg_match( '/^MG[0-9a-f]{32}$/i', $mg ) ) {
+		wp_send_json_error(
+			array(
+				'message' => 'Invalid Messaging Service SID. Expected MG followed by 32 hex characters (Twilio Console → Messaging → Services).',
+			),
+			400
+		);
+	}
+	update_option( 'gida_twilio_messaging_service_sid', $mg );
+	wp_send_json_success( array( 'messaging_service_sid' => $mg ) );
+}
+add_action( 'wp_ajax_gida_save_twilio_messaging_service_sid', 'gida_admin_suite_save_twilio_messaging_service_sid_ajax' );
+
+function gida_admin_suite_verify_ajax() {
+	if ( ! is_user_logged_in() ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 401 );
+	}
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'gida_admin_suite_nonce' ) ) {
+		wp_send_json_error( array( 'message' => 'Invalid nonce' ), 403 );
+	}
+}
+
+function gida_admin_suite_services_cards_shortcode() {
+	$q = new WP_Query(
+		array(
+			'post_type'      => 'gida_service',
+			'posts_per_page' => 50,
+			'post_status'    => 'publish',
+		)
+	);
+	ob_start();
+	echo '<div class="gida-service-grid">';
+	if ( $q->have_posts() ) {
+		while ( $q->have_posts() ) {
+			$q->the_post();
+			$id = get_the_ID();
+			$service_url = gida_admin_suite_get_service_frontend_url( $id );
+			echo '<article class="gida-service-frontend-card"><h3>' . esc_html( get_the_title() ) . '</h3><p>' . esc_html( wp_trim_words( get_the_content(), 18 ) ) . '</p><p><strong>Price:</strong> ' . esc_html( (string) get_post_meta( $id, '_gida_service_price', true ) ) . '</p><a href="' . esc_url( $service_url ) . '">View details</a></article>';
+		}
+		wp_reset_postdata();
+	}
+	echo '</div>';
+	return ob_get_clean();
+}
+add_shortcode( 'gida_services_cards', 'gida_admin_suite_services_cards_shortcode' );
+
+function gida_admin_suite_single_service_template( $single_template ) {
+	if ( is_singular( 'gida_service' ) ) {
+		$custom_template = GIDA_ADMIN_SUITE_DIR . 'service-single-template.php';
+		if ( file_exists( $custom_template ) ) {
+			return $custom_template;
+		}
+	}
+	return $single_template;
+}
+add_filter( 'single_template', 'gida_admin_suite_single_service_template' );
+
+function gida_admin_suite_handle_contact_notifications( $post_id, $post, $update ) {
+	if ( $update || 'gida_contact_lead' !== $post->post_type ) {
+		return;
+	}
+	if ( get_post_meta( $post_id, '_gida_email_sent', true ) ) {
+		return;
+	}
+
+	$name    = (string) get_post_meta( $post_id, '_gida_contact_name', true );
+	$email   = (string) get_post_meta( $post_id, '_gida_contact_email', true );
+	$phone   = (string) get_post_meta( $post_id, '_gida_contact_whatsapp', true );
+	if ( '' === $phone ) {
+		$phone = (string) get_post_meta( $post_id, '_gida_contact_phone', true );
+	}
+	$message = (string) get_post_meta( $post_id, '_gida_contact_message', true );
+	$to      = get_option( 'admin_email' );
+
+	wp_mail(
+		$to,
+		'New Contact Submission: ' . $name,
+		"Name: {$name}\nEmail: {$email}\nPhone: {$phone}\n\nMessage:\n{$message}"
+	);
+	update_post_meta( $post_id, '_gida_email_sent', 1 );
+	gida_admin_suite_trigger_whatsapp( $post_id, $name, $phone, 'lead_created' );
+}
+add_action( 'save_post_gida_contact_lead', 'gida_admin_suite_handle_contact_notifications', 10, 3 );
+
+/**
+ * Email + WhatsApp for new Book Now submissions (same template flow as registration: user_registered).
+ * Uses gida_booking_after_meta_saved because save_post_gida_booking runs before post meta is written.
+ *
+ * @param int $post_id Booking post ID.
+ */
+function gida_admin_suite_handle_booking_notifications( $post_id ) {
+	$post_id = absint( $post_id );
+	if ( $post_id <= 0 || 'gida_booking' !== get_post_type( $post_id ) ) {
+		return;
+	}
+	$name    = (string) get_post_meta( $post_id, '_gida_name', true );
+	$email   = (string) get_post_meta( $post_id, '_gida_email', true );
+	$service = (string) get_post_meta( $post_id, '_gida_service', true );
+	$phone   = (string) get_post_meta( $post_id, '_gida_whatsapp', true );
+	if ( '' === $phone ) {
+		$phone = (string) get_post_meta( $post_id, '_gida_phone', true );
+	}
+	if ( '' === trim( $phone ) ) {
+		return;
+	}
+
+	wp_mail(
+		get_option( 'admin_email' ),
+		'New Booking Submission: ' . $name,
+		"Name: {$name}\nEmail: {$email}\nPhone: {$phone}\nService: {$service}"
+	);
+	$sent = gida_admin_suite_trigger_whatsapp( $post_id, $name, $phone, 'booking_created', $service );
+	if ( $sent <= 0 ) {
+		gida_admin_suite_trigger_whatsapp_content_template(
+			$post_id,
+			$phone,
+			'booking_created',
+			array(
+				'name'     => $name,
+				'services' => $service,
+				'amount'   => '',
+			)
+		);
+	}
+}
+add_action( 'gida_booking_after_meta_saved', 'gida_admin_suite_handle_booking_notifications', 10, 1 );
+
+function gida_admin_suite_get_whatsapp_content_template_map() {
+	$approved_sid = GIDA_TWILIO_WP_CONTENT_SID_DEFAULT;
+	$defaults = array(
+		'user_registered' => $approved_sid,
+		'booking_created' => $approved_sid,
+		'payment_success' => $approved_sid,
+		'lead_created'    => $approved_sid,
+		'follow_up'       => $approved_sid,
+	);
+	$stored = get_option( 'gida_twilio_template_sid_map', array() );
+	if ( is_array( $stored ) ) {
+		foreach ( $stored as $trigger_key => $sid ) {
+			$sid = sanitize_text_field( (string) $sid );
+			if ( '' !== $sid ) {
+				$defaults[ sanitize_key( (string) $trigger_key ) ] = $sid;
+			}
+		}
+	}
+	return $defaults;
+}
+
+function gida_admin_suite_get_whatsapp_content_template_sid( $trigger_key ) {
+	$trigger_key = sanitize_key( (string) $trigger_key );
+	$map         = gida_admin_suite_get_whatsapp_content_template_map();
+	return isset( $map[ $trigger_key ] ) ? sanitize_text_field( (string) $map[ $trigger_key ] ) : '';
+}
+
+function gida_admin_suite_build_twilio_content_variables( $trigger_key, $context = array() ) {
+	$trigger_key = sanitize_key( (string) $trigger_key );
+	$name        = isset( $context['name'] ) ? sanitize_text_field( (string) $context['name'] ) : '';
+	$services    = isset( $context['services'] ) ? sanitize_text_field( (string) $context['services'] ) : '';
+	$amount      = isset( $context['amount'] ) ? sanitize_text_field( (string) $context['amount'] ) : '';
+
+	if ( '' === $name ) {
+		$name = 'Customer';
+	}
+
+	/**
+	 * Production-approved template for onboarding + booking notifications uses only WhatsApp placeholder {{1}} (customer name).
+	 * Omit extra ContentVariables keys so Twilio accepts the payload (avoid 21656 / schema mismatch).
+	 */
+	if ( in_array( $trigger_key, array( 'user_registered', 'booking_created' ), true ) ) {
+		return array(
+			'1' => $name,
+		);
+	}
+
+	$services_display = $services;
+	if ( 'payment_success' === $trigger_key && '' !== $amount ) {
+		$services_display = '' !== $services ? $services . ' (' . $amount . ')' : $amount;
+	}
+	if ( '' === $services_display ) {
+		$services_display = 'Our Services';
+	}
+
+	return array(
+		'1' => $name,
+		'2' => $services_display,
+	);
+}
+
+function gida_admin_suite_trigger_whatsapp_content_template( $lead_id, $phone, $trigger_key, $context = array() ) {
+	$template_sid = gida_admin_suite_get_whatsapp_content_template_sid( $trigger_key );
+	if ( '' === $template_sid ) {
+		return 0;
+	}
+	$variables = gida_admin_suite_build_twilio_content_variables( $trigger_key, $context );
+	return gida_admin_suite_send_twilio_whatsapp_content_template( $lead_id, $phone, $trigger_key, $template_sid, $variables );
+}
+
+/**
+ * Send all active admin templates for a trigger to one phone via approved Twilio Content Template.
+ *
+ * Each row can set its own Twilio `content_sid` (HX…); otherwise the default for that trigger is used.
+ * Order is `sequence_no` ascending.
+ *
+ * @param int    $lead_id     ID stored in WhatsApp logs (0 for manual / non-entity sends).
+ * @param string $name        Value used for {{1}} (customer name) variable.
+ * @param string $phone       Raw phone as entered or stored; normalized before send.
+ * @param string $trigger_key Template group, e.g. user_registered, lead_created.
+ * @param string $services    Optional services string for {{2}} variable.
+ * @return int Number of messages Twilio accepted successfully (0 if none configured or all failed).
+ */
+function gida_admin_suite_trigger_whatsapp( $lead_id, $name, $phone, $trigger_key, $services = '' ) {
+	global $wpdb;
+	$template_table = $wpdb->prefix . 'gida_whatsapp_templates';
+	$templates      = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$template_table} WHERE trigger_key = %s AND active = 1 ORDER BY sequence_no ASC, id ASC", $trigger_key ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( empty( $templates ) ) {
+		return 0;
+	}
+
+	$template_sid = gida_admin_suite_get_whatsapp_content_template_sid( $trigger_key );
+	$sent_ok      = 0;
+
+	foreach ( $templates as $template ) {
+		$services_text = '' !== $services ? $services : sanitize_text_field( (string) $template['name'] );
+		$variables     = gida_admin_suite_build_twilio_content_variables(
+			$trigger_key,
+			array(
+				'name'     => $name,
+				'services' => $services_text,
+				'amount'   => '',
+			)
+		);
+
+		$row_sid = isset( $template['content_sid'] ) ? trim( (string) $template['content_sid'] ) : '';
+		$use_sid = ( '' !== $row_sid && preg_match( '/^HX[0-9a-f]{32}$/i', $row_sid ) ) ? $row_sid : $template_sid;
+
+		if ( '' !== $use_sid ) {
+			$sent_ok += gida_admin_suite_send_twilio_whatsapp_content_template(
+				$lead_id,
+				$phone,
+				$trigger_key,
+				$use_sid,
+				$variables
+			);
+		} else {
+			$message   = str_replace( '{{name}}', $name, (string) $template['template_body'] );
+			$media_url = str_replace( '{{name}}', rawurlencode( $name ), (string) ( $template['media_url'] ?? '' ) );
+			$sent_ok  += gida_admin_suite_send_twilio_whatsapp( $lead_id, $phone, $message, (string) $template['name'], $media_url );
+		}
+	}
+
+	if ( 'lead_created' === $trigger_key ) {
+		wp_schedule_single_event( time() + HOUR_IN_SECONDS * 12, 'gida_whatsapp_followup_event', array( $lead_id, $name, $phone ) );
+	}
+
+	return $sent_ok;
+}
+
+function gida_admin_suite_send_twilio_whatsapp( $lead_id, $phone, $message, $template_name, $media_url = '' ) {
+	global $wpdb;
+	$logs_table = $wpdb->prefix . 'gida_whatsapp_logs';
+	$creds      = gida_admin_suite_twilio_credentials();
+	$sid        = $creds['account_sid'];
+	$token      = $creds['auth_token'];
+	$from           = 'whatsapp:+918528779057';
+	$phone          = gida_admin_suite_normalize_whatsapp_to( $phone );
+	$original_media = trim( (string) $media_url );
+	$media_url      = gida_admin_suite_prepare_twilio_media_url( $media_url );
+	$message    = trim( (string) $message );
+
+	$now    = current_time( 'mysql' );
+	$status = 'failed';
+	$resp   = '';
+
+	if ( $sid && $token && $from && $phone && ( '' !== $message || '' !== $media_url ) ) {
+		$body = array(
+			'From' => $from,
+			'To'   => $phone,
+			'Body' => $message,
+		);
+		if ( '' !== $media_url ) {
+			$body['MediaUrl'] = $media_url;
+		}
+		gida_admin_suite_twilio_messages_body_add_messaging_service( $body );
+		$request = wp_remote_post(
+			'https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode( $sid ) . '/Messages.json',
+			array(
+				'headers' => array(
+					'Authorization' => 'Basic ' . base64_encode( $sid . ':' . $token ),
+				),
+				'body'    => $body,
+				'timeout' => 12,
+			)
+		);
+		if ( ! is_wp_error( $request ) ) {
+			$status = 200 === wp_remote_retrieve_response_code( $request ) || 201 === wp_remote_retrieve_response_code( $request ) ? 'sent' : 'failed';
+			$resp   = wp_remote_retrieve_body( $request );
+		} else {
+			$resp = $request->get_error_message();
+		}
+	}
+
+	if ( '' === $media_url && '' !== $original_media ) {
+		$resp = trim( $resp . ' Media URL skipped: must be a public HTTPS URL accessible by Twilio (localhost/private URLs are not allowed).' );
+	}
+
+	$wpdb->insert(
+		$logs_table,
+		array(
+			'lead_id'            => $lead_id,
+			'phone'              => $phone,
+			'direction'          => 'outgoing',
+			'status'             => $status,
+			'trigger_key'        => '',
+			'template_name'      => $template_name,
+			'template_sid'       => '',
+			'content_variables'  => '',
+			'message_text'       => '' !== $media_url ? ( '[image] ' . $media_url . "\n" . $message ) : $message,
+			'provider_response'  => $resp,
+			'created_at'         => $now,
+		),
+		array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+	);
+
+	return 'sent' === $status ? 1 : 0;
+}
+
+/**
+ * Twilio REST credentials used by Messaging + Content APIs.
+ *
+ * @return array{account_sid:string,auth_token:string}
+ */
+function gida_admin_suite_twilio_credentials() {
+	if ( defined( 'GIDA_TWILIO_ACCOUNT_SID' ) && defined( 'GIDA_TWILIO_AUTH_TOKEN' ) ) {
+		$sid = trim( (string) GIDA_TWILIO_ACCOUNT_SID );
+		$tok = trim( (string) GIDA_TWILIO_AUTH_TOKEN );
+		if ( '' !== $sid && '' !== $tok ) {
+			return array(
+				'account_sid' => $sid,
+				'auth_token'  => $tok,
+			);
+		}
+	}
+	// Matches successful Console/curl sends for template HXcbcb6b457a82fbd011952a12774ecd93 (update if you rotate the token).
+	return array(
+		'account_sid' => 'ACab19830e3c4aad6ea5669fa5fbccf3bf',
+		'auth_token'  => 'd5f3b9b7d8ed80655b73389461cbc739',
+	);
+}
+
+/**
+ * Messaging Service SID (MG…) for Content API template sends. Dashboard option overrides wp-config constant.
+ *
+ * @return string Empty if unset/invalid.
+ */
+function gida_admin_suite_twilio_messaging_service_sid() {
+	$opt = trim( (string) get_option( 'gida_twilio_messaging_service_sid', '' ) );
+	if ( '' !== $opt && preg_match( '/^MG[0-9a-f]{32}$/i', $opt ) ) {
+		return $opt;
+	}
+	if ( defined( 'GIDA_TWILIO_MESSAGING_SERVICE_SID' ) ) {
+		$def = trim( (string) GIDA_TWILIO_MESSAGING_SERVICE_SID );
+		if ( '' !== $def && preg_match( '/^MG[0-9a-f]{32}$/i', $def ) ) {
+			return $def;
+		}
+	}
+	return '';
+}
+
+/**
+ * Append MessagingServiceSid to Twilio Messages API form body when configured (Content templates).
+ *
+ * @param array<string,string> $body Outgoing POST body (modified in place).
+ */
+function gida_admin_suite_twilio_messages_body_add_messaging_service( array &$body ) {
+	$mg = gida_admin_suite_twilio_messaging_service_sid();
+	if ( '' !== $mg ) {
+		$body['MessagingServiceSid'] = $mg;
+	}
+}
+
+function gida_admin_suite_infer_twilio_placeholder_keys_from_types_json( $data ) {
+	if ( ! isset( $data['types'] ) || ! is_array( $data['types'] ) ) {
+		return array();
+	}
+
+	$stringify = wp_json_encode( $data['types'] );
+	if ( ! is_string( $stringify ) || '' === $stringify ) {
+		return array();
+	}
+
+	preg_match_all( '/\{\{\s*([A-Za-z0-9_]{1,16})\s*\}\}/', $stringify, $matches );
+	if ( empty( $matches[1] ) ) {
+		return array();
+	}
+
+	$seen  = array();
+	$order = array();
+	foreach ( $matches[1] as $hit ) {
+		$hit = (string) $hit;
+		if ( ! preg_match( '/^[A-Za-z0-9_]{1,16}$/', $hit ) ) {
+			continue;
+		}
+		$lk = strtolower( $hit );
+		if ( isset( $seen[ $lk ] ) ) {
+			continue;
+		}
+		$seen[ $lk ] = true;
+		$order[]     = $hit;
+	}
+	return $order;
+}
+
+/**
+ * Infer {{…}} placeholders from the entire Twilio Content JSON (types, channels, approvals, etc.).
+ * Some WhatsApp approvals store body text outside `types`; this avoids wrong fallback keys → 21656.
+ *
+ * @param array|null $data Decoded Twilio GET /Content/{Sid} payload.
+ * @return string[]
+ */
+function gida_admin_suite_infer_twilio_content_placeholders_from_full_json( $data ) {
+	if ( ! is_array( $data ) ) {
+		return array();
+	}
+	$hits   = array();
+	$walker = null;
+	$walker = function ( $node ) use ( &$walker, &$hits ) {
+		if ( is_string( $node ) ) {
+			if ( preg_match_all( '/\{\{\s*([A-Za-z0-9_]{1,16})\s*\}\}/', $node, $matches ) ) {
+				foreach ( $matches[1] as $hit ) {
+					$hits[] = (string) $hit;
+				}
+			}
+			return;
+		}
+		if ( is_array( $node ) ) {
+			foreach ( $node as $child ) {
+				$walker( $child );
+			}
+		}
+	};
+	$walker( $data );
+
+	$seen  = array();
+	$order = array();
+	foreach ( $hits as $hit ) {
+		if ( ! preg_match( '/^[A-Za-z0-9_]{1,16}$/', $hit ) ) {
+			continue;
+		}
+		$lk = strtolower( $hit );
+		if ( isset( $seen[ $lk ] ) ) {
+			continue;
+		}
+		$seen[ $lk ] = true;
+		$order[]     = $hit;
+	}
+	return $order;
+}
+
+/**
+ * Minimal JSON encoding for Messages API ContentVariables (UTF-8, no redundant escaping).
+ *
+ * @param array $assoc Assoc key => scalar.
+ * @return string
+ */
+function gida_admin_suite_twilio_content_variables_json( $assoc ) {
+	if ( ! is_array( $assoc ) ) {
+		return '';
+	}
+
+	$n = json_encode( $assoc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	if ( false !== $n ) {
+		return $n;
+	}
+
+	$b = wp_json_encode( $assoc );
+	return is_string( $b ) ? $b : '';
+}
+
+/**
+ * GET Content definition and return declared/inferred placeholder keys (fixes Twilio REST 21656).
+ *
+ * @see https://www.twilio.com/docs/content/content-api-resources
+ *
+ * @param string $content_sid HX… template SID.
+ * @return array{status:string,keys:string[]}
+ */
+function gida_admin_suite_fetch_twilio_content_variable_keys( $content_sid ) {
+	$content_sid = trim( (string) $content_sid );
+	$fallback    = array( 'status' => 'error', 'keys' => array() );
+
+	if ( '' === $content_sid || ! preg_match( '/^HX[0-9a-f]{32}$/i', $content_sid ) ) {
+		return $fallback;
+	}
+
+	// Bump cache when placeholder inference improves (avoid stale wrong keys stuck for 12h → 21656).
+	$cache_key = 'gida_twilio_cvk_v4_' . md5( strtolower( $content_sid ) );
+	$cached    = get_transient( $cache_key );
+	if ( is_array( $cached ) && isset( $cached['status'], $cached['keys'] ) && is_array( $cached['keys'] ) ) {
+		return $cached;
+	}
+
+	$creds = gida_admin_suite_twilio_credentials();
+	$url   = 'https://content.twilio.com/v1/Content/' . rawurlencode( $content_sid );
+	$resp  = wp_remote_get(
+		$url,
+		array(
+			'timeout' => 15,
+			'headers' => array(
+				'Authorization' => 'Basic ' . base64_encode( $creds['account_sid'] . ':' . $creds['auth_token'] ),
+				'Accept'        => 'application/json',
+			),
+		)
+	);
+
+	if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+		set_transient( $cache_key, $fallback, MINUTE_IN_SECONDS * 30 );
+		return $fallback;
+	}
+
+	$data = json_decode( (string) wp_remote_retrieve_body( $resp ), true );
+	if ( ! is_array( $data ) ) {
+		set_transient( $cache_key, $fallback, MINUTE_IN_SECONDS * 30 );
+		return $fallback;
+	}
+
+	$vars = isset( $data['variables'] ) && is_array( $data['variables'] ) ? $data['variables'] : array();
+
+	$good = array();
+	foreach ( $vars as $key => $_ignored ) {
+		$ks = (string) $key;
+		if ( preg_match( '/^[A-Za-z0-9_]{1,16}$/', $ks ) ) {
+			$good[] = $ks;
+		}
+	}
+
+	if ( empty( $good ) ) {
+		$good = gida_admin_suite_infer_twilio_placeholder_keys_from_types_json( $data );
+	}
+	if ( empty( $good ) ) {
+		$good = gida_admin_suite_infer_twilio_content_placeholders_from_full_json( $data );
+	}
+
+	if ( empty( $good ) ) {
+		$done = array( 'status' => 'empty_keys', 'keys' => array() );
+		set_transient( $cache_key, $done, 12 * HOUR_IN_SECONDS );
+		return $done;
+	}
+
+	$done = array(
+		'status' => 'ok',
+		'keys'   => $good,
+	);
+	set_transient( $cache_key, $done, 12 * HOUR_IN_SECONDS );
+	return $done;
+}
+
+/**
+ * Map name + services to ContentVariables matching template keys from Twilio.
+ *
+ * @param string[] $template_keys Sorted keys from Content API.
+ * @param string   $name          Preferred slot {{1}}.
+ * @param string   $services      Preferred slot {{2}}.
+ * @return array<string,string>
+ */
+function gida_admin_suite_map_twilio_content_variables_to_keys( $template_keys, $name, $services ) {
+	$name     = trim( (string) $name );
+	$services = trim( (string) $services );
+
+	if ( '' === $name ) {
+		$name = 'Customer';
+	}
+	if ( '' === $services ) {
+		$services = 'Our Services';
+	}
+
+	$combined = $name . ', ' . $services;
+
+	if ( empty( $template_keys ) ) {
+		return array(
+			'1' => $name,
+			'2' => $services,
+		);
+	}
+
+	$n = count( $template_keys );
+	if ( 1 === $n ) {
+		return array(
+			$template_keys[0] => $name,
+		);
+	}
+
+	$slots = array( $name, $services );
+	$out   = array();
+	for ( $i = 0; $i < $n; $i++ ) {
+		$out[ $template_keys[ $i ] ] = isset( $slots[ $i ] ) ? $slots[ $i ] : '-';
+	}
+	return $out;
+}
+
+/**
+ * Normalize values for Twilio ContentVariables / WhatsApp (avoids REST error 21656).
+ *
+ * @link https://www.twilio.com/docs/api/errors/21656
+ * @link https://www.twilio.com/docs/content/using-variables-with-content-api
+ *
+ * WhatsApp-approved templates disallow newlines inside variable values and reject
+ * more than four consecutive spaces. Empty substitution values often fail validation.
+ *
+ * Important: Keys (e.g. "1","2") must match every {{n}} placeholder on the Content SID;
+ * omit extra keys if the template uses only {{1}}.
+ *
+ * @param array $variables Assoc map of placeholder key => string value.
+ * @return array Normalized assoc map.
+ */
+function gida_admin_suite_normalize_twilio_content_variables_for_send( $variables ) {
+	if ( ! is_array( $variables ) ) {
+		return array();
+	}
+	$out = array();
+	foreach ( $variables as $key => $value ) {
+		$key = (string) $key;
+		if ( ! preg_match( '/^[A-Za-z0-9_]{1,16}$/', $key ) ) {
+			continue;
+		}
+		$value          = (string) $value;
+		$value          = preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $value );
+		$value          = preg_replace( '/\R/u', ' ', $value ); // newline / line-break unicode
+		$value          = str_replace( "\t", ' ', $value );
+		$value          = preg_replace( '/ {5,}/u', ' ', $value ); // no 5+ consecutive spaces (Twilio)
+		$value          = preg_replace( '/ +/u', ' ', $value );
+		$value          = trim( $value );
+		if ( '' === $value ) {
+			$value = '-';
+		}
+		if ( function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' ) && mb_strlen( $value, 'UTF-8' ) > 1600 ) {
+			$value = mb_substr( $value, 0, 1600, 'UTF-8' );
+		} elseif ( strlen( $value ) > 1600 ) {
+			$value = substr( $value, 0, 1600 );
+		}
+		$out[ $key ] = $value;
+	}
+	return $out;
+}
+
+/**
+ * When Content API key discovery fails or returns no keys, build a safe ContentVariables map.
+ * Registration and booking use the approved single-placeholder template ({{1}} = customer name only).
+ *
+ * @param string $trigger_key  Trigger key.
+ * @param string $name         Customer name.
+ * @param string $services     Services / secondary slot text.
+ * @return array<string,string>
+ */
+function gida_admin_suite_twilio_content_variables_fallback_projection( $trigger_key, $name, $services ) {
+	$trigger_key = sanitize_key( (string) $trigger_key );
+	$name        = trim( (string) $name );
+	if ( '' === $name ) {
+		$name = 'Customer';
+	}
+	if ( in_array( $trigger_key, array( 'user_registered', 'booking_created' ), true ) ) {
+		return array( '1' => $name );
+	}
+	return gida_admin_suite_map_twilio_content_variables_to_keys( array(), $name, $services );
+}
+
+/**
+ * Encode WP_Error for WhatsApp log provider_response (codes + error_data).
+ *
+ * @param WP_Error $error Error from wp_remote_*.
+ * @return string JSON or empty string.
+ */
+function gida_admin_suite_format_wp_error_for_log( $error ) {
+	if ( ! is_wp_error( $error ) ) {
+		return '';
+	}
+	$payload = array(
+		'codes' => $error->get_error_codes(),
+	);
+	$data_map = array();
+	foreach ( $error->get_error_codes() as $code ) {
+		$d = $error->get_error_data( $code );
+		if ( null !== $d && '' !== $d && array() !== $d ) {
+			$data_map[ $code ] = $d;
+		}
+	}
+	if ( array() !== $data_map ) {
+		$payload['error_data'] = $data_map;
+	}
+	$json = wp_json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	return is_string( $json ) ? $json : '';
+}
+
+function gida_admin_suite_send_twilio_whatsapp_content_template( $lead_id, $phone, $trigger_key, $template_sid, $variables ) {
+	global $wpdb;
+	$logs_table = $wpdb->prefix . 'gida_whatsapp_logs';
+	$creds      = gida_admin_suite_twilio_credentials();
+	$sid        = $creds['account_sid'];
+	$token      = $creds['auth_token'];
+	$from       = 'whatsapp:+918528779057';
+	$to         = gida_admin_suite_normalize_whatsapp_to( $phone );
+	$now        = current_time( 'mysql' );
+	$status     = 'failed';
+	$resp       = '';
+
+	if ( ! is_array( $variables ) ) {
+		$variables = array();
+	}
+	$name_placeholder     = isset( $variables['1'] ) ? (string) $variables['1'] : 'Customer';
+	$services_placeholder = isset( $variables['2'] ) ? (string) $variables['2'] : 'Our Services';
+	if ( ! isset( $variables['1'] ) && array() !== $variables ) {
+		foreach ( $variables as $vk => $vv ) {
+			$vk = (string) $vk;
+			if ( preg_match( '/^[A-Za-z0-9_]{1,16}$/', $vk ) && '' !== trim( (string) $vv ) ) {
+				$name_placeholder = (string) $vv;
+				break;
+			}
+		}
+	}
+
+	$content_sid_trim     = trim( (string) $template_sid );
+	$content_var_cache_key = 'gida_twilio_cvk_v4_' . md5( strtolower( $content_sid_trim ) );
+
+	$resolved = gida_admin_suite_fetch_twilio_content_variable_keys( $content_sid_trim );
+	$proj     = array();
+	if ( 'ok' === $resolved['status'] && ! empty( $resolved['keys'] ) ) {
+		$proj = gida_admin_suite_map_twilio_content_variables_to_keys( $resolved['keys'], $name_placeholder, $services_placeholder );
+	} else {
+		$proj = gida_admin_suite_twilio_content_variables_fallback_projection( $trigger_key, $name_placeholder, $services_placeholder );
+	}
+
+	$norm_vars = gida_admin_suite_normalize_twilio_content_variables_for_send( $proj );
+	$json_vars = empty( $norm_vars ) ? '' : gida_admin_suite_twilio_content_variables_json( $norm_vars );
+
+	$response_notes = '';
+
+	if ( $sid && $token && $from && $to && '' !== trim( (string) $template_sid ) ) {
+		$twilio_endpoint = 'https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode( $sid ) . '/Messages.json';
+		$post_headers    = array(
+			'Authorization' => 'Basic ' . base64_encode( $sid . ':' . $token ),
+		);
+
+		$body = array(
+			'From'       => $from,
+			'To'         => $to,
+			'ContentSid' => trim( (string) $template_sid ),
+		);
+		if ( '' !== $json_vars ) {
+			$body['ContentVariables'] = $json_vars;
+		}
+		gida_admin_suite_twilio_messages_body_add_messaging_service( $body );
+
+		$request = wp_remote_post(
+			$twilio_endpoint,
+			array(
+				'headers' => $post_headers,
+				'body'    => $body,
+				'timeout' => 12,
+			)
+		);
+		if ( ! is_wp_error( $request ) ) {
+			$code   = (int) wp_remote_retrieve_response_code( $request );
+			$status = ( 200 === $code || 201 === $code ) ? 'sent' : 'failed';
+			$resp   = (string) wp_remote_retrieve_body( $request );
+			if ( 'sent' !== $status ) {
+				$resp = 'HTTP ' . $code . ' | ' . $resp;
+			}
+		} else {
+			$wp_err_json = gida_admin_suite_format_wp_error_for_log( $request );
+			$resp        = 'WP_Error: ' . $request->get_error_message() . ( '' !== $wp_err_json ? ' | ' . $wp_err_json : '' );
+		}
+
+		if ( 'sent' !== $status && '' !== $json_vars ) {
+			$t_err    = json_decode( (string) $resp, true );
+			$is_21656 = strpos( $resp, '21656' ) !== false || ( is_array( $t_err ) && isset( $t_err['code'] ) && (int) $t_err['code'] === 21656 );
+			if ( $is_21656 && count( $norm_vars ) > 1 ) {
+				$solo_slot = '1';
+				if ( 'ok' === $resolved['status'] && isset( $resolved['keys'][0] ) ) {
+					$cand = (string) $resolved['keys'][0];
+					if ( preg_match( '/^[A-Za-z0-9_]{1,16}$/', $cand ) ) {
+						$solo_slot = $cand;
+					}
+				}
+
+				if ( preg_match( '/^[A-Za-z0-9_]{1,16}$/', $solo_slot ) ) {
+					$response_notes .= '[Attempt 1] ' . $resp . "\n\n";
+
+					$tkey_san = sanitize_key( (string) $trigger_key );
+					$merge_raw = in_array( $tkey_san, array( 'user_registered', 'booking_created' ), true )
+						? trim( (string) $name_placeholder )
+						: trim( (string) $name_placeholder . ', ' . (string) $services_placeholder );
+					$retry_norm = gida_admin_suite_normalize_twilio_content_variables_for_send( array( $solo_slot => $merge_raw ) );
+					$retry_json = empty( $retry_norm ) ? '' : gida_admin_suite_twilio_content_variables_json( $retry_norm );
+
+					if ( '' !== $retry_json ) {
+						$body['ContentVariables'] = $retry_json;
+						$r2 = wp_remote_post(
+							$twilio_endpoint,
+							array(
+								'headers' => $post_headers,
+								'body'    => $body,
+								'timeout' => 12,
+							)
+						);
+						if ( ! is_wp_error( $r2 ) ) {
+							$code2 = (int) wp_remote_retrieve_response_code( $r2 );
+							$body2 = (string) wp_remote_retrieve_body( $r2 );
+							$status = ( 200 === $code2 || 201 === $code2 ) ? 'sent' : 'failed';
+							$resp   = $response_notes . '[Attempt 2 merged into slot ' . $solo_slot . '] HTTP ' . $code2 . ' | ' . $body2;
+							if ( 'sent' === $status ) {
+								$json_vars = $retry_json;
+								$norm_vars = $retry_norm;
+							}
+						} else {
+							$wp2 = gida_admin_suite_format_wp_error_for_log( $r2 );
+							$resp = $response_notes . '[Attempt 2 transport error] WP_Error: ' . $r2->get_error_message() . ( '' !== $wp2 ? ' | ' . $wp2 : '' );
+						}
+					}
+				}
+			}
+
+			if ( 'sent' !== $status ) {
+				$rbody   = preg_replace( '/^HTTP\s+\d+\s*\|\s*/', '', (string) $resp );
+				$t_check = json_decode( (string) $rbody, true );
+				if ( ! is_array( $t_check ) ) {
+					$t_check = json_decode( (string) $resp, true );
+				}
+
+				$still_bad = strpos( (string) $resp, '21656' ) !== false || ( is_array( $t_check ) && isset( $t_check['code'] ) && (int) $t_check['code'] === 21656 );
+
+				if ( $still_bad && '' !== $json_vars ) {
+					delete_transient( $content_var_cache_key );
+					if ( '' === trim( (string) $response_notes ) ) {
+						$response_notes = '[After first failed POST]' . "\n";
+					}
+					$response_notes .= "[Post-21656: cleared Twilio Content variable cache & re-resolve keys]\n";
+
+					$res_refetch = gida_admin_suite_fetch_twilio_content_variable_keys( $content_sid_trim );
+					$proj_r      = array();
+					if ( 'ok' === $res_refetch['status'] && ! empty( $res_refetch['keys'] ) ) {
+						$proj_r = gida_admin_suite_map_twilio_content_variables_to_keys(
+							$res_refetch['keys'],
+							$name_placeholder,
+							$services_placeholder
+						);
+					} else {
+						$proj_r = gida_admin_suite_twilio_content_variables_fallback_projection(
+							$trigger_key,
+							$name_placeholder,
+							$services_placeholder
+						);
+					}
+
+					$norm_r = gida_admin_suite_normalize_twilio_content_variables_for_send( $proj_r );
+					$json_r = empty( $norm_r ) ? '' : gida_admin_suite_twilio_content_variables_json( $norm_r );
+
+					if ( '' !== $json_r ) {
+						$body['ContentVariables'] = $json_r;
+						$r3 = wp_remote_post(
+							$twilio_endpoint,
+							array(
+								'headers' => $post_headers,
+								'body'    => $body,
+								'timeout' => 12,
+							)
+						);
+
+						if ( ! is_wp_error( $r3 ) ) {
+							$c3        = (int) wp_remote_retrieve_response_code( $r3 );
+							$b3        = (string) wp_remote_retrieve_body( $r3 );
+							$sent_here = ( 200 === $c3 || 201 === $c3 );
+							$status    = $sent_here ? 'sent' : 'failed';
+							$resolved  = $res_refetch;
+							$norm_vars = $norm_r;
+							$json_vars = $json_r;
+							$resp      = trim( $response_notes ) . ' [Re-resolve POST] HTTP ' . $c3 . ' | ' . $b3;
+						} else {
+							$wp3  = gida_admin_suite_format_wp_error_for_log( $r3 );
+							$resp = trim( $response_notes ) . ' [Re-resolve POST] WP_Error: ' . $r3->get_error_message() . ( '' !== $wp3 ? ' | ' . $wp3 : '' );
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if ( 'failed' === $status && '' === trim( (string) $resp ) ) {
+		if ( ! $sid || ! $token ) {
+			$resp = 'Failed: Twilio Account SID or Auth Token missing.';
+		} elseif ( '' === $to ) {
+			$resp = 'Failed: invalid or empty WhatsApp number after normalization.';
+		} elseif ( '' === trim( (string) $template_sid ) ) {
+			$resp = 'Failed: empty ContentSid.';
+		} else {
+			$resp = 'Failed: Twilio request was not sent (precondition).';
+		}
+	}
+
+	$wpdb->insert(
+		$logs_table,
+		array(
+			'lead_id'            => absint( $lead_id ),
+			'phone'              => (string) $to,
+			'direction'          => 'outgoing',
+			'status'             => $status,
+			'trigger_key'        => sanitize_key( (string) $trigger_key ),
+			'template_name'      => '',
+			'template_sid'       => sanitize_text_field( (string) $template_sid ),
+			'content_variables'  => (string) ( '' !== $json_vars ? $json_vars : '' ),
+			'message_text'       => '',
+			'provider_response'  => (string) $resp,
+			'created_at'         => $now,
+		),
+		array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+	);
+
+	return 'sent' === $status ? 1 : 0;
+}
+
+function gida_admin_suite_prepare_twilio_media_url( $media_url ) {
+	$url = esc_url_raw( trim( (string) $media_url ) );
+	if ( '' === $url ) {
+		return '';
+	}
+	if ( ! wp_http_validate_url( $url ) ) {
+		return '';
+	}
+
+	$parts = wp_parse_url( $url );
+	if ( ! is_array( $parts ) ) {
+		return '';
+	}
+
+	$scheme = isset( $parts['scheme'] ) ? strtolower( (string) $parts['scheme'] ) : '';
+	if ( 'https' !== $scheme ) {
+		return '';
+	}
+
+	$host = isset( $parts['host'] ) ? strtolower( (string) $parts['host'] ) : '';
+	if ( '' === $host ) {
+		return '';
+	}
+
+	$blocked_hosts = array( 'localhost', '127.0.0.1', '::1' );
+	if ( in_array( $host, $blocked_hosts, true ) ) {
+		return '';
+	}
+
+	return $url;
+}
+
+function gida_admin_suite_normalize_whatsapp_to( $phone ) {
+	$raw = trim( (string) $phone );
+	if ( '' === $raw ) {
+		return '';
+	}
+
+	$raw = preg_replace( '/\s+/', '', $raw );
+	$raw = str_replace( 'whatsapp:', '', $raw );
+	$raw = preg_replace( '/[^0-9+]/', '', $raw );
+	$raw = ltrim( $raw, '+' );
+
+	// If local Indian 10-digit number is stored, force +91 as requested.
+	if ( preg_match( '/^\d{10}$/', $raw ) ) {
+		$raw = '91' . $raw;
+	}
+
+	if ( '' === $raw ) {
+		return '';
+	}
+
+	return 'whatsapp:+' . $raw;
+}
+
+function gida_admin_suite_sync_booking_subscription( $post_id, $post, $update ) {
+	if ( 'gida_booking' !== $post->post_type ) {
+		return;
+	}
+	$email   = (string) get_post_meta( $post_id, '_gida_email', true );
+	$name    = (string) get_post_meta( $post_id, '_gida_name', true );
+	$service = (string) get_post_meta( $post_id, '_gida_service', true );
+	$phone   = (string) get_post_meta( $post_id, '_gida_whatsapp', true );
+	if ( '' === $phone ) {
+		$phone = (string) get_post_meta( $post_id, '_gida_phone', true );
+	}
+	if ( ! $email ) {
+		return;
+	}
+
+	$user = get_user_by( 'email', $email );
+	if ( ! $user ) {
+		return;
+	}
+
+	$history = get_user_meta( $user->ID, '_gida_subscription_history', true );
+	if ( ! is_array( $history ) ) {
+		$history = array();
+	}
+	$history[] = array(
+		'booking_id' => (int) $post_id,
+		'name'       => $name,
+		'service'    => $service,
+		'phone'      => $phone,
+		'date'       => current_time( 'mysql' ),
+	);
+
+	update_user_meta( $user->ID, '_gida_subscription_history', array_slice( $history, -50 ) );
+	update_user_meta( $user->ID, '_gida_phone', $phone );
+
+	$page_url = gida_admin_suite_map_service_name_to_url( $service );
+	if ( $page_url ) {
+		update_user_meta( $user->ID, '_gida_subscription_page_url', $page_url );
+	}
+}
+add_action( 'save_post_gida_booking', 'gida_admin_suite_sync_booking_subscription', 20, 3 );
+
+function gida_admin_suite_handle_user_registered_whatsapp_sequence( $user_id ) {
+	$user_id = absint( $user_id );
+	if ( $user_id <= 0 ) {
+		return;
+	}
+	$user = get_userdata( $user_id );
+	if ( ! $user ) {
+		return;
+	}
+	$name  = (string) $user->display_name;
+	$phone = (string) get_user_meta( $user_id, '_gida_phone', true );
+	if ( '' === trim( $phone ) ) {
+		return;
+	}
+	$sent = gida_admin_suite_trigger_whatsapp( $user_id, $name, $phone, 'user_registered' );
+	if ( $sent <= 0 ) {
+		gida_admin_suite_trigger_whatsapp_content_template(
+			$user_id,
+			$phone,
+			'user_registered',
+			array(
+				'name'     => $name,
+				'services' => '',
+				'amount'   => '',
+			)
+		);
+	}
+}
+add_action( 'user_register', 'gida_admin_suite_handle_user_registered_whatsapp_sequence', 30 );
+
+function gida_admin_suite_mail_from( $email ) {
+	$custom = trim( (string) get_option( 'gida_notification_from_email', '' ) );
+	return $custom ? sanitize_email( $custom ) : $email;
+}
+add_filter( 'wp_mail_from', 'gida_admin_suite_mail_from' );
+
+function gida_admin_suite_mail_from_name( $name ) {
+	$custom = trim( (string) get_option( 'gida_notification_from_name', '' ) );
+	return $custom ? sanitize_text_field( $custom ) : $name;
+}
+add_filter( 'wp_mail_from_name', 'gida_admin_suite_mail_from_name' );
+
+/**
+ * Favicon fallback for this project brand.
+ *
+ * Uses the uploaded BRND logo file when no Site Icon is set in WordPress.
+ */
+function gida_admin_suite_output_favicon_fallback() {
+	if ( function_exists( 'has_site_icon' ) && has_site_icon() ) {
+		return;
+	}
+	$favicon_url = get_template_directory_uri() . '/assets/images/brnd-logo.png';
+	echo '<link rel="icon" href="' . esc_url( $favicon_url ) . '" type="image/png" />' . "\n";
+	echo '<link rel="apple-touch-icon" href="' . esc_url( $favicon_url ) . '" />' . "\n";
+}
+add_action( 'wp_head', 'gida_admin_suite_output_favicon_fallback', 1 );
+add_action( 'admin_head', 'gida_admin_suite_output_favicon_fallback', 1 );
+add_action( 'login_head', 'gida_admin_suite_output_favicon_fallback', 1 );
+
+function gida_admin_suite_logout_redirect_to_home( $redirect_to, $requested_redirect_to, $user ) {
+	return home_url( '/' );
+}
+add_filter( 'logout_redirect', 'gida_admin_suite_logout_redirect_to_home', 10, 3 );
+
+add_action(
+	'gida_whatsapp_followup_event',
+	function( $lead_id, $name, $phone ) {
+		gida_admin_suite_trigger_whatsapp( (int) $lead_id, (string) $name, (string) $phone, 'follow_up' );
+	},
+	10,
+	3
+);
+

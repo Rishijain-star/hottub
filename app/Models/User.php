@@ -29,6 +29,11 @@ class User extends Authenticatable
         'vat_number',
         'phone',
         'postcode',
+        'country_code',
+        'preferred_locale',
+        'preferred_currency',
+        'registration_lat',
+        'registration_lng',
         'address',
         'website',
         'profile_picture',
@@ -39,6 +44,9 @@ class User extends Authenticatable
         'manufacturer_lat',
         'manufacturer_lng',
         'phone_verified_at',
+        'email_verified_at',
+        'registration_ip',
+        'registration_device_id',
         'sms_otp_hash',
         'sms_otp_expires_at',
     ];
@@ -121,5 +129,18 @@ class User extends Authenticatable
     public function isUser(): bool
     {
         return $this->role === self::ROLE_USER;
+    }
+
+    /**
+     * Name shown to customers: trading / company name when set, otherwise account name.
+     */
+    public function businessDisplayName(): string
+    {
+        $company = trim((string) ($this->company_name ?? ''));
+        if ($company !== '') {
+            return $company;
+        }
+
+        return (string) ($this->name ?? '');
     }
 }

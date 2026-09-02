@@ -83,7 +83,7 @@ class ServiceController extends Controller
             'description' => ['nullable','string'],
             'includes' => ['nullable','array'],
             'status' => ['required','in:active,inactive'],
-            'image' => ['nullable','file','image','max:5120'],
+            'image' => ['nullable','file','image','max:51200'],
         ]);
     }
 

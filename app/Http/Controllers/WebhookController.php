@@ -14,7 +14,7 @@ class WebhookController extends Controller
     public function handleStripe(Request $request)
     {
         $settings = PaymentProcessorSetting::first();
-        if (!$settings || !$settings->stripe_secret_key) {
+        if (! PaymentProcessorSetting::stripeIsConfigured()) {
             return response()->json(['error' => 'Stripe not configured'], 400);
         }
 

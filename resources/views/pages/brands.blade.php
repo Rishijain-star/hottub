@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Premium Hot Tub Brands – Expert Reviews & Buyer Guides')
+@section('title', __('pages.brands.page_title'))
 @section('content')
 
 {{-- ══ HERO ══════════════════════════════════════════════════════════════════ --}}
@@ -7,10 +7,10 @@
     <div class="container" style="text-align:center;">
         <span class="svc-hero__badge">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Premium Hot Tub Brands
+            {{ __('pages.brands.badge') }}
         </span>
-        <h1 class="svc-hero__title">Hot Tub Brands</h1>
-        <p class="svc-hero__desc">Compare the world's leading hot tub manufacturers. From luxury to value, find the brand that's right for you.</p>
+        <h1 class="svc-hero__title">{{ __('pages.brands.title') }}</h1>
+        <p class="svc-hero__desc">{{ __('pages.brands.desc') }}</p>
     </div>
 </section>
 
@@ -19,9 +19,9 @@
     <div class="container">
         <form class="ht-filters" id="brandFilters" method="GET" action="{{ route('brands') }}">
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Brand Type</label>
+                <label class="ht-filter-label">{{ __('pages.filters.brand_type') }}</label>
                 <select class="ht-filter-select" id="filterType" name="type">
-                    <option value="">All Types</option>
+                    <option value="">{{ __('pages.all_types') }}</option>
                     @foreach(($types ?? []) as $type)
                         <option value="{{ $type }}" {{ request('type') === $type ? 'selected' : '' }}>
                             {{ ucfirst(str_replace('_', ' ', $type)) }}
@@ -30,9 +30,9 @@
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Origin</label>
+                <label class="ht-filter-label">{{ __('pages.filters.origin') }}</label>
                 <select class="ht-filter-select" id="filterOrigin" name="origin">
-                    <option value="">All Countries</option>
+                    <option value="">{{ __('pages.all_countries') }}</option>
                     @foreach(($origins ?? []) as $origin)
                         <option value="{{ $origin }}" {{ request('origin') === $origin ? 'selected' : '' }}>
                             {{ $origin }}
@@ -41,10 +41,11 @@
                 </select>
             </div>
             <div style="display:flex;align-items:flex-end;gap:.5rem">
-                <button type="submit" class="btn btn--primary btn--sm">Apply</button>
-                <a href="{{ route('brands') }}" class="btn btn--ghost btn--sm">Clear</a>
+                <button type="submit" class="btn btn--primary btn--sm">{{ __('pages.apply') }}</button>
+                <a href="{{ route('brands') }}" class="btn btn--ghost btn--sm">{{ __('pages.clear') }}</a>
             </div>
-            <div class="ht-filter-results" id="brandCount">Showing {{ count($brands ?? []) }} brand{{ count($brands ?? [])===1 ? '' : 's' }}</div>
+            @php $brandTotal = count($brands ?? []); @endphp
+            <div class="ht-filter-results" id="brandCount">{{ trans_choice('pages.showing_brands', $brandTotal, ['count' => $brandTotal]) }}</div>
         </form>
     </div>
 </div>
@@ -106,14 +107,14 @@
             </div>
 @endforeach
 @else
-            <div class="text-muted" style="padding:2rem">No brands available yet.</div>
+            <div class="text-muted" style="padding:2rem">{{ __('pages.no_brands') }}</div>
 @endif
         </div>
         <div class="ht-no-results" id="brandNoResults" style="display:none;">
             <div class="ht-no-results__icon">🔍</div>
-            <h3>No brands match your filters</h3>
-            <p>Try adjusting your filters to see more results.</p>
-            <a class="btn btn--outline btn--pill" href="{{ route('brands') }}">Clear Filters</a>
+            <h3>{{ __('pages.no_results.title') }}</h3>
+            <p>{{ __('pages.no_results.desc') }}</p>
+            <a class="btn btn--outline btn--pill" href="{{ route('brands') }}">{{ __('pages.clear') }}</a>
         </div>
     </div>
 </section>

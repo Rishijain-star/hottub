@@ -1,10 +1,10 @@
 @extends('layouts.app')
-@section('title', 'Swim Spas – Expert Reviews & Buyer Guides')
+@section('title', __('pages.swim_spas.page_title'))
 @section('content')
 
 <div class="ht-page-header">
     <div class="container">
-        <h1 class="ht-page-title">Swim Spas</h1>
+        <h1 class="ht-page-title">{{ __('pages.swim_spas.title') }}</h1>
     </div>
 </div>
 
@@ -13,29 +13,29 @@
         <div class="ht-filters-panel">
         <form class="ht-filters" method="GET" action="{{ route('swim-spas') }}" id="filterForm">
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Tier</label>
+                <label class="ht-filter-label">{{ __('pages.filters.tier') }}</label>
                 <select class="ht-filter-select" name="tier" id="filter-tier">
                     @php $tierSel = request('tier'); @endphp
-                    <option value="">All Tiers</option>
+                    <option value="">{{ __('pages.filters.all_tiers') }}</option>
                     @foreach(($tierFilters ?? ['entry-level' => 'Entry Level', 'luxury' => 'Luxury', 'mid-range' => 'Mid-range']) as $val => $label)
                         <option value="{{ $val }}" {{ $tierSel == $val ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Minimum Seats</label>
+                <label class="ht-filter-label">{{ __('pages.filters.min_seats') }}</label>
                 <select class="ht-filter-select" name="min_seats" id="filter-seats">
                     @php $seatSel = request('min_seats'); @endphp
-                    <option value="">Any</option>
+                    <option value="">{{ __('pages.any') }}</option>
                     @foreach(($seatOptions ?? []) as $s)
                         <option value="{{ $s }}" {{ (string)$seatSel===(string)$s ? 'selected' : '' }}>{{ $s }}+</option>
                     @endforeach
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Brand</label>
+                <label class="ht-filter-label">{{ __('pages.filters.brand') }}</label>
                 <select class="ht-filter-select" name="brand" id="filter-brand">
-                    <option value="">All Brands</option>
+                    <option value="">{{ __('pages.all_brands') }}</option>
                     @if(isset($brands) && count($brands))
                         @foreach($brands as $b)
                             <option value="{{ $b->slug }}" {{ request('brand')===$b->slug ? 'selected' : '' }}>
@@ -46,14 +46,14 @@
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Model</label>
+                <label class="ht-filter-label">{{ __('pages.filters.model') }}</label>
                 <select class="ht-filter-select" name="model" id="filter-model">
-                    <option value="">All Models</option>
+                    <option value="">{{ __('pages.all_models') }}</option>
                 </select>
             </div>
             <div class="ht-filter-results">
                 @php $total = method_exists($items,'total') ? $items->total() : (isset($items) ? count($items) : 0); @endphp
-                <span id="results-count">{{ $total }} swim spa{{ $total==1?'':'s' }}</span>
+                <span id="results-count">{{ trans_choice('pages.swim_spas.results', $total, ['count' => $total]) }}</span>
             </div>
         </form>
         </div>
@@ -75,13 +75,13 @@
                 <div class="ht-no-results" id="no-results-initial" style="grid-column: 1 / -1; text-align: center; padding: 4rem 2rem;">
                     @if($noProductsInCatalog)
                         <div class="ht-no-results__icon" aria-hidden="true">🛁</div>
-                        <h3>No products available</h3>
-                        <p class="text-muted" style="margin-top:0.5rem;">There are no swim spas listed at the moment. Please check back later.</p>
+                        <h3>{{ __('pages.swim_spas2.no_products_available') }}</h3>
+                        <p class="text-muted" style="margin-top:0.5rem;">{{ __('pages.swim_spas2.no_products_available_desc') }}</p>
                     @else
                         <div class="ht-no-results__icon" aria-hidden="true">🔍</div>
-                        <h3>No swim spas match your filters</h3>
-                        <p style="margin-top:0.5rem;">Try adjusting your filter criteria to see more results.</p>
-                        <button type="button" class="btn btn--outline btn--pill" style="margin-top:1rem;" onclick="document.getElementById('filterForm').reset();document.getElementById('filterForm').submit();">Reset Filters</button>
+                        <h3>{{ __('pages.swim_spas.no_found_title') }}</h3>
+                        <p style="margin-top:0.5rem;">{{ __('pages.swim_spas.no_found_desc') }}</p>
+                        <button type="button" class="btn btn--outline btn--pill" style="margin-top:1rem;" onclick="document.getElementById('filterForm').reset();document.getElementById('filterForm').submit();">{{ __('pages.no_results.reset') }}</button>
                     @endif
                 </div>
             @endif
@@ -89,7 +89,7 @@
 
         @if(method_exists($items,'hasMorePages') && $items->hasMorePages())
         <div class="mt-4" style="padding:1rem;text-align:center">
-            <button id="loadMore" class="btn btn--outline" data-next-page="{{ $items->currentPage()+1 }}">Load More</button>
+            <button id="loadMore" class="btn btn--outline" data-next-page="{{ $items->currentPage()+1 }}">{{ __('pages.load_more') }}</button>
         </div>
         @endif
     </div>
@@ -114,7 +114,7 @@ function populateModels(brandSlug, keepSelected=true){
     const brandName = slugMap[brandSlug] || '';
     const list = brandName && modelsByBrand[brandName] ? modelsByBrand[brandName] : [];
     const current = keepSelected ? '{{ request('model','') }}' : '';
-    selModel.innerHTML = '<option value=\"\">All Models</option>';
+    selModel.innerHTML = `<option value="">${@json(__('pages.all_models'))}</option>`;
     list.forEach(m=>{
         const opt = document.createElement('option');
         opt.value = m;
@@ -152,7 +152,7 @@ populateModels(selBrand.value, true);
                     <span style="width:80px;height:12px;background:#f3f4f6;border-radius:6px;display:inline-block"></span>
                 </div>
                 <div style="height:14px;background:#f3f4f6;border-radius:6px;width:40%;margin-bottom:12px"></div>
-                <div class="ht-quote-btn" style="pointer-events:none;opacity:.6;text-align:center">Loading…</div>
+                <div class="ht-quote-btn" style="pointer-events:none;opacity:.6;text-align:center">${@json(__('pages.swim_spas2.loading'))}</div>
             </div>
         </div>`;
     }

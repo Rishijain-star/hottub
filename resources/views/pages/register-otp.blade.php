@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Verify OTP – Hot Tub Buyer')
+@section('title', __('pages.auth.otp_title'))
 @section('content')
 <div class="auth-page">
     <div class="auth-card" style="max-width:480px;">
@@ -9,33 +9,33 @@
                 <circle cx="12" cy="12" r="4"/>
             </svg>
         </div>
-        <h1 class="auth-card__title">Verify OTP</h1>
-        <p class="auth-card__sub">Enter the 6-digit code sent to <strong>{{ $phone }}</strong></p>
+        <h1 class="auth-card__title">{{ __('pages.auth.otp_heading') }}</h1>
+        <p class="auth-card__sub">{{ __('pages.register_otp.subheading', ['phone' => $phone]) }}</p>
 
         @if(session('success'))<div class="alert alert--success">{{ session('success') }}</div>@endif
         @if(session('error'))<div class="alert alert--danger">{{ session('error') }}</div>@endif
         @if($errors->any())<div class="alert alert--danger">{{ $errors->first() }}</div>@endif
         @if(!empty($devOtp))
-            <div class="alert alert--success">Dev OTP: <strong>{{ $devOtp }}</strong></div>
+            <div class="alert alert--success">{{ __('pages.register_otp.dev_otp') }}: <strong>{{ $devOtp }}</strong></div>
         @endif
 
         <form method="POST" action="{{ route('register.otp.verify') }}" class="auth-form" id="registerOtpVerifyForm">
             @csrf
-            <input type="hidden" name="role" value="{{ $role }}">
             <div class="form-group">
-                <label class="form-label" for="code">OTP Verification Code *</label>
-                <input class="form-input auth-input" type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code" placeholder="Enter 6-digit OTP">
+                <label class="form-label" for="code">{{ __('pages.register_otp.verification_code') }}</label>
+                <input class="form-input auth-input" type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code" placeholder="{{ __('pages.register_otp.code_placeholder') }}">
             </div>
-            <button type="submit" class="auth-submit-btn" id="registerOtpVerifyBtn">Verify OTP &amp; Create Account</button>
+            <button type="submit" class="auth-submit-btn" id="registerOtpVerifyBtn">{{ __('pages.auth.verify_otp_create') }}</button>
         </form>
 
         <form method="POST" action="{{ route('register.otp.resend') }}" class="mt-3" id="registerOtpResendForm">
             @csrf
-            <button type="submit" class="btn btn--ghost btn--full" id="registerOtpResendBtn">Resend OTP</button>
+            <x-otp-antibot />
+            <button type="submit" class="btn btn--ghost btn--full" id="registerOtpResendBtn">{{ __('pages.register_otp.resend_otp') }}</button>
         </form>
 
         <p class="auth-card__footer-link mt-3">
-            Need to edit details? <a href="{{ route('register') }}">Start again</a>
+            {{ __('pages.register_otp.edit_details') }} <a href="{{ route('register', ['restart' => 1]) }}">{{ __('pages.register_otp.start_again') }}</a>
         </p>
     </div>
 </div>
@@ -70,4 +70,5 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+<x-csrf-keepalive />
 @endsection

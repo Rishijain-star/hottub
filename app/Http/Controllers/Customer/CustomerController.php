@@ -568,7 +568,7 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:20480',
         ]);
 
         if ($request->hasFile('image')) {

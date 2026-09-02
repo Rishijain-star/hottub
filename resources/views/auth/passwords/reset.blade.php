@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Reset Password – Hot Tub Buyer')
+@section('title', __('pages.auth.reset_title'))
 @section('content')
 
 <div class="auth-page">
@@ -10,13 +10,13 @@
             </svg>
         </div>
 
-        <h1 class="auth-card__title">New Password</h1>
-        <p class="auth-card__sub">Create a strong new password</p>
+        <h1 class="auth-card__title">{{ __('pages.auth.reset_heading') }}</h1>
+        <p class="auth-card__sub">{{ __('pages.auth.reset_sub') }}</p>
 
         <form class="auth-form" method="POST" action="{{ route('password.update.new') }}">
             @csrf
             <div class="form-group">
-                <label class="form-label" for="password">New Password</label>
+                <label class="form-label" for="password">{{ __('pages.auth.new_password') }}</label>
                 <input
                     class="form-input auth-input"
                     type="password"
@@ -32,7 +32,7 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="password_confirmation">Confirm Password</label>
+                <label class="form-label" for="password_confirmation">{{ __('pages.auth.confirm_password') }}</label>
                 <input
                     class="form-input auth-input"
                     type="password"
@@ -48,7 +48,7 @@
             @endif
 
             <button type="submit" class="auth-submit-btn">
-                Reset Password
+                {{ __('pages.auth.reset_btn') }}
             </button>
         </form>
     </div>

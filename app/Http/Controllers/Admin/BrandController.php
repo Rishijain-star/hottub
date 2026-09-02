@@ -37,7 +37,7 @@ class BrandController extends Controller
             'featured' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
             'country_of_origin' => ['nullable', 'string', 'max:255'],
-            'logo' => ['nullable', 'image', 'max:2048'],
+            'logo' => ['nullable', 'image', 'max:20480'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -70,7 +70,7 @@ class BrandController extends Controller
             'featured' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
             'country_of_origin' => ['nullable', 'string', 'max:255'],
-            'logo' => ['nullable', 'image', 'max:2048'],
+            'logo' => ['nullable', 'image', 'max:20480'],
         ]);
 
         if ($request->hasFile('logo')) {

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Hot Tub Services – Expert Installation, Maintenance & Repair')
+@section('title', __('pages.services.page_title'))
 @section('content')
 
 {{-- ══ HERO HEADER ══════════════════════════════════════════════════════════ --}}
@@ -7,10 +7,10 @@
     <div class="container" style="text-align:center;">
         <span class="svc-hero__badge">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            Professional Services
+            {{ __('pages.services.badge') }}
         </span>
-        <h1 class="svc-hero__title">Hot Tub Services</h1>
-        <p class="svc-hero__desc">Expert installation, maintenance, and repair services to keep your hot tub running perfectly. Our network of certified technicians ensures professional care across the UK.</p>
+        <h1 class="svc-hero__title">{{ __('pages.services.title') }}</h1>
+        <p class="svc-hero__desc">{{ __('pages.services.desc') }}</p>
     </div>
 </section>
 
@@ -23,8 +23,8 @@
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
                 <div>
-                    <strong>Certified Technicians</strong>
-                    <p>All service providers are manufacturer-trained and fully insured for your peace of mind.</p>
+                    <strong>{{ __('pages.services.trust_cert_title') }}</strong>
+                    <p>{{ __('pages.services.trust_cert_desc') }}</p>
                 </div>
             </div>
             <div class="svc-trust-item">
@@ -32,8 +32,8 @@
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
                 <div>
-                    <strong>Flexible Scheduling</strong>
-                    <p>Book services at a time that suits you. Weekend and evening appointments available.</p>
+                    <strong>{{ __('pages.services.trust_sched_title') }}</strong>
+                    <p>{{ __('pages.services.trust_sched_desc') }}</p>
                 </div>
             </div>
             <div class="svc-trust-item">
@@ -41,8 +41,8 @@
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 </div>
                 <div>
-                    <strong>Fast Response</strong>
-                    <p>Emergency repairs typically scheduled within 24 hours. Get back to relaxing quickly.</p>
+                    <strong>{{ __('pages.services.trust_fast_title') }}</strong>
+                    <p>{{ __('pages.services.trust_fast_desc') }}</p>
                 </div>
             </div>
         </div>
@@ -77,7 +77,7 @@
                         <div class="svc-card__price-row">
                             <span class="svc-card__from">Starting from</span>
                             <span class="svc-card__price">
-                                @if(!is_null($svc->price)) £{{ number_format($svc->price,2) }} @else Contact @endif
+                                @if(!is_null($svc->price)) <x-money :amount="$svc->price" /> @else {{ __('nav.contact') }} @endif
                             </span>
                             <span class="svc-card__price-note">*Final price may vary based on requirements</span>
                         </div>
@@ -123,14 +123,14 @@
                             <div class="svc-plan-name">Basic Plan</div>
                             <div class="svc-plan-sub">2 visits per year</div>
                         </div>
-                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal);">£250/yr</span>
+                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal);"><x-money :amount="250" />{{ __('nav.per_year') }}</span>
                     </div>
                     <div class="svc-plan-row">
                         <div>
                             <div class="svc-plan-name">Premium Plan</div>
                             <div class="svc-plan-sub">4 visits per year + priority support</div>
                         </div>
-                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal);">£450/yr</span>
+                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal);"><x-money :amount="450" />{{ __('nav.per_year') }}</span>
                     </div>
                     <div class="svc-plan-row svc-plan-row--best">
                         <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
@@ -142,7 +142,7 @@
                                 <div class="svc-plan-sub">Monthly visits + 24/7 emergency cover</div>
                             </div>
                         </div>
-                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal-dk);">£800/yr</span>
+                        <span class="svc-plan-price" style="font-size: 1.5rem; font-weight: 800; color: var(--teal-dk);"><x-money :amount="800" />{{ __('nav.per_year') }}</span>
                     </div>
                 </div>
             </div>

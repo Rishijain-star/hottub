@@ -81,11 +81,13 @@ class PricingController extends Controller
             'swim_spa' => ['required', 'numeric', 'min:0'],
             'pool' => ['required', 'numeric', 'min:0'],
             'sauna' => ['required', 'numeric', 'min:0'],
-            'outdoor_kitchen' => ['required', 'numeric', 'min:0'],
+            'outdoor_product' => ['required', 'numeric', 'min:0'],
             'other' => ['required', 'numeric', 'min:0'],
         ]);
         $settings = PricingSetting::query()->first() ?: new PricingSetting();
-        $settings->enquiry_prices = $data;
+        $merged = array_merge($settings->enquiry_prices ?? [], $data);
+        unset($merged['outdoor_kitchen']);
+        $settings->enquiry_prices = $merged;
         $settings->save();
         return back()->with('success', 'Enquiry pricing saved.');
     }

@@ -1,12 +1,12 @@
 @extends('layouts.admin')
-@section('title', 'Dealer Academy Management – Admin Panel')
+@section('title', __('panel.admin.pages.dealer_academy_index.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Dealer Academy</h1>
-        <p class="panel-page-sub">Manage training content for dealers</p>
+        <h1 class="panel-page-title">{{ __('panel.admin.pages.dealer_academy_index.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.admin.pages.dealer_academy_index.sub') }}</p>
     </div>
-    <a href="{{ route('admin.dealer-academy.create') }}" class="btn btn--primary btn--pill">+ Add Content</a>
+    <a href="{{ route('admin.dealer-academy.create') }}" class="btn btn--primary btn--pill">{{ __('panel.admin.pages.dealer_academy_index.add_content') }}</a>
 </div>
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}

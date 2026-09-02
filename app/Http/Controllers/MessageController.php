@@ -40,7 +40,7 @@ class MessageController extends Controller
 
                 return [
                     'id' => $u->id,
-                    'name' => $u->name,
+                    'name' => $u->businessDisplayName(),
                     'profile_picture' => $u->profile_picture,
                     'last_message' => $lastMessage ? $lastMessage->content : '',
                     'last_message_time' => $lastMessage ? $lastMessage->created_at->diffForHumans() : '',
@@ -98,7 +98,7 @@ class MessageController extends Controller
         $me = Auth::user();
         $data = $request->validate([
             'content' => 'nullable|string|max:5000',
-            'image' => 'nullable|image|max:10240',
+            'image' => 'nullable|image|max:51200',
         ]);
         $text = trim((string) ($data['content'] ?? ''));
         if ($text === '' && !$request->hasFile('image')) {

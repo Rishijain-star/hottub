@@ -3,8 +3,8 @@
 @endphp
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Service Management</h1>
-        <p class="panel-page-sub">{{ $panelSub ?? '' }}</p>
+        <h1 class="panel-page-title">{{ __('panel.service_management.title') }}</h1>
+        <p class="panel-page-sub">{{ $panelSub ?? __('panel.service_management.sub') }}</p>
     </div>
 </div>
 
@@ -12,24 +12,24 @@
 <div class="card mb-4" style="padding: 1.25rem;">
     <form method="GET" action="{{ route($rp . '.service-management') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
-            <label class="form-label">Search</label>
-            <input type="text" name="search" class="form-input" placeholder="Customer name or email..." value="{{ request('search') }}">
+            <label class="form-label">{{ __('panel.common.search') }}</label>
+            <input type="text" name="search" class="form-input" placeholder="{{ __('panel.common.search_customer') }}" value="{{ request('search') }}">
         </div>
         <div class="form-group mb-0">
-            <label class="form-label">Status</label>
+            <label class="form-label">{{ __('panel.common.status') }}</label>
             <select name="status" class="form-input">
-                <option value="">All Status</option>
-                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="processing" {{ request('status') === 'processing' ? 'selected' : '' }}>Processing</option>
-                <option value="under_review" {{ request('status') === 'under_review' ? 'selected' : '' }}>Under Review</option>
-                <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
+                <option value="">{{ __('panel.common.all_status') }}</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>{{ __('panel.status.pending') }}</option>
+                <option value="processing" {{ request('status') === 'processing' ? 'selected' : '' }}>{{ __('panel.status.processing') }}</option>
+                <option value="under_review" {{ request('status') === 'under_review' ? 'selected' : '' }}>{{ __('panel.status.under_review') }}</option>
+                <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>{{ __('panel.status.completed') }}</option>
             </select>
         </div>
         <div class="form-group mb-0 panel-filter-actions-col">
             <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
             <div class="panel-filter-actions">
-            <button type="submit" class="btn btn--primary">Filter</button>
-            <a href="{{ route($rp . '.service-management') }}" class="btn btn--ghost">Clear</a>
+            <button type="submit" class="btn btn--primary">{{ __('panel.common.filter') }}</button>
+            <a href="{{ route($rp . '.service-management') }}" class="btn btn--ghost">{{ __('panel.common.clear') }}</a>
             </div>
         </div>
     </form>
@@ -39,12 +39,12 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Customer</th>
-                <th>Dealer</th>
-                <th>Service Type</th>
-                <th>Status</th>
-                <th>Request Date</th>
-                <th>Actions</th>
+                <th>{{ __('panel.common.customer') }}</th>
+                <th>{{ __('panel.common.dealer') }}</th>
+                <th>{{ __('panel.common.service_type') }}</th>
+                <th>{{ __('panel.common.status') }}</th>
+                <th>{{ __('panel.common.request_date') }}</th>
+                <th>{{ __('panel.common.actions') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -55,7 +55,7 @@
                     <div class="text-sm text-muted">{{ $req->customer->email ?? '' }}</div>
                 </td>
                 <td>
-                    <div class="fw-700 text-dark">{{ $req->dealer->name ?? 'Not Assigned' }}</div>
+                    <div class="fw-700 text-dark">{{ $req->dealer->name ?? __('panel.common.not_assigned') }}</div>
                     <div class="text-sm text-muted">{{ $req->dealer->role ?? '' }}</div>
                 </td>
                 <td>
@@ -63,26 +63,18 @@
                     <div class="text-sm text-muted">{{ ucwords($req->type) }}</div>
                 </td>
                 <td>
-                    @if($req->status === 'pending')
-                        <span class="badge">Pending</span>
-                    @elseif($req->status === 'processing')
-                        <span class="badge badge--warning">Processing</span>
-                    @elseif($req->status === 'under_review')
-                        <span class="badge badge--warning" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Under Review</span>
-                    @else
-                        <span class="badge badge--success">Completed</span>
-                    @endif
+                    <span class="badge @if($req->status === 'processing' || $req->status === 'under_review') badge--warning @elseif($req->status === 'completed') badge--success @endif" @if($req->status === 'under_review') style="background:#fef3c7;color:#92400e;border-color:#fde68a" @endif>{{ \App\Support\PanelTranslator::statusLabel($req->status) }}</span>
                 </td>
                 <td>{{ $req->created_at->format('d M Y') }}</td>
                 <td>
                     <div class="actions-row">
-                        <button type="button" class="btn btn--ghost btn--sm" onclick="viewServiceDetails({{ json_encode($req) }})">View</button>
-                        <a href="{{ route($rp . '.service-management.download', $req) }}" target="_blank" rel="noopener" class="btn btn--primary btn--sm">Download</a>
+                        <button type="button" class="btn btn--ghost btn--sm" onclick="viewServiceDetails({{ json_encode($req) }})">{{ __('panel.common.view') }}</button>
+                        <a href="{{ route($rp . '.service-management.download', $req) }}" target="_blank" rel="noopener" class="btn btn--primary btn--sm">{{ __('panel.common.download') }}</a>
                     </div>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">No service records found.</td></tr>
+            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">{{ __('panel.common.no_service_records') }}</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -95,12 +87,12 @@
         <button type="button" class="icon-btn" 
                 style="position:absolute;top:15px;right:15px;font-size:24px;line-height:1;color:var(--gray-400);cursor:pointer;border:none;background:none" 
                 onclick="document.getElementById('serviceModal').style.display='none'">&times;</button>
-        <h3 id="modalTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">Service Report</h3>
+        <h3 id="modalTitle" style="margin-top:0; margin-bottom: 1.5rem; font-weight: 800; padding-right: 30px;">{{ __('panel.service_management.title') }}</h3>
         
         <div id="modalBody"></div>
 
         <div class="modal-actions" style="justify-content: flex-end; margin-top: 20px;">
-            <button type="button" class="btn btn--ghost btn--sm" onclick="document.getElementById('serviceModal').style.display='none'">Close</button>
+            <button type="button" class="btn btn--ghost btn--sm" onclick="document.getElementById('serviceModal').style.display='none'">{{ __('panel.common.close') }}</button>
         </div>
     </div>
 </div>

@@ -1,34 +1,34 @@
 @extends('layouts.admin')
-@section('title', 'Manufacturers – Admin Panel')
+@section('title', __('panel.admin.nav.manufacturers') . ' - ' . __('panel.admin_title'))
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Manufacturer Management</h1><p class="panel-page-sub">Approve manufacturers, manage credits, and edit profile information</p></div>
-    <button class="btn btn--primary btn--pill" id="toggleCreateManu">Create Manufacturer</button>
+    <div><h1 class="panel-page-title">{{ __('panel.admin.manufacturers.title') }}</h1><p class="panel-page-sub">{{ __('panel.admin.manufacturers.sub') }}</p></div>
+    <button class="btn btn--primary btn--pill" id="toggleCreateManu">{{ __('panel.admin.manufacturers.create') }}</button>
     </div>
 
 {{-- ─── FILTERS ─────────────────────────────────────────────────── --}}
 <div class="card mb-4" style="padding: 1.25rem;">
     <form method="GET" action="{{ route('admin.manufacturers') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
-            <label class="form-label">Search</label>
+            <label class="form-label">{{ __('panel.admin.common.search') }}</label>
             <input type="text" name="search" class="form-input" placeholder="Name, Email, or Company..." value="{{ request('search') }}">
         </div>
         <div class="form-group mb-0">
-            <label class="form-label">Status</label>
+            <label class="form-label">{{ __('panel.admin.common.status') }}</label>
             <select name="status" class="form-input">
-                <option value="">All Status</option>
-                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
-                <option value="revoked" {{ request('status') === 'revoked' ? 'selected' : '' }}>Revoked</option>
-                <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>Paused</option>
-                <option value="frozen" {{ request('status') === 'frozen' ? 'selected' : '' }}>Frozen</option>
+                <option value="">{{ __('panel.admin.common.all_status') }}</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>{{ __('panel.admin.dealers.pending') }}</option>
+                <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>{{ __('panel.admin.dealers.approved') }}</option>
+                <option value="revoked" {{ request('status') === 'revoked' ? 'selected' : '' }}>{{ __('panel.admin.dealers.revoked') }}</option>
+                <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>{{ __('panel.admin.dealers.paused') }}</option>
+                <option value="frozen" {{ request('status') === 'frozen' ? 'selected' : '' }}>{{ __('panel.admin.dealers.frozen') }}</option>
             </select>
         </div>
         <div class="form-group mb-0 panel-filter-actions-col">
             <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
             <div class="panel-filter-actions">
-            <button type="submit" class="btn btn--primary">Filter</button>
-            <a href="{{ route('admin.manufacturers') }}" class="btn btn--ghost">Clear</a>
+            <button type="submit" class="btn btn--primary">{{ __('panel.admin.common.filter') }}</button>
+            <a href="{{ route('admin.manufacturers') }}" class="btn btn--ghost">{{ __('panel.admin.common.clear') }}</a>
             </div>
         </div>
     </form>
@@ -37,24 +37,24 @@
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
 @if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif
 <div class="card" id="createManuCard" style="display:none">
-    <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Create New Manufacturer</div>
+    <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">{{ __('panel.admin.manufacturers.create_new') }}</div>
     <form method="POST" action="{{ route('admin.manufacturers.store') }}">
         @csrf
         <div class="grid grid--2">
-            <div class="form-group"><label class="form-label">Contact Name *</label><input name="name" class="form-input" required></div>
-            <div class="form-group"><label class="form-label">Email *</label><input name="email" class="form-input" type="email" required></div>
-            <div class="form-group"><label class="form-label">Company Name *</label><input name="company_name" class="form-input" required></div>
-            <div class="form-group"><label class="form-label">VAT Number</label><input name="vat_number" class="form-input"></div>
-            <div class="form-group"><label class="form-label">Company Number</label><input name="company_number" class="form-input"></div>
-            <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-input"></div>
-            <div class="form-group"><label class="form-label">Postcode</label><input name="postcode" class="form-input"></div>
-            <div class="form-group"><label class="form-label">Address</label><input name="address" class="form-input"></div>
-            <div class="form-group"><label class="form-label">Website</label><input name="website" class="form-input"></div>
-            <div class="form-group"><label class="form-label">Temporary Password *</label><input name="password" class="form-input" type="password" required></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.contact_name') }} *</label><input name="name" class="form-input" required></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.common.email') }} *</label><input name="email" class="form-input" type="email" required></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.company_name') }} *</label><input name="company_name" class="form-input" required></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.vat_number') }}</label><input name="vat_number" class="form-input"></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.company_number') }}</label><input name="company_number" class="form-input"></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.common.phone') }}</label><input name="phone" class="form-input"></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.common.postcode') }}</label><input name="postcode" class="form-input"></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.address') }}</label><input name="address" class="form-input"></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.website') }}</label><input name="website" class="form-input"></div>
+            <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.temporary_password') }} *</label><input name="password" class="form-input" type="password" required></div>
         </div>
         @include('components.upload-progress')
         <div class="modal-actions" style="justify-content:flex-start">
-            <button class="btn btn--primary" type="submit">Create</button>
+            <button class="btn btn--primary" type="submit">{{ __('panel.admin.common.create') }}</button>
         </div>
     </form>
     <script>
@@ -66,7 +66,7 @@
 </div>
 <div class="card" style="padding:0;margin-top:1rem;">
     <table class="table">
-        <thead><tr><th></th><th>Manufacturer Info</th><th>Company</th><th>Contact</th><th>Credits</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th></th><th>{{ __('panel.admin.manufacturers.manufacturer_info') }}</th><th>{{ __('panel.admin.common.company') }}</th><th>{{ __('panel.admin.manufacturers.contact') }}</th><th>{{ __('panel.admin.dealers.credits') }}</th><th>{{ __('panel.admin.common.status') }}</th><th>{{ __('panel.admin.common.actions') }}</th></tr></thead>
         <tbody>
         @forelse($manufacturers as $m)
             <tr>
@@ -99,27 +99,27 @@
                 <td>{{ $m->credits ?? 0 }} <a href="{{ route('admin.manufacturers.credits', $m) }}" class="btn btn--ghost btn--sm">+</a></td>
                 <td>
                     @if($m->status==='approved')
-                        <span class="badge badge--success">Approved</span>
+                        <span class="badge badge--success">{{ __('panel.admin.dealers.approved') }}</span>
                     @elseif($m->status==='pending')
-                        <span class="badge">Pending</span>
+                        <span class="badge">{{ __('panel.admin.dealers.pending') }}</span>
                     @elseif($m->status==='paused')
-                        <span class="badge" style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74">Paused</span>
+                        <span class="badge" style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74">{{ __('panel.admin.dealers.paused') }}</span>
                     @elseif($m->status==='frozen')
-                        <span class="badge" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca">Frozen</span>
+                        <span class="badge" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca">{{ __('panel.admin.dealers.frozen') }}</span>
                     @else
-                        <span class="badge badge--dark">Revoked</span>
+                        <span class="badge badge--dark">{{ __('panel.admin.dealers.revoked') }}</span>
                     @endif
                 </td>
                 <td>
                     <div class="actions-row">
                         @if($m->status!=='approved')
-                            <form method="POST" action="{{ route('admin.manufacturers.approve', $m) }}">@csrf @method('PATCH') <button class="btn btn--ghost btn--sm">Approve</button></form>
+                            <form method="POST" action="{{ route('admin.manufacturers.approve', $m) }}">@csrf @method('PATCH') <button class="btn btn--ghost btn--sm">{{ __('panel.admin.common.approve') }}</button></form>
                         @else
-                            <form method="POST" action="{{ route('admin.manufacturers.revoke', $m) }}">@csrf @method('PATCH') <button class="btn btn--danger btn--sm">Revoke</button></form>
+                            <form method="POST" action="{{ route('admin.manufacturers.revoke', $m) }}">@csrf @method('PATCH') <button class="btn btn--danger btn--sm">{{ __('panel.admin.dealers.revoke') }}</button></form>
                         @endif
                         <button type="button"
                            class="icon-btn js-open-edit"
-                           title="Edit manufacturer"
+                           title="{{ __('panel.admin.common.edit') }}"
                            data-action="{{ route('admin.manufacturers.update', $m) }}"
                            data-name="{{ $m->name }}"
                            data-email="{{ $m->email }}"
@@ -138,7 +138,7 @@
                         </button>
                         <button type="button"
                            class="icon-btn js-open-password"
-                           title="Set new password"
+                           title="{{ __('panel.admin.dealers.new_password') }}"
                            data-name="{{ $m->name }}"
                            data-email="{{ $m->email }}"
                            data-action="{{ route('admin.manufacturers.reset-password', $m) }}">
@@ -148,14 +148,14 @@
                         </button>
                         <button type="button"
                            class="icon-btn js-open-delete"
-                           title="Delete"
+                           title="{{ __('panel.admin.common.delete') }}"
                            data-action="{{ route('admin.manufacturers.destroy', $m) }}"
                            data-entity="manufacturer">✕</button>
                     </div>
                 </td>
             </tr>
         @empty
-            <tr><td colspan="7" class="text-muted">No manufacturers found.</td></tr>
+            <tr><td colspan="7" class="text-muted">{{ __('panel.admin.manufacturers.no_manufacturers_found') }}</td></tr>
         @endforelse
         </tbody>
     </table>
@@ -165,7 +165,7 @@
 <div class="modal-backdrop" id="editManufacturerModal">
     <div class="modal-container">
         <div class="modal-header">
-            <div class="modal-title">Edit Manufacturer - Account Control</div>
+            <div class="modal-title">{{ __('panel.admin.manufacturers.edit_manufacturer') }}</div>
             <button type="button" class="modal-close" data-close="#editManufacturerModal">✕</button>
         </div>
         <form id="editManufacturerForm" method="POST" action="#">
@@ -173,23 +173,23 @@
             @method('PUT')
             <div class="modal-body">
                 <div class="grid grid--2">
-                    <div class="form-group"><label class="form-label">Contact Name *</label><input name="name" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Email *</label><input type="email" name="email" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Company Name *</label><input name="company_name" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Company Number</label><input name="company_number" class="form-input"></div>
-                    <div class="form-group"><label class="form-label">VAT Number</label><input name="vat_number" class="form-input"></div>
-                    <div class="form-group"><label class="form-label">Phone</label><input name="phone" class="form-input"></div>
-                    <div class="form-group"><label class="form-label">Postcode</label><input name="postcode" class="form-input"></div>
-                    <div class="form-group"><label class="form-label">Address</label><input name="address" class="form-input"></div>
-                    <div class="form-group"><label class="form-label">Website</label><input name="website" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.contact_name') }} *</label><input name="name" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.common.email') }} *</label><input type="email" name="email" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.company_name') }} *</label><input name="company_name" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.company_number') }}</label><input name="company_number" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.vat_number') }}</label><input name="vat_number" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.common.phone') }}</label><input name="phone" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.common.postcode') }}</label><input name="postcode" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.address') }}</label><input name="address" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.website') }}</label><input name="website" class="form-input"></div>
                     <div class="form-group">
-                        <label class="form-label">Account Status</label>
+                        <label class="form-label">{{ __('panel.admin.dealers.account_status') }}</label>
                         <select name="status" class="form-input" id="editManufacturerStatus">
-                            <option value="pending">Pending Approval</option>
-                            <option value="approved">Approved / Active</option>
-                            <option value="paused">Pause Account</option>
-                            <option value="frozen">Freeze Account</option>
-                            <option value="revoked">Revoked / Disabled</option>
+                            <option value="pending">{{ __('panel.admin.dealers.pending_approval') }}</option>
+                            <option value="approved">{{ __('panel.admin.dealers.approved_active') }}</option>
+                            <option value="paused">{{ __('panel.admin.dealers.pause_account') }}</option>
+                            <option value="frozen">{{ __('panel.admin.dealers.freeze_account') }}</option>
+                            <option value="revoked">{{ __('panel.admin.dealers.revoked_disabled') }}</option>
                         </select>
                     </div>
                     <div class="form-group" id="resumeOptionContainer" style="display:none; grid-column: span 2;">
@@ -201,8 +201,8 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button type="submit" class="btn btn--primary">Save Changes</button>
-                <button type="button" class="btn" data-close="#editManufacturerModal">Cancel</button>
+                <button type="submit" class="btn btn--primary">{{ __('panel.admin.dealers.save_changes') }}</button>
+                <button type="button" class="btn" data-close="#editManufacturerModal">{{ __('panel.admin.common.cancel') }}</button>
             </div>
         </form>
     </div>
@@ -211,23 +211,23 @@
 <div class="modal-backdrop" id="passwordModal">
     <div class="modal-container modal-container--sm">
         <div class="modal-header">
-            <div class="modal-title">Set New Password</div>
+            <div class="modal-title">{{ __('panel.admin.dealers.new_password') }}</div>
             <button type="button" class="modal-close" data-close="#passwordModal">✕</button>
         </div>
         <div class="text-sm text-muted" id="passwordTargetText">Update account password.</div>
         <form id="passwordForm" method="POST" action="#">
             @csrf
             <div class="form-group mt-3">
-                <label class="form-label">New Password</label>
+                <label class="form-label">{{ __('panel.admin.dealers.new_password') }}</label>
                 <input type="password" name="password" class="form-input" minlength="8" required>
             </div>
             <div class="form-group">
-                <label class="form-label">Confirm Password</label>
+                <label class="form-label">{{ __('panel.admin.dealers.confirm_password') }}</label>
                 <input type="password" name="password_confirmation" class="form-input" minlength="8" required>
             </div>
             <div class="modal-actions">
-                <button type="submit" class="btn btn--primary">Update Password</button>
-                <button type="button" class="btn" data-close="#passwordModal">Cancel</button>
+                <button type="submit" class="btn btn--primary">{{ __('panel.admin.dealers.update_password') }}</button>
+                <button type="button" class="btn" data-close="#passwordModal">{{ __('panel.admin.common.cancel') }}</button>
             </div>
         </form>
     </div>

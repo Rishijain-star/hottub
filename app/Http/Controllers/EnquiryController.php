@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lead;
 use App\Models\PricingSetting;
+use App\Services\GeoRestrictionService;
 use Illuminate\Http\Request;
 use App\Services\GeocodingService;
 
@@ -11,6 +12,15 @@ class EnquiryController extends Controller
 {
     public function submit(Request $request)
     {
+        $geo = app(GeoRestrictionService::class);
+        if ($geo->isAccessDenied($request)
+            || $geo->isBlockedPhone($request->input('phone'))
+            || $geo->isBlockedPostcode($request->input('postcode'))) {
+            return back()->withErrors([
+                'email' => $geo->genericDenyMessage(),
+            ])->withInput();
+        }
+
         $data = $request->validate([
             'name' => ['required','string','max:255'],
             'email' => ['required','email','max:255'],
@@ -23,11 +33,13 @@ class EnquiryController extends Controller
         ]);
 
         $type = $data['type'] ?? 'hot_tub';
+        $canonicalType = (string) config('pricing.enquiry_type_aliases.' . $type, $type);
+
         $product = null;
-        if (!empty($data['product_id'])) {
-            if ($type === 'outdoor_product') {
+        if (! empty($data['product_id'])) {
+            if ($canonicalType === 'outdoor_product') {
                 $product = \App\Models\OutdoorProduct::find($data['product_id']);
-            } elseif (in_array($type, ['hot_tub', 'swim_spa'])) {
+            } elseif (in_array($canonicalType, ['hot_tub', 'swim_spa'], true)) {
                 $product = \App\Models\HotTub::find($data['product_id']);
             }
         }
@@ -37,15 +49,15 @@ class EnquiryController extends Controller
         $leadCreditCosts = $settings?->lead_credit_costs ?? [];
 
         $priceRaw = null;
-        if ($type === 'service') {
+        if ($canonicalType === 'service') {
             // Service enquiries must use Admin > Lead Credit Costs (Legacy) > Service Enquiries.
             $priceRaw = $leadCreditCosts['service'] ?? null;
-        } elseif ($type === 'part') {
+        } elseif ($canonicalType === 'part') {
             // Parts enquiries must use Admin > Lead Credit Costs (Legacy) > Parts Enquiries.
             $priceRaw = $leadCreditCosts['parts'] ?? null;
         } else {
-            // Keep existing pricing behavior for all other enquiry types.
-            $priceRaw = $enquiryPrices[$type] ?? null;
+            // Keep existing pricing behaviour: one admin price per canonical enquiry type.
+            $priceRaw = $enquiryPrices[$canonicalType] ?? null;
         }
 
         $price = $priceRaw !== null ? (float) $priceRaw : 0.0;
@@ -62,13 +74,13 @@ class EnquiryController extends Controller
             'lead_postcode' => $data['postcode'],
             'lead_lat' => $geo['lat'] ?? null,
             'lead_lng' => $geo['lng'] ?? null,
-            'interests' => [$type],
+            'interests' => [$canonicalType],
             'timeframe' => $data['timeframe'] ?? null,
             'message' => $data['message'] ?? null,
             'price' => $price,
             'status' => 'new',
             'assigned_dealer_id' => null,
-            'is_national' => in_array($type, ['part', 'service']), // Mark as national for distribution logic
+            'is_national' => in_array($canonicalType, ['part', 'service'], true), // Mark as national for distribution logic
             'delivery_details' => $product ? [
                 'product_id' => $product->id,
                 'make' => $product->brand,

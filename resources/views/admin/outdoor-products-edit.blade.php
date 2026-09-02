@@ -1,12 +1,12 @@
 @extends('layouts.admin')
-@section('title', 'Edit Outdoor Product – Admin Panel')
+@section('title', __('panel.admin.pages.outdoor_products_edit.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Edit Outdoor Product</h1>
+        <h1 class="panel-page-title">{{ __('panel.admin.pages.outdoor_products_edit.title') }}</h1>
         <p class="panel-page-sub">{{ $item->brand }} — {{ $item->model }}</p>
     </div>
-    <a href="{{ route('admin.outdoor-products.index') }}" class="btn">Back</a>
+    <a href="{{ route('admin.outdoor-products.index') }}" class="btn">{{ __('panel.admin.common.back') }}</a>
 </div>
 
 @if(session('success'))

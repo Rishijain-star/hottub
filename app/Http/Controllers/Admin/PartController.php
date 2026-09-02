@@ -86,7 +86,7 @@ class PartController extends Controller
             'category' => ['nullable', 'string', 'max:100'],
             'price' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
-            'images.*' => ['nullable', 'file', 'image', 'max:5120'],
+            'images.*' => ['nullable', 'file', 'image', 'max:51200'],
             'compatible_brand_ids' => ['nullable', 'array'],
             'status' => ['required', 'in:active,inactive'],
         ]);

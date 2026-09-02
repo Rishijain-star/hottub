@@ -1,9 +1,9 @@
 @extends('layouts.admin')
-@section('title', 'Parts – Admin Panel')
+@section('title', __('panel.admin.pages.parts_index.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Parts Management</h1><p class="panel-page-sub">Manage hot tub replacement parts catalog</p></div>
-    <button class="btn btn--primary btn--pill" id="toggleAddPart"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Part</button>
+    <div><h1 class="panel-page-title">{{ __('panel.admin.pages.parts_index.title') }}</h1><p class="panel-page-sub">{{ __('panel.admin.pages.parts_index.sub') }}</p></div>
+    <button class="btn btn--primary btn--pill" id="toggleAddPart"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> {{ __('panel.admin.pages.parts_index.add_part') }}</button>
 </div>
 
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif

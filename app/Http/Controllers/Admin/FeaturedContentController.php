@@ -89,7 +89,7 @@ class FeaturedContentController extends Controller
             'description' => ['nullable', 'string'],
             'slug' => ['nullable', 'string', 'max:255'],
             'image_url' => ['nullable', 'string', 'max:1000'],
-            'image' => ['nullable', 'file', 'image', 'max:5120'],
+            'image' => ['nullable', 'file', 'image', 'max:51200'],
             'featured_from' => ['nullable', 'date'],
             'featured_until' => ['nullable', 'date', 'after_or_equal:featured_from'],
             'show_on_homepage' => ['nullable', 'boolean'],

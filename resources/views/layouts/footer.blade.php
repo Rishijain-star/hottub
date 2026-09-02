@@ -18,15 +18,11 @@
                     </div>
                     <div>
                         <p class="footer__brand-name">Hot Tub <span style="font-weight:800;color:var(--teal-lt)">Buyer</span></p>
-                        <p class="footer__brand-sub">Expert Reviews &amp; Guides</p>
+                        <p class="footer__brand-sub">{{ __('footer.brand_sub') }}</p>
                     </div>
                 </div>
-                <p class="footer__desc">
-                    Your complete resource for hot tub research and purchasing.
-                    Expert reviews, verified dealers and comprehensive guides
-                    for all major brands and models.
-                </p>
-                <p class="footer__social-label">Stay connected with us on social media</p>
+                <p class="footer__desc">{{ __('footer.desc') }}</p>
+                <p class="footer__social-label">{{ __('footer.social_label') }}</p>
                 @php
                     $social = $siteSocialLinks ?? ['facebook'=>null,'twitter'=>null,'instagram'=>null,'tiktok'=>null];
                 @endphp
@@ -48,45 +44,45 @@
 
             {{-- ── Col 2: Quick Links ── --}}
             <div class="footer__col">
-                <h5>Quick Links</h5>
+                <h5>{{ __('footer.quick_links') }}</h5>
                 <ul class="footer__links">
-                    <li><a href="{{ route('home') }}">Home</a></li>
-                    <li><a href="{{ route('hot-tubs') }}">Hot Tubs</a></li>
-                    <li><a href="{{ route('swim-spas') }}">Swim Spas</a></li>
-                    <li><a href="{{ route('services') }}">Services</a></li>
-                    <li><a href="{{ route('parts') }}">Parts</a></li>
+                    <li><a href="{{ route('home') }}">{{ __('footer.home') }}</a></li>
+                    <li><a href="{{ route('hot-tubs') }}">{{ __('footer.hot_tubs') }}</a></li>
+                    <li><a href="{{ route('swim-spas') }}">{{ __('footer.swim_spas') }}</a></li>
+                    <li><a href="{{ route('services') }}">{{ __('footer.services') }}</a></li>
+                    <li><a href="{{ route('parts') }}">{{ __('footer.parts') }}</a></li>
                 </ul>
             </div>
 
             {{-- ── Col 3: Explore ── --}}
             <div class="footer__col">
-                <h5>Explore</h5>
+                <h5>{{ __('footer.explore') }}</h5>
                 <ul class="footer__links">
-                    <li><a href="{{ route('brands') }}">Brands</a></li>
-                    <li><a href="{{ route('find-dealer') }}">Find Dealer</a></li>
-                    <li><a href="{{ route('care-guide') }}">Care Guide</a></li>
-                    <li><a href="{{ route('faq') }}">FAQ</a></li>
+                    <li><a href="{{ route('brands') }}">{{ __('footer.brands') }}</a></li>
+                    <li><a href="{{ route('find-dealer') }}">{{ __('footer.find_dealer') }}</a></li>
+                    <li><a href="{{ route('care-guide') }}">{{ __('footer.care_guide') }}</a></li>
+                    <li><a href="{{ route('faq') }}">{{ __('footer.faq') }}</a></li>
                 </ul>
             </div>
 
             {{-- ── Col 4: Account ── --}}
             <div class="footer__col">
-                <h5>Account</h5>
+                <h5>{{ __('footer.account') }}</h5>
                 <ul class="footer__links">
-                    <li><a href="{{ route('login') }}">Login</a></li>
-                    <li><a href="{{ route('register') }}">Register</a></li>
-                    <li><a href="{{ route('dashboard') }}">My Dashboard</a></li>
+                    <li><a href="{{ route('login') }}">{{ __('footer.login') }}</a></li>
+                    <li><a href="{{ route('register') }}">{{ __('footer.register') }}</a></li>
+                    <li><a href="{{ route('dashboard') }}">{{ __('footer.dashboard') }}</a></li>
                 </ul>
             </div>
 
             {{-- ── Col 5: Legal ── --}}
             <div class="footer__col">
-                <h5>Legal</h5>
+                <h5>{{ __('footer.legal') }}</h5>
                 <ul class="footer__links">
-                    <li><a href="{{ route('privacy') }}">Privacy Policy</a></li>
-                    <li><a href="{{ route('terms') }}">Terms &amp; Conditions</a></li>
-                    <li><a href="{{ route('dealer-agreement') }}">Dealer Agreement</a></li>
-                    <li><a href="{{ route('faq') }}">Support &amp; FAQ</a></li>
+                    <li><a href="{{ route('privacy') }}">{{ __('footer.privacy') }}</a></li>
+                    <li><a href="{{ route('terms') }}">{{ __('footer.terms') }}</a></li>
+                    <li><a href="{{ route('dealer-agreement') }}">{{ __('footer.dealer_agreement') }}</a></li>
+                    <li><a href="{{ route('faq') }}">{{ __('footer.support_faq') }}</a></li>
                 </ul>
             </div>
 
@@ -96,31 +92,31 @@
     @php
         $biz = $siteBusinessDetails ?? ['company_name'=>'Hot Tub Buyer Ltd','vat_number'=>null,'company_number'=>null,'fca_number'=>null];
         $bizBits = [];
-        if (!empty($biz['vat_number'])) $bizBits[] = 'VAT No: ' . $biz['vat_number'];
-        if (!empty($biz['company_number'])) $bizBits[] = 'Company No: ' . $biz['company_number'];
-        if (!empty($biz['fca_number'])) $bizBits[] = 'FCA No: ' . $biz['fca_number'];
+        if (!empty($biz['vat_number'])) $bizBits[] = __('footer.vat_no', ['number' => $biz['vat_number']]);
+        if (!empty($biz['company_number'])) $bizBits[] = __('footer.company_no', ['number' => $biz['company_number']]);
+        if (!empty($biz['fca_number'])) $bizBits[] = __('footer.fca_no', ['number' => $biz['fca_number']]);
     @endphp
 
     @if(!empty($bizBits))
         <div class="footer__reg-strip">
             <div class="footer__reg-inner">
-                <div class="footer__reg-heading">Registered company details</div>
+                <div class="footer__reg-heading">{{ __('footer.reg_heading') }}</div>
                 <div class="footer__reg-chips">
                     @if(!empty($biz['vat_number']))
                         <div class="footer__reg-chip">
-                            <span class="footer__reg-chip-label">VAT</span>
+                            <span class="footer__reg-chip-label">{{ __('footer.vat_label') }}</span>
                             <span class="footer__reg-chip-value">{{ $biz['vat_number'] }}</span>
                         </div>
                     @endif
                     @if(!empty($biz['company_number']))
                         <div class="footer__reg-chip">
-                            <span class="footer__reg-chip-label">Company No.</span>
+                            <span class="footer__reg-chip-label">{{ __('footer.company_no_label') }}</span>
                             <span class="footer__reg-chip-value">{{ $biz['company_number'] }}</span>
                         </div>
                     @endif
                     @if(!empty($biz['fca_number']))
                         <div class="footer__reg-chip">
-                            <span class="footer__reg-chip-label">FCA</span>
+                            <span class="footer__reg-chip-label">{{ __('footer.fca_label') }}</span>
                             <span class="footer__reg-chip-value">{{ $biz['fca_number'] }}</span>
                         </div>
                     @endif
@@ -131,9 +127,9 @@
 
     {{-- ── Bottom Bar ── --}}
     <div class="footer__bottom">
-        <p class="footer__copy">© {{ date('Y') }} {{ $biz['company_name'] ?? 'Hot Tub Buyer' }}. All rights reserved.</p>
+        <p class="footer__copy">{{ __('footer.copyright', ['year' => date('Y'), 'company' => $biz['company_name'] ?? 'Hot Tub Buyer']) }}</p>
         <p class="footer__credit">
-            <a href="{{ route('faq') }}">Contact Support</a>
+            <a href="mailto:support@hottubbuyer.co.uk">{{ __('footer.contact_support') }}</a>
         </p>
     </div>
 </footer>

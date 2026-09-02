@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Login – Hot Tub Buyer')
+@section('title', __('pages.auth.login_title'))
 @section('content')
 
 <div class="auth-page">
@@ -14,11 +14,9 @@
             </svg>
         </div>
 
-        {{-- Heading --}}
-        <h1 class="auth-card__title">Welcome Back</h1>
-        <p class="auth-card__sub">Sign in to your account</p>
+        <h1 class="auth-card__title">{{ __('pages.auth.welcome_back') }}</h1>
+        <p class="auth-card__sub">{{ __('pages.auth.sign_in') }}</p>
 
-        {{-- Form --}}
         <form class="auth-form" method="POST" action="/login" onsubmit="return handleLogin(event)">
             @csrf
             @if(request('redirect'))
@@ -26,7 +24,7 @@
             @endif
 
             <div class="form-group">
-                <label class="form-label" for="email">Email Address</label>
+                <label class="form-label" for="email">{{ __('pages.auth.email') }}</label>
                 <input
                     class="form-input auth-input"
                     type="email"
@@ -44,9 +42,9 @@
 
             <div class="form-group" style="margin-bottom:1.5rem;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">
-                    <label class="form-label" for="password" style="margin-bottom:0;">Password</label>
+                    <label class="form-label" for="password" style="margin-bottom:0;">{{ __('pages.auth.password') }}</label>
                     <div class="auth-forgot-links">
-                        <a href="{{ route('password.request') }}" class="auth-forgot">Forgot password?</a>
+                        <a href="{{ route('password.request') }}" class="auth-forgot">{{ __('pages.auth.forgot_password') }}</a>
                     </div>
                 </div>
                 <div class="auth-pw-wrap">
@@ -69,10 +67,12 @@
                 @enderror
             </div>
 
-            {{-- Error alert --}}
             @if(session('error'))
                 <div class="alert alert--danger" style="margin-bottom:1.25rem;">{{ session('error') }}</div>
             @endif
+
+            <x-image-captcha />
+            <x-otp-antibot />
 
             <button type="submit" class="auth-submit-btn" id="loginBtn">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
@@ -80,16 +80,15 @@
                     <polyline points="10 17 15 12 10 7"/>
                     <line x1="15" y1="12" x2="3" y2="12"/>
                 </svg>
-                Sign In
+                {{ __('pages.auth.sign_in_btn') }}
             </button>
             <p style="margin-top: 1.25rem; font-size: 0.85rem; color: #6b7280; text-align: center; line-height: 1.4;">
                 Buying a hot tub is exciting. Our platform connects you with trusted dealers who will support you from purchase to installation and long-term ownership.
             </p>
         </form>
 
-        {{-- Footer links --}}
         <p class="auth-card__footer-link">
-            Don't have an account? <a href="/register">Register here</a>
+            {{ __('pages.auth.no_account') }} <a href="/register">{{ __('pages.auth.create_one') }}</a>
         </p>
 
         <div class="auth-card__divider"></div>
@@ -100,6 +99,11 @@
 </div>
 
 <script>
+const loginI18n = @json([
+    'signIn' => __('pages.auth.sign_in_btn'),
+    'signingIn' => __('pages.auth.signing_in'),
+]);
+
 function togglePassword() {
     const input   = document.getElementById('password');
     const eyeShow = document.getElementById('eyeShow');
@@ -111,12 +115,21 @@ function togglePassword() {
 }
 
 function handleLogin(e) {
+    var turnstileWrap = document.querySelector('.cf-turnstile-wrap');
+    if (turnstileWrap) {
+        var token = document.querySelector('input[name="cf-turnstile-response"]');
+        if (!token || !token.value) {
+            alert('Please wait for the Cloudflare security check to load and complete before signing in.');
+            e.preventDefault();
+            return false;
+        }
+    }
+
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
     btn.innerHTML = `
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:spin .8s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-        Signing In…`;
-    // Remove to allow real form submission; this is just UI feedback
+        ${loginI18n.signingIn}`;
     setTimeout(() => {
         btn.disabled = false;
         btn.innerHTML = `
@@ -125,10 +138,10 @@ function handleLogin(e) {
                 <polyline points="10 17 15 12 10 7"/>
                 <line x1="15" y1="12" x2="3" y2="12"/>
             </svg>
-            Sign In`;
+            ${loginI18n.signIn}`;
     }, 8000);
-    return true; // allow form to submit
+    return true;
 }
 </script>
-
+<x-csrf-keepalive />
 @endsection

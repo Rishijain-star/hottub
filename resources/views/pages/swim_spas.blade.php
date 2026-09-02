@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Swim Spas – Expert Reviews & Buyer Guides')
+@section('title', __('pages.swim_spas.page_title'))
 @section('content')
 
 {{-- ══ PAGE HEADER ══════════════════════════════════════════════════════════ --}}
@@ -7,10 +7,10 @@
     <div class="container">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
             <div>
-                <span class="section-label">Browse & Compare</span>
-                <h1 class="ht-page-title">Swim Spas</h1>
+                <span class="section-label">{{ __('pages.browse_compare') }}</span>
+                <h1 class="ht-page-title">{{ __('pages.swim_spas.title') }}</h1>
             </div>
-            <span class="badge badge--teal badge--dot">Live Pricing Available</span>
+            <span class="badge badge--teal badge--dot">{{ __('pages.live_pricing') }}</span>
         </div>
     </div>
 </div>
@@ -21,9 +21,9 @@
         <div class="ht-filters" id="filtersForm">
 
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Tier</label>
+                <label class="ht-filter-label">{{ __('pages.filters.tier') }}</label>
                 <select class="ht-filter-select" id="filterTier">
-                    <option value="">All Tiers</option>
+                    <option value="">{{ __('pages.filters.all_tiers') }}</option>
                     <option value="luxury">Luxury</option>
                     <option value="premium">Premium</option>
                     <option value="mid">Mid-Range</option>
@@ -32,9 +32,9 @@
             </div>
 
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Length</label>
+                <label class="ht-filter-label">{{ __('pages.swim_spas.filters.length') }}</label>
                 <select class="ht-filter-select" id="filterLength">
-                    <option value="">Any Length</option>
+                    <option value="">{{ __('pages.swim_spas.filters.any_length') }}</option>
                     <option value="12">12 ft</option>
                     <option value="14">14 ft</option>
                     <option value="16">16 ft</option>
@@ -43,9 +43,9 @@
             </div>
 
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Swim Current</label>
+                <label class="ht-filter-label">{{ __('pages.swim_spas.filters.swim_current') }}</label>
                 <select class="ht-filter-select" id="filterCurrent">
-                    <option value="">Any Type</option>
+                    <option value="">{{ __('pages.swim_spas.filters.any_type') }}</option>
                     <option value="jet">Jet System</option>
                     <option value="propeller">Propeller</option>
                     <option value="paddlewheel">Paddle Wheel</option>
@@ -53,9 +53,9 @@
             </div>
 
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Brand</label>
+                <label class="ht-filter-label">{{ __('pages.filters.brand') }}</label>
                 <select class="ht-filter-select" id="filterBrand">
-                    <option value="">All Brands</option>
+                    <option value="">{{ __('pages.all_brands') }}</option>
                     <option value="Master Spas">Master Spas</option>
                     <option value="Endless Pools">Endless Pools</option>
                     <option value="Hydropool">Hydropool</option>
@@ -66,9 +66,9 @@
             </div>
 
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Max Price</label>
+                <label class="ht-filter-label">{{ __('pages.swim_spas.filters.max_price') }}</label>
                 <select class="ht-filter-select" id="filterPrice">
-                    <option value="">Any Price</option>
+                    <option value="">{{ __('pages.swim_spas.filters.any_price') }}</option>
                     <option value="20000">Under $20,000</option>
                     <option value="30000">Under $30,000</option>
                     <option value="40000">Under $40,000</option>
@@ -76,7 +76,7 @@
                 </select>
             </div>
 
-            <div class="ht-filter-results" id="resultCount">Showing 12 swim spas</div>
+            <div class="ht-filter-results" id="resultCount"></div>
         </div>
     </div>
 </div>
@@ -89,9 +89,9 @@
         </div>
         <div class="ht-no-results" id="noResults" style="display:none;">
             <div class="ht-no-results__icon">🔍</div>
-            <h3>No swim spas found</h3>
-            <p>Try adjusting your filters to see more results.</p>
-            <button class="btn btn--outline btn--pill" onclick="resetFilters()">Clear All Filters</button>
+            <h3>{{ __('pages.swim_spas.no_found_title') }}</h3>
+            <p>{{ __('pages.swim_spas.no_found_desc') }}</p>
+            <button class="btn btn--outline btn--pill" onclick="resetFilters()">{{ __('pages.no_results.clear') }}</button>
         </div>
     </div>
 </section>
@@ -108,6 +108,10 @@
 
 @section('scripts')
 <script>
+const swimSpaI18n = @json([
+    'one' => __('pages.swim_spas.results_one'),
+    'other' => __('pages.swim_spas.results_other'),
+]);
 /* ── DATA ─────────────────────────────────────────────────────────────────── */
 const swimSpas = [
     {
@@ -335,8 +339,8 @@ const tierClasses = { luxury:'luxury', premium:'premium', mid:'mid', budget:'bud
 function renderCards(list) {
     const grid = document.getElementById('productsGrid');
     const none = document.getElementById('noResults');
-    document.getElementById('resultCount').textContent =
-        `Showing ${list.length} swim spa${list.length !== 1 ? 's' : ''}`;
+    const tpl = (list.length === 1 ? swimSpaI18n.one : swimSpaI18n.other).replace(':count', String(list.length));
+    document.getElementById('resultCount').textContent = tpl;
 
     if (!list.length) {
         grid.innerHTML = '';

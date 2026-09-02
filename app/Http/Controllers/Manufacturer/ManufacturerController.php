@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Models\Message;
 use Illuminate\Support\Facades\Hash;
 use App\Support\MaintenancePlanDates;
+use App\Support\PanelTranslator;
 use Illuminate\Support\Facades\Schema;
 
 class ManufacturerController extends Controller
@@ -129,13 +130,13 @@ class ManufacturerController extends Controller
         $items = Notification::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->limit(250)
-            ->get(['id', 'message', 'created_at']);
+            ->get(['id', 'type', 'data', 'message', 'created_at']);
 
         return response()->json([
             'ok' => true,
             'items' => $items->map(fn (Notification $n) => [
                 'id' => $n->id,
-                'message' => $n->message,
+                'message' => PanelTranslator::notificationMessage($n),
                 'date' => $n->created_at->format('M d, Y'),
             ])->values(),
         ]);
@@ -1187,7 +1188,7 @@ class ManufacturerController extends Controller
             if ($customer) {
                 \App\Models\Notification::create([
                     'user_id' => $customer->id,
-                    'message' => "Manufacturer {$manufacturer->name} has requested deposit confirmation for your lead.",
+                    'message' => 'Manufacturer '.$manufacturer->businessDisplayName().' has requested deposit confirmation for your lead.',
                     'type' => 'deposit_confirmation',
                     'data' => ['lead_id' => $lead->id, 'dealer_id' => $manufacturer->id]
                 ]);
@@ -1379,8 +1380,8 @@ class ManufacturerController extends Controller
             'cabinet_colour' => ['nullable', 'string', 'max:255'],
             'accessories' => ['nullable', 'string', 'max:500'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
-            'invoice' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-            'warranty' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'invoice' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:51200'],
+            'warranty' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:51200'],
         ]);
 
         $details = [
@@ -1685,9 +1686,7 @@ class ManufacturerController extends Controller
         $me = Auth::user();
         $plans = \App\Models\CreditPlan::where('is_active', true)->orderBy('credits', 'asc')->get();
         $settings = PaymentProcessorSetting::first();
-        $stripePublishableKey = $settings->stripe_publishable_key
-            ?? config('services.stripe.key')
-            ?? env('STRIPE_PUBLISHABLE_KEY');
+        $stripePublishableKey = PaymentProcessorSetting::stripePublishableKey();
 
         $historyQuery = \App\Models\CreditPurchase::where('user_id', $me->id)->orderBy('created_at', 'desc');
 
@@ -1706,22 +1705,29 @@ class ManufacturerController extends Controller
         $plan = \App\Models\CreditPlan::findOrFail($request->plan_id);
 
         $settings = PaymentProcessorSetting::first();
-        $stripeSecret = $settings->stripe_secret_key
-            ?? config('services.stripe.secret')
-            ?? env('STRIPE_SECRET_KEY');
+        $stripeSecret = PaymentProcessorSetting::stripeSecretKey();
+        if (! filled($stripeSecret)) {
+            return response()->json(['error' => 'Stripe is not configured. Add keys in .env or Admin → Pricing processor.'], 503);
+        }
         \Stripe\Stripe::setApiKey($stripeSecret);
 
         try {
+            $currencyService = app(\App\Services\CurrencyService::class);
+            $chargeCurrency = strtoupper($user->preferred_currency ?: 'GBP');
+            $chargeAmount = $currencyService->convert((float) $plan->price, 'GBP', $chargeCurrency);
+            $decimals = (int) config("localization.currencies.{$chargeCurrency}.decimals", 2);
+            $multiplier = (int) (10 ** $decimals);
+
             $session = \Stripe\Checkout\Session::create([
                 'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'gbp',
+                        'currency' => strtolower($chargeCurrency),
                         'product_data' => [
                             'name' => $plan->name . " ({$plan->credits} Credits)",
                             'description' => $plan->description,
                         ],
-                        'unit_amount' => (int) ($plan->price * 100),
+                        'unit_amount' => (int) round($chargeAmount * $multiplier),
                     ],
                     'quantity' => 1,
                 ]],
@@ -1749,9 +1755,10 @@ class ManufacturerController extends Controller
         $user = Auth::user();
 
         $settings = PaymentProcessorSetting::first();
-        $stripeSecret = $settings->stripe_secret_key
-            ?? config('services.stripe.secret')
-            ?? env('STRIPE_SECRET_KEY');
+        $stripeSecret = PaymentProcessorSetting::stripeSecretKey();
+        if (! filled($stripeSecret)) {
+            return redirect()->route('manufacturer.credits')->with('error', 'Stripe is not configured.');
+        }
         \Stripe\Stripe::setApiKey($stripeSecret);
 
         try {

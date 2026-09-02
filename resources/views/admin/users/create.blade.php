@@ -1,11 +1,11 @@
 @extends('layouts.admin')
-@section('title', 'Add sub-admin – Admin Panel')
+@section('title', __('panel.admin.pages.users_create.title') . ' – Admin Panel')
 
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Add sub-admin</h1>
-        <p class="panel-page-sub">Creates a staff account with admin panel access (restricted vs the main admin). You set the password; they use the same login page.</p>
+        <h1 class="panel-page-title">{{ __('panel.admin.pages.users_create.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.admin.pages.users_create.sub') }}</p>
     </div>
     <a href="{{ route('admin.users.index') }}" class="btn btn--ghost">Back to list</a>
 </div>

@@ -1,13 +1,13 @@
 @extends('layouts.app')
-@section('title', 'Outdoor Products - Expert Reviews & Comparisons | Hot Tub Buyer')
-@section('meta_description', 'Browse and compare premium outdoor products. Filter by brand, model and more.')
+@section('title', __('pages.outdoor_products.page_title'))
+@section('meta_description', __('pages.outdoor_products.meta'))
 
 @section('content')
 
 {{-- Page Header --}}
 <div class="ht-page-header">
     <div class="container">
-        <h1 class="ht-page-title">Outdoor Products</h1>
+        <h1 class="ht-page-title">{{ __('pages.outdoor_products.title') }}</h1>
     </div>
 </div>
 
@@ -17,19 +17,19 @@
         <div class="ht-filters-panel">
         <form class="ht-filters" method="GET" action="{{ route('outdoor-products') }}" id="filterForm">
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Tier</label>
+                <label class="ht-filter-label">{{ __('pages.filters.tier') }}</label>
                 <select class="ht-filter-select" name="tier" id="filter-tier">
                     @php $tierSel = request('tier'); @endphp
-                    <option value="">All Tiers</option>
+                    <option value="">{{ __('pages.filters.all_tiers') }}</option>
                     @foreach(($tierFilters ?? ['entry-level' => 'Entry Level', 'luxury' => 'Luxury', 'mid-range' => 'Mid-range']) as $val => $label)
-                        <option value="{{ $val }}" @selected($tierSel == $val)>{{ $label }}</option>
+                        <option value="{{ $val }}" @selected($tierSel == $val)>{{ __('pages.tiers.'.$val) }}</option>
                     @endforeach
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Brand</label>
+                <label class="ht-filter-label">{{ __('pages.filters.brand') }}</label>
                 <select class="ht-filter-select" name="brand" id="filter-brand">
-                    <option value="">All Brands</option>
+                    <option value="">{{ __('pages.all_brands') }}</option>
                     @if(isset($brands) && count($brands))
                         @foreach($brands as $b)
                             <option value="{{ $b->slug }}" @selected(request('brand') == $b->slug)>
@@ -40,14 +40,14 @@
                 </select>
             </div>
             <div class="ht-filter-group">
-                <label class="ht-filter-label">Model</label>
+                <label class="ht-filter-label">{{ __('pages.filters.model') }}</label>
                 <select class="ht-filter-select" name="model" id="filter-model">
-                    <option value="">All Models</option>
+                    <option value="">{{ __('pages.all_models') }}</option>
                 </select>
             </div>
             <div class="ht-filter-results">
                 @php $total = method_exists($items,'total') ? $items->total() : (isset($items) ? count($items) : 0); @endphp
-                <span id="results-count">{{ $total }} product{{ $total==1?'':'s' }}</span>
+                <span id="results-count">{{ trans_choice('pages.outdoor_products.results', $total, ['count' => $total]) }}</span>
             </div>
         </form>
         </div>
@@ -68,13 +68,13 @@
         {{-- No results message --}}
         <div class="ht-no-results" id="no-results" style="{{ (isset($items) && count($items)) ? 'display:none;' : '' }}">
             <div class="ht-no-results__icon">🔍</div>
-            <h3>No products match your filters</h3>
-            <p>Try adjusting your filter criteria to see more results.</p>
+            <h3>{{ __('pages.outdoor_products.no_match_title') }}</h3>
+            <p>{{ __('pages.no_results.desc') }}</p>
         </div>
         
         @if(method_exists($items,'hasMorePages') && $items->hasMorePages())
         <div class="mt-4" style="padding:1rem;text-align:center">
-            <button id="loadMore" class="btn btn--outline" data-next-page="{{ $items->currentPage()+1 }}">Load More</button>
+            <button id="loadMore" class="btn btn--outline" data-next-page="{{ $items->currentPage()+1 }}">{{ __('pages.load_more') }}</button>
         </div>
         @endif
     </div>
@@ -94,7 +94,7 @@ function populateModels(brandSlug, keepSelected=true){
     const brandName = slugMap[brandSlug] || '';
     const list = brandName && modelsByBrand[brandName] ? modelsByBrand[brandName] : [];
     const current = keepSelected ? '{{ request('model','') }}' : '';
-    selModel.innerHTML = '<option value="">All Models</option>';
+    selModel.innerHTML = '<option value="">{{ __('pages.all_models') }}</option>';
     list.forEach(m=>{
         const opt = document.createElement('option');
         opt.value = m;

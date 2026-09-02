@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -192,15 +193,22 @@ class LeadController extends Controller
             return;
         }
 
+        $sms = app(SmsService::class);
+        $rawPhone = trim((string) ($data['phone'] ?? ''));
+        $phone = ($rawPhone !== '' && $sms->isSupportedUkMobile($rawPhone)) ? $rawPhone : null;
+
         $existingUser = User::whereRaw('LOWER(email) = ?', [$email])->first();
         if ($existingUser) {
             // Keep existing accounts intact; only enrich customer profile if needed.
             if ($existingUser->role === User::ROLE_USER) {
-                $existingUser->update([
+                $updates = [
                     'name' => $existingUser->name ?: ($data['name'] ?? $existingUser->name),
-                    'phone' => $existingUser->phone ?: ($data['phone'] ?? $existingUser->phone),
                     'postcode' => $existingUser->postcode ?: ($data['postcode'] ?? $existingUser->postcode),
-                ]);
+                ];
+                if ($phone && ! $existingUser->phone) {
+                    $updates['phone'] = $phone;
+                }
+                $existingUser->update($updates);
             }
             return;
         }
@@ -211,8 +219,9 @@ class LeadController extends Controller
             'password' => Hash::make($temporaryPassword),
             'role' => User::ROLE_USER,
             'status' => 'active',
-            'phone' => $data['phone'] ?? null,
+            'phone' => $phone,
             'postcode' => $data['postcode'] ?? null,
+            'phone_verified_at' => now(),
         ]);
     }
 }

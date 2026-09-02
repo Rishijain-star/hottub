@@ -9,48 +9,130 @@ class SmsService
 {
     private const FIRETEXT_SEND_URL = 'https://www.firetext.co.uk/api/sendsms';
 
+    private ?string $lastBlockReason = null;
+
+    private bool $lastSendWasSimulated = false;
+
+    public function lastSendWasSimulated(): bool
+    {
+        return $this->lastSendWasSimulated;
+    }
+
     public function hasLiveProvider(): bool
     {
         return $this->hasFireText() || $this->hasTwilio();
     }
 
+    public function lastBlockReason(): ?string
+    {
+        return $this->lastBlockReason;
+    }
+
+    public function wasRateLimited(): bool
+    {
+        if ($this->lastBlockReason === null) {
+            return false;
+        }
+
+        return str_contains($this->lastBlockReason, 'Too many requests')
+            || app(OtpIdentifierLockService::class)->isLockMessage($this->lastBlockReason);
+    }
+
     public function sendVerificationCode(string $phone, string $code): bool
     {
-        $msg = 'Your Hot Tub Buyer verification code is: ' . $code;
+        return $this->sendSmsMessage($phone, 'Your Hot Tub Buyer verification code is: ' . $code);
+    }
+
+    public function sendAdminTwoFactorCode(string $phone, string $code): bool
+    {
+        return $this->sendSmsMessage($phone, 'Your Hot Tub Buyer admin login code is: ' . $code);
+    }
+
+    public function isSupportedUkMobile(string $phone): bool
+    {
+        return $this->normalizePhoneFireText($phone) !== '';
+    }
+
+    public function sendFailureReason(string $phone): string
+    {
+        if ($this->lastBlockReason) {
+            return $this->lastBlockReason;
+        }
+
+        if (! $this->isSupportedUkMobile($phone)) {
+            return 'Invalid mobile number.';
+        }
+
+        if (! $this->hasLiveProvider()) {
+            if (app()->environment('local', 'testing')) {
+                return '';
+            }
+
+            return 'Unable to send verification code right now. Please try again later.';
+        }
+
+        return 'Unable to send SMS right now. Please try again later.';
+    }
+
+    private function sendSmsMessage(string $phone, string $msg): bool
+    {
+        $this->lastBlockReason = null;
+        $this->lastSendWasSimulated = false;
+
+        if (app(GeoRestrictionService::class)->isBlockedPhone($phone)) {
+            $this->lastBlockReason = 'This mobile number is blocked. Please contact support.';
+
+            return false;
+        }
+
+        $limiter = app(OtpRateLimitService::class);
+        if (! $limiter->allowSend($phone)) {
+            $this->lastBlockReason = $limiter->lastReason() ?? $limiter->tooManyMessage();
+            Log::warning('OTP not sent — rate limit', ['phone_tail' => substr(preg_replace('/\D/', '', $phone) ?? '', -4)]);
+
+            return false;
+        }
+
+        $sent = false;
 
         if ($this->hasFireText()) {
             if ($this->sendViaFireText($phone, $msg)) {
-                return true;
+                $sent = true;
+            } else {
+                Log::warning('FireText SMS send did not succeed; falling back to log output.');
             }
-            Log::warning('FireText SMS send did not succeed; falling back to log output.');
         }
 
-        $sid = config('services.twilio.sid');
-        $token = config('services.twilio.token');
-        $from = config('services.twilio.from');
+        if (! $sent && $this->hasTwilio()) {
+            $sid = config('services.twilio.sid');
+            $token = config('services.twilio.token');
+            $from = config('services.twilio.from');
 
-        if ($this->hasTwilio()) {
             try {
                 $client = new \Twilio\Rest\Client($sid, $token);
                 $client->messages->create($this->normalizePhoneTwilio($phone), [
                     'from' => $from,
                     'body' => $msg,
                 ]);
-
-                return true;
+                $sent = true;
             } catch (\Throwable $e) {
                 Log::warning('SMS send failed: ' . $e->getMessage());
             }
-        } elseif ($sid || $token) {
+        } elseif (! $sent && (config('services.twilio.sid') || config('services.twilio.token'))) {
             Log::warning('Twilio credentials set but twilio/sdk package may be missing; OTP logged only.');
         }
 
-        if (app()->environment('local', 'testing')) {
+        if (! $sent && app()->environment('local', 'testing')) {
             Log::info('SMS (dev/log): ' . $msg . ' to ' . $phone);
-            return true;
+            $this->lastSendWasSimulated = true;
+            $sent = true;
         }
 
-        return false;
+        if ($sent) {
+            $limiter->recordSend($phone);
+        }
+
+        return $sent;
     }
 
     private function hasFireText(): bool
@@ -80,20 +162,13 @@ class SmsService
         $apiKey = (string) config('services.firetext.api_key');
 
         if ($to === '') {
+            $this->lastBlockReason = 'Invalid UK mobile number format.';
             Log::warning('FireText SMS skipped: invalid UK destination format.', [
                 'original_phone' => $phone,
-                'normalized_to' => $to,
             ]);
+
             return false;
         }
-
-        Log::info('FireText SMS request', [
-            'method' => 'POST',
-            'url' => self::FIRETEXT_SEND_URL,
-            'to' => $to,
-            'from' => $from,
-            'api_key_tail' => substr($apiKey, -6),
-        ]);
 
         try {
             $response = Http::timeout(30)->asForm()->post(self::FIRETEXT_SEND_URL, [
@@ -104,27 +179,20 @@ class SmsService
             ]);
 
             $body = trim($response->body());
-            Log::info('FireText SMS response', [
-                'http_status' => $response->status(),
-                'body' => $body,
-            ]);
             if (str_starts_with($body, '0:')) {
                 return true;
             }
 
+            $this->lastBlockReason = $this->humanizeFireTextResponse($body);
             Log::warning('FireText SMS API response: ' . $body);
         } catch (\Throwable $e) {
+            $this->lastBlockReason = 'SMS provider connection failed: ' . $e->getMessage();
             Log::warning('FireText SMS exception: ' . $e->getMessage());
         }
 
         return false;
     }
 
-    /**
-     * FireText expects digits only, no "+". UK numbers may be 07… or 447….
-     *
-     * @see https://firetext.co.uk/docs
-     */
     private function normalizePhoneFireText(string $phone): string
     {
         $digits = preg_replace('/\D/', '', $phone) ?? '';
@@ -132,8 +200,6 @@ class SmsService
             return '';
         }
 
-        // FireText expects UK destination numbers as 07... or 447...
-        // We normalize to international 447... (no + sign) for consistency.
         if (str_starts_with($digits, '44')) {
             $uk = $digits;
         } elseif (str_starts_with($digits, '0')) {
@@ -142,8 +208,7 @@ class SmsService
             return '';
         }
 
-        // UK mobile should be 447 + 9 digits (12 total digits).
-        if (!preg_match('/^447\d{9}$/', $uk)) {
+        if (! preg_match('/^447\d{9}$/', $uk)) {
             return '';
         }
 
@@ -156,10 +221,23 @@ class SmsService
         if (str_starts_with($p, '0')) {
             $p = '+44' . substr($p, 1);
         }
-        if (!str_starts_with($p, '+')) {
+        if (! str_starts_with($p, '+')) {
             $p = '+' . $p;
         }
 
         return $p;
+    }
+
+    private function humanizeFireTextResponse(string $body): string
+    {
+        if ($body === '') {
+            return 'SMS provider returned an empty response. Check FireText API key and account credits.';
+        }
+
+        if (preg_match('/^(\d+):(.+)$/s', $body, $m)) {
+            return 'SMS provider error (' . trim($m[1]) . '): ' . trim($m[2]);
+        }
+
+        return 'SMS provider error: ' . $body;
     }
 }

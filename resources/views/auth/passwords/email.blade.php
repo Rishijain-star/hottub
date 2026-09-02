@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Forgot Password – Hot Tub Buyer')
+@section('title', __('pages.auth.forgot_title'))
 @section('content')
 
 <div class="auth-page">
@@ -10,13 +10,13 @@
             </svg>
         </div>
 
-        <h1 class="auth-card__title">Forgot Password</h1>
-        <p class="auth-card__sub">Enter your email to receive an OTP</p>
+        <h1 class="auth-card__title">{{ __('pages.auth.forgot_heading') }}</h1>
+        <p class="auth-card__sub">{{ __('pages.auth.forgot_sub') }}</p>
 
         <form class="auth-form" method="POST" action="{{ route('password.otp.send') }}">
             @csrf
             <div class="form-group">
-                <label class="form-label" for="email">Email Address</label>
+                <label class="form-label" for="email">{{ __('pages.auth.email') }}</label>
                 <input
                     class="form-input auth-input"
                     type="email"
@@ -37,12 +37,12 @@
             @endif
 
             <button type="submit" class="auth-submit-btn">
-                Send OTP
+                {{ __('pages.auth.send_otp') }}
             </button>
         </form>
 
         <p class="auth-card__footer-link">
-            Remember your password? <a href="/login">Back to Login</a>
+            {{ __('pages.auth.remember_password') }} <a href="/login">{{ __('pages.auth.back_login') }}</a>
         </p>
     </div>
 </div>

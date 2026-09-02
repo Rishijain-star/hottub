@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Verify OTP – Hot Tub Buyer')
+@section('title', __('pages.auth.otp_title'))
 @section('content')
 
 <div class="auth-page">
@@ -10,13 +10,13 @@
             </svg>
         </div>
 
-        <h1 class="auth-card__title">Verify OTP</h1>
-        <p class="auth-card__sub">Enter the 6-digit code sent to {{ session('reset_email') }}</p>
+        <h1 class="auth-card__title">{{ __('pages.auth.otp_heading') }}</h1>
+        <p class="auth-card__sub">{{ __('pages.auth.otp_sub', ['email' => session('reset_email')]) }}</p>
 
         <form class="auth-form" method="POST" action="{{ route('password.otp.verify') }}">
             @csrf
             <div class="form-group">
-                <label class="form-label" for="otp">OTP Code</label>
+                <label class="form-label" for="otp">{{ __('pages.auth.otp_code') }}</label>
                 <input
                     class="form-input auth-input"
                     type="text"
@@ -38,12 +38,12 @@
             @endif
 
             <button type="submit" class="auth-submit-btn">
-                Verify OTP
+                {{ __('pages.auth.otp_verify_btn') }}
             </button>
         </form>
 
         <p class="auth-card__footer-link">
-            Didn't receive the code? <a href="{{ route('password.request') }}">Try again</a>
+            {{ __('pages.auth.otp_retry') }} <a href="{{ route('password.request') }}">{{ __('pages.auth.otp_try_again') }}</a>
         </p>
     </div>
 </div>

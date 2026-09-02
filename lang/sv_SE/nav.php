@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'promo' => 'Spara upp till :amount med Hot Tub Buyer.',
+    'tagline' => 'Expertrecensioner & guider',
+    'hot_tubs' => 'Spabad',
+    'swim_spas' => 'Swim Spas',
+    'outdoor_products' => 'Utomhusprodukter',
+    'services' => 'Tjänster',
+    'parts' => 'Reservdelar',
+    'brands' => 'Varumärken',
+    'find_dealer' => 'Hitta återförsäljare',
+    'care_guide' => 'Skötselguide',
+    'faq' => 'FAQ',
+    'help' => 'Hjälp',
+    'login' => 'Logga in',
+    'register' => 'Registrera',
+    'logout' => 'Logga ut',
+    'admin' => 'Admin',
+    'dashboard' => 'Instrumentpanel',
+    'customer_panel' => 'Kundportal',
+    'language' => '',
+    'currency' => '',
+    'apply' => 'Tillämpa',
+    'contact' => 'Kontakt',
+    'per_year' => '/år',
+];

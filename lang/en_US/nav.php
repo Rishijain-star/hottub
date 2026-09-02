@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'promo' => 'You can save up to :amount using Hot Tub Buyer.',
+    'tagline' => 'Expert Reviews & Guides',
+    'hot_tubs' => 'Hot Tubs',
+    'swim_spas' => 'Swim Spas',
+    'outdoor_products' => 'Outdoor Products',
+    'services' => 'Services',
+    'parts' => 'Parts',
+    'brands' => 'Brands',
+    'find_dealer' => 'Find Dealer',
+    'care_guide' => 'Care Guide',
+    'faq' => 'FAQ',
+    'login' => 'Log in',
+    'register' => 'Sign up',
+    'logout' => 'Log out',
+    'admin' => 'Admin',
+    'dashboard' => 'Dashboard',
+    'customer_panel' => 'My account',
+    'language' => '',
+    'currency' => '',
+    'apply' => 'Apply',
+    'contact' => 'Contact us',
+    'per_year' => '/yr',
+];

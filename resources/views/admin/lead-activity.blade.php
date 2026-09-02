@@ -1,12 +1,12 @@
 @extends('layouts.admin')
-@section('title', 'Lead Activity – Admin Panel')
+@section('title', __('panel.admin.pages.lead_activity.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Lead Activity</h1>
+        <h1 class="panel-page-title">{{ __('panel.admin.pages.lead_activity.title') }}</h1>
         <p class="panel-page-sub">{{ $lead->name }} · {{ $lead->email }}</p>
     </div>
-    <a href="{{ route('admin.leads') }}" class="btn">Back to Leads</a>
+    <a href="{{ route('admin.leads') }}" class="btn">{{ __('panel.admin.pages.lead_activity.back_to_leads') }}</a>
 </div>
 
 <div class="card">

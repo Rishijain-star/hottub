@@ -49,6 +49,23 @@ return [
         'api_key' => env('FIRETEXT_API_KEY'),
         // Sender ID on the handset: 3–11 alphanumeric chars; must be allowed in your FireText account.
         'from' => env('FIRETEXT_FROM') ?: 'HotTub',
+        // Optional (testing): send admin 2FA OTP to this UK number instead of the user’s phone. Leave empty in production.
+        'admin_2fa_to' => env('FIRETEXT_ADMIN_2FA_TO'),
+    ],
+
+    'turnstile' => [
+        'enabled' => (bool) env('TURNSTILE_ENABLED', true),
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+        'appearance' => env('TURNSTILE_APPEARANCE', 'always'),
+        'size' => env('TURNSTILE_SIZE', 'normal'),
+        'honeypot_field' => 'company_website',
+    ],
+
+    'stripe' => [
+        'key' => env('STRIPE_PUBLISHABLE_KEY'),
+        'secret' => env('STRIPE_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
 ];

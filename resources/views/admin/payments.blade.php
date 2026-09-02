@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('title', 'Payments & Credit Requests – Admin Panel')
+@section('title', __('panel.admin.pages.payments_index.title') . ' – Admin Panel')
 @section('styles')
 <style>
     .invoice-number-text {
@@ -23,8 +23,8 @@
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Payments & Credit Requests</h1>
-        <p class="panel-page-sub">Review dealer credit requests and approve or reject them</p>
+        <h1 class="panel-page-title">{{ __('panel.admin.pages.payments_index.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.admin.pages.payments_index.sub') }}</p>
     </div>
 </div>
 

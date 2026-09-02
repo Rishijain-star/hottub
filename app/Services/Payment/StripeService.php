@@ -15,11 +15,15 @@ class StripeService implements PaymentInterface
 {
     public function createCheckoutSession(CreditRequest $creditRequest, PaymentProcessorSetting $settings): string
     {
-        if (str_starts_with($settings->stripe_secret_key, 'pk_')) {
+        $secretKey = PaymentProcessorSetting::stripeSecretKey();
+        if (! filled($secretKey)) {
+            throw new \Exception('Stripe secret key is not configured.');
+        }
+        if (str_starts_with($secretKey, 'pk_')) {
             throw new \Exception('Configuration Error: You have entered a Publishable Key (pk_...) in the Secret Key field. Please use your Secret Key (sk_...) instead.');
         }
 
-        Stripe::setApiKey($settings->stripe_secret_key);
+        Stripe::setApiKey($secretKey);
 
         $session = Session::create([
             'payment_method_types' => ['card'],
@@ -51,7 +55,7 @@ class StripeService implements PaymentInterface
             $event = Webhook::constructEvent(
                 json_encode($payload),
                 $signature,
-                $settings->stripe_webhook_secret
+                PaymentProcessorSetting::stripeWebhookSecret() ?? ''
             );
         } catch (\UnexpectedValueException $e) {
             Log::error('Stripe Webhook: Invalid payload');

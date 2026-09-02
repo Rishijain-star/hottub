@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\HotTub;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -144,6 +145,40 @@ class PageController extends Controller
         return $q;
     }
 
+    /**
+     * New seed on full listing (page 1); keep seed for pagination / infinite-scroll fragments.
+     */
+    private function ensureCatalogShuffleSeed(Request $request, string $sessionKey): void
+    {
+        $page = (int) $request->query('page', 1);
+        $isAjaxFragment = $request->boolean('fragment');
+
+        if (! $isAjaxFragment && $page <= 1) {
+            session()->put($sessionKey, random_int(1, 2_147_483_646));
+
+            return;
+        }
+
+        if (! session()->has($sessionKey)) {
+            session()->put($sessionKey, random_int(1, 2_147_483_646));
+        }
+    }
+
+    private function applyCatalogRandomOrder(EloquentBuilder $query, Request $request, string $sessionKey): void
+    {
+        $this->ensureCatalogShuffleSeed($request, $sessionKey);
+        $seed = (int) session($sessionKey);
+        $driver = $query->getConnection()->getDriverName();
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $query->orderByRaw('RAND(' . $seed . ')');
+
+            return;
+        }
+
+        $query->inRandomOrder();
+    }
+
     public function hotTubs(Request $request)
     {
         $items = collect();
@@ -179,7 +214,8 @@ class PageController extends Controller
             }
             $perPage = (int) $request->query('per_page', 9);
             $perPage = $perPage > 0 && $perPage <= 60 ? $perPage : 12;
-            $items = $q->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
+            $this->applyCatalogRandomOrder($q, $request, 'catalog_shuffle_hot_tubs');
+            $items = $q->paginate($perPage)->withQueryString();
             if (Schema::hasTable('brands')) {
                 $brands = $this->activeBrandsQuery()->get();
             }
@@ -273,7 +309,8 @@ class PageController extends Controller
             }
             $perPage = (int) $request->query('per_page', 9);
             $perPage = $perPage > 0 && $perPage <= 60 ? $perPage : 9;
-            $items = $q->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
+            $this->applyCatalogRandomOrder($q, $request, 'catalog_shuffle_swim_spas');
+            $items = $q->paginate($perPage)->withQueryString();
             if (Schema::hasTable('brands')) {
                 $brands = $this->activeBrandsQuery()->get();
             }
@@ -326,7 +363,7 @@ class PageController extends Controller
     {
         $items = [];
         if (Schema::hasTable('services')) {
-            $items = \App\Models\Service::where('status','active')->orderBy('created_at','desc')->get();
+            $items = \App\Models\Service::where('status', 'active')->inRandomOrder()->get();
         }
         return view('pages.services', compact('items'));
     }
@@ -360,7 +397,8 @@ class PageController extends Controller
             $this->applyTierFilter($q, $request);
             
             $perPage = (int) $request->query('per_page', 9);
-            $items = $q->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
+            $this->applyCatalogRandomOrder($q, $request, 'catalog_shuffle_outdoor_products');
+            $items = $q->paginate($perPage)->withQueryString();
             
             if (Schema::hasTable('brands')) {
                 $brands = $this->activeBrandsQuery()->get();
@@ -407,7 +445,7 @@ class PageController extends Controller
         $items = [];
         $brandsById = [];
         if (Schema::hasTable('parts')) {
-            $items = \App\Models\Part::where('status','active')->orderBy('created_at','desc')->get();
+            $items = \App\Models\Part::where('status', 'active')->inRandomOrder()->get();
         }
         if (Schema::hasTable('brands')) {
             $brandsById = $this->activeBrandsQuery()->pluck('name', 'id')->toArray();

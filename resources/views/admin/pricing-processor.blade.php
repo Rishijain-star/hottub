@@ -1,8 +1,8 @@
 @extends('layouts.admin')
-@section('title', 'Payment Processor – Admin Panel')
+@section('title', __('panel.admin.pages.pricing_processor.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Payment Processor Configuration</h1><p class="panel-page-sub">Choose how dealers purchase credits – automated or manual</p></div>
+    <div><h1 class="panel-page-title">{{ __('panel.admin.pages.pricing_processor.title') }}</h1><p class="panel-page-sub">{{ __('panel.admin.pages.pricing_processor.sub') }}</p></div>
 </div>
 @if(session('success')) <div class="alert alert--success">{{ session('success') }}</div> @endif
 @if($errors->any()) <div class="alert alert--danger">{{ $errors->first() }}</div> @endif

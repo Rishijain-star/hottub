@@ -1,9 +1,9 @@
 @extends('layouts.admin')
-@section('title', 'Edit Manufacturer – Admin Panel')
+@section('title', __('panel.admin.pages.manufacturers_edit.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
-    <div><h1 class="panel-page-title">Edit Manufacturer</h1><p class="panel-page-sub">{{ $manufacturer->name }}</p></div>
-    <a href="{{ route('admin.manufacturers') }}" class="btn">Back</a>
+    <div><h1 class="panel-page-title">{{ __('panel.admin.pages.manufacturers_edit.title') }}</h1><p class="panel-page-sub">{{ $manufacturer->name }}</p></div>
+    <a href="{{ route('admin.manufacturers') }}" class="btn">{{ __('panel.admin.common.back') }}</a>
 @endsection
 @@
 @section('content')

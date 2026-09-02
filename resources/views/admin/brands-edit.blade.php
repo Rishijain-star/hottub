@@ -1,12 +1,12 @@
 @extends('layouts.admin')
-@section('title', 'Edit Brand – Admin Panel')
+@section('title', __('panel.admin.pages.brands_edit.title') . ' – Admin Panel')
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Edit Brand</h1>
+        <h1 class="panel-page-title">{{ __('panel.admin.pages.brands_edit.title') }}</h1>
         <p class="panel-page-sub">{{ $item->name }}</p>
     </div>
-    <a href="{{ route('admin.brands.index') }}" class="btn">Back</a>
+    <a href="{{ route('admin.brands.index') }}" class="btn">{{ __('panel.admin.common.back') }}</a>
 </div>
 @if(session('success'))
     <div class="alert alert--success">{{ session('success') }}</div>

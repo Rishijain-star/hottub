@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-google-translate="{{ $googleTranslateLang ?? '' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Panel – Hot Tub Buyer')</title>
+
+    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ asset('favicon.svg') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +17,9 @@
     <link rel="stylesheet" href="{{ asset('css/panel.css') }}">
 
     @yield('styles')
+
+    @include('components.flag-icons-css')
+    @include('components.google-translate-head')
 </head>
 <body class="panel-body">
 
@@ -64,6 +71,7 @@
     </div>
 
     @yield('scripts')
+    @include('components.geo-locator')
     <script>
         function showConfirmationModal(form, title, desc, buttonText) {
             document.getElementById('confirmModalTitle').textContent = title || 'Are you sure?';
@@ -124,4 +132,5 @@
             }, true);
         })();
     </script>
+    @include('components.google-translate')
 </body>

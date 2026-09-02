@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Create Account – Hot Tub Buyer')
+@section('title', __('pages.auth.register_title'))
 @section('content')
 
 <div class="auth-page">
@@ -16,35 +16,37 @@
         </div>
 
         {{-- Heading --}}
-        <h1 class="auth-card__title">Create Account</h1>
-        <p class="auth-card__sub">Join Hot Tub Buyer today</p>
+        <h1 class="auth-card__title">{{ __('pages.auth.create_account') }}</h1>
+        <p class="auth-card__sub">{{ __('pages.auth.join_today') }}</p>
 
         <p style="padding:12px 14px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:0.88rem;color:#134e4a;margin-bottom:1.25rem;line-height:1.5">
-            Please ensure all details are accurate. This platform is designed for long-term ownership and service tracking.
+            {{ __('pages.auth.register_notice') }}
         </p>
-        @php($otpPending = session('otp_pending') || session()->has('registration_otp'))
-        <p class="text-sm text-muted" style="margin-bottom:1rem">Choose account type: Customer, Dealer, or Manufacturer.</p>
+        @php($otpPending = $otpPending ?? (session('otp_pending') || false))
+        <p class="text-sm text-muted" style="margin-bottom:1rem">{{ __('pages.auth.choose_role') }}</p>
 
         {{-- Form --}}
         <form class="auth-form" method="POST" action="/register" onsubmit="return handleRegister(event)">
             @csrf
             <input type="hidden" name="registration_step" id="registrationStep" value="{{ $otpPending ? 'verify_otp' : 'request_otp' }}">
+            <input type="hidden" name="latitude" id="regLatitude" value="{{ old('latitude', session('geo_lat')) }}">
+            <input type="hidden" name="longitude" id="regLongitude" value="{{ old('longitude', session('geo_lng')) }}">
             @if(request('redirect'))
                 <input type="hidden" name="redirect" value="{{ request('redirect') }}">
             @endif
 
             <div class="form-group">
-                <label class="form-label">Register as</label>
+                <label class="form-label">{{ __('pages.auth.register_as') }}</label>
                 <div style="display:flex;gap:14px;flex-wrap:wrap">
                     @php($selectedRole = old('role', 'customer'))
                     <label class="form-check" style="display:flex;align-items:center;gap:6px">
-                        <input type="radio" name="role" value="customer" {{ $selectedRole === 'customer' ? 'checked' : '' }}> Customer
+                        <input type="radio" name="role" value="customer" {{ $selectedRole === 'customer' ? 'checked' : '' }}> {{ __('pages.auth.role_customer') }}
                     </label>
                     <label class="form-check" style="display:flex;align-items:center;gap:6px">
-                        <input type="radio" name="role" value="dealer" {{ $selectedRole === 'dealer' ? 'checked' : '' }}> Dealer
+                        <input type="radio" name="role" value="dealer" {{ $selectedRole === 'dealer' ? 'checked' : '' }}> {{ __('pages.auth.role_dealer') }}
                     </label>
                     <label class="form-check" style="display:flex;align-items:center;gap:6px">
-                        <input type="radio" name="role" value="manufacturer" {{ $selectedRole === 'manufacturer' ? 'checked' : '' }}> Manufacturer
+                        <input type="radio" name="role" value="manufacturer" {{ $selectedRole === 'manufacturer' ? 'checked' : '' }}> {{ __('pages.auth.role_manufacturer') }}
                     </label>
                 </div>
             </div>
@@ -52,7 +54,7 @@
             {{-- Name + Email row --}}
             <div class="reg-row">
                 <div class="form-group">
-                    <label class="form-label" for="name">Name *</label>
+                    <label class="form-label" for="name">{{ __('pages.auth.name_required') }}</label>
                     <input
                         class="form-input auth-input"
                         type="text"
@@ -68,7 +70,7 @@
                     @enderror
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="email">Email *</label>
+                    <label class="form-label" for="email">{{ __('pages.auth.email_required') }}</label>
                     <input
                         class="form-input auth-input"
                         type="email"
@@ -102,12 +104,12 @@
             {{-- Mobile + Postcode (dealer/manufacturer & customer) --}}
             <div class="reg-row">
                 <div class="form-group">
-                    <label class="form-label" for="phone">Mobile Number *</label>
+                    <label class="form-label" for="phone">{{ __('pages.auth.mobile') }}</label>
                     <input class="form-input auth-input" type="text" id="phone" name="phone" placeholder="For SMS verification" value="{{ old('phone') }}" required autocomplete="tel">
                     @error('phone') <span class="auth-field-error">{{ $message }}</span> @enderror
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="postcode">Postcode *</label>
+                    <label class="form-label" for="postcode">{{ __('pages.auth.postcode') }}</label>
                     <input class="form-input auth-input" type="text" id="postcode" name="postcode" placeholder="e.g. SW1A 1AA" value="{{ old('postcode') }}" required autocomplete="postal-code">
                     @error('postcode') <span class="auth-field-error">{{ $message }}</span> @enderror
                 </div>
@@ -186,8 +188,24 @@
             </div>
 
             {{-- Error alert --}}
-            @if(session('error'))
+            @if($errors->any())
+                <div class="alert alert--danger" style="margin-bottom:1.25rem;">
+                    @if($errors->has('phone'))
+                        {{ $errors->first('phone') }}
+                    @elseif($errors->has('email'))
+                        {{ $errors->first('email') }}
+                    @else
+                        {{ $errors->first() }}
+                    @endif
+                </div>
+            @endif
+            @if(session('error') && !$errors->any())
                 <div class="alert alert--danger" style="margin-bottom:1.25rem;">{{ session('error') }}</div>
+            @endif
+
+            @if(!$otpPending)
+                <x-image-captcha />
+                <x-otp-antibot />
             @endif
 
             {{-- Terms --}}
@@ -205,7 +223,7 @@
                     <line x1="19" y1="8" x2="19" y2="14"/>
                     <line x1="22" y1="11" x2="16" y2="11"/>
                 </svg>
-                {{ $otpPending ? 'Verify OTP & Create Account' : 'Create Account' }}
+                {{ $otpPending ? __('pages.auth.verify_otp_create') : __('pages.auth.create_account_btn') }}
             </button>
             <p id="enquiryNotice" style="margin-top: 1.25rem; font-size: 0.85rem; color: #6b7280; text-align: center; line-height: 1.4;">
                 Buying a hot tub is exciting. Our platform connects you with trusted dealers who will support you from purchase to installation and long-term ownership.
@@ -214,14 +232,27 @@
 
         {{-- Footer --}}
         <p class="auth-card__footer-link">
-            Already have an account? <a href="/login">Sign in here</a>
+            {{ __('pages.auth.have_account') }} <a href="/login">{{ __('pages.auth.sign_in_link') }}</a>
         </p>
 
     </div>
 </div>
 
 <script>
+const registerI18n = @json([
+    'creating' => __('pages.auth.creating_account'),
+]);
+
 document.addEventListener('DOMContentLoaded', function() {
+    const latInput = document.getElementById('regLatitude');
+    const lngInput = document.getElementById('regLongitude');
+    if (navigator.geolocation && latInput && lngInput && (!latInput.value || !lngInput.value)) {
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            latInput.value = pos.coords.latitude;
+            lngInput.value = pos.coords.longitude;
+        }, function () {}, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+    }
+
     const termsLabel = document.getElementById('termsLabel');
     const roleInputs = document.querySelectorAll('input[name="role"]');
     const otpBlock = document.getElementById('otpBlock');
@@ -352,9 +383,9 @@ function handleRegister(e) {
     btn.disabled = true;
     btn.innerHTML = `
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:spin .8s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-        Creating Account…`;
+        ${registerI18n.creating}`;
     return true;
 }
 </script>
-
+<x-csrf-keepalive />
 @endsection

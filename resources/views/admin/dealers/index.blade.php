@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('title', 'Dealer Management – Admin Panel')
+@section('title', __('panel.admin.dealers.title') . ' - ' . __('panel.admin_title'))
 
 @section('styles') @endsection
 
@@ -25,14 +25,14 @@
 {{-- Page Header — .panel-page-header / .panel-page-title / .panel-page-sub from panel.css --}}
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Dealer Management</h1>
-        <p class="panel-page-sub">Approve dealers, manage credits, and edit all profile information</p>
+        <h1 class="panel-page-title">{{ __('panel.admin.dealers.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.admin.dealers.sub') }}</p>
     </div>
     <button type="button" id="btnOpenCreateDealer" class="btn btn--primary">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:16px;height:16px">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
         </svg>
-        Create Dealer
+        {{ __('panel.admin.dealers.create') }}
     </button>
 </div>
 
@@ -40,25 +40,25 @@
 <div class="card mb-4" style="padding: 1.25rem;">
     <form method="GET" action="{{ route('admin.dealers.index') }}" class="panel-filter-form panel-filter-form--3">
         <div class="form-group mb-0">
-            <label class="form-label">Search</label>
+            <label class="form-label">{{ __('panel.admin.common.search') }}</label>
             <input type="text" name="search" class="form-input" placeholder="Name, Email, or Company..." value="{{ request('search') }}">
         </div>
         <div class="form-group mb-0">
-            <label class="form-label">Status</label>
+            <label class="form-label">{{ __('panel.admin.common.status') }}</label>
             <select name="status" class="form-input">
-                <option value="">All Status</option>
-                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
-                <option value="revoked" {{ request('status') === 'revoked' ? 'selected' : '' }}>Revoked</option>
-                <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>Paused</option>
-                <option value="frozen" {{ request('status') === 'frozen' ? 'selected' : '' }}>Frozen</option>
+                <option value="">{{ __('panel.admin.common.all_status') }}</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>{{ __('panel.admin.dealers.pending') }}</option>
+                <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>{{ __('panel.admin.dealers.approved') }}</option>
+                <option value="revoked" {{ request('status') === 'revoked' ? 'selected' : '' }}>{{ __('panel.admin.dealers.revoked') }}</option>
+                <option value="paused" {{ request('status') === 'paused' ? 'selected' : '' }}>{{ __('panel.admin.dealers.paused') }}</option>
+                <option value="frozen" {{ request('status') === 'frozen' ? 'selected' : '' }}>{{ __('panel.admin.dealers.frozen') }}</option>
             </select>
         </div>
         <div class="form-group mb-0 panel-filter-actions-col">
             <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
             <div class="panel-filter-actions">
-            <button type="submit" class="btn btn--primary">Filter</button>
-            <a href="{{ route('admin.dealers.index') }}" class="btn btn--ghost">Clear</a>
+            <button type="submit" class="btn btn--primary">{{ __('panel.admin.common.filter') }}</button>
+            <a href="{{ route('admin.dealers.index') }}" class="btn btn--ghost">{{ __('panel.admin.common.clear') }}</a>
             </div>
         </div>
     </form>
@@ -70,14 +70,14 @@
         <thead>
             <tr>
                 <th></th>
-                <th>Dealer Info</th>
-                <th>Company</th>
-                <th>Contact</th>
-                <th>Type</th>
-                <th>Service Offerings</th>
-                <th>Credits</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>{{ __('panel.admin.dealers.dealer_info') }}</th>
+                <th>{{ __('panel.admin.common.company') }}</th>
+                <th>{{ __('panel.admin.dealers.contact') }}</th>
+                <th>{{ __('panel.admin.dealers.type') }}</th>
+                <th>{{ __('panel.admin.dealers.service_offerings') }}</th>
+                <th>{{ __('panel.admin.dealers.credits') }}</th>
+                <th>{{ __('panel.admin.common.status') }}</th>
+                <th>{{ __('panel.admin.common.actions') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -149,7 +149,7 @@
                     @if($dealer->type)
                         <span class="text-sm">{{ $dealer->type }}</span>
                     @else
-                        <span class="text-muted text-sm">Not set</span>
+                        <span class="text-muted text-sm">{{ __('panel.admin.dealers.not_set') }}</span>
                     @endif
                 </td>
 
@@ -168,7 +168,7 @@
                         {{ $dealer->credits ?? 0 }}
                         <button type="button"
                                 class="btn-icon js-open-credits"
-                                title="Add credits"
+                                title="{{ __('panel.admin.dealers.add_credits') }}"
                                 data-id="{{ $dealer->id }}"
                                 data-name="{{ $dealer->name }}"
                                 data-credits="{{ $dealer->credits ?? 0 }}"
@@ -183,35 +183,35 @@
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:12px;height:12px">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
-                            Approved
+                            {{ __('panel.admin.dealers.approved') }}
                         </span>
                     @elseif($dealer->status === 'pending')
                         <span class="badge badge--pending">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:12px;height:12px">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
-                            Pending
+                            {{ __('panel.admin.dealers.pending') }}
                         </span>
                     @elseif($dealer->status === 'paused')
                         <span class="badge" style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:12px;height:12px">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
                             </svg>
-                            Paused
+                            {{ __('panel.admin.dealers.paused') }}
                         </span>
                     @elseif($dealer->status === 'frozen')
                         <span class="badge" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:12px;height:12px">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                             </svg>
-                            Frozen
+                            {{ __('panel.admin.dealers.frozen') }}
                         </span>
                     @else
                         <span class="badge badge--dark">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:12px;height:12px">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
                             </svg>
-                            Revoked
+                            {{ __('panel.admin.dealers.revoked') }}
                         </span>
                     @endif
                 </td>
@@ -222,7 +222,7 @@
                         <div class="actions-row">
                             <button type="button"
                                class="icon-btn js-open-edit"
-                               title="Edit dealer"
+                               title="{{ __('panel.admin.common.edit') }}"
                                data-action="{{ route('admin.dealers.update', $dealer) }}"
                                data-name="{{ $dealer->name }}"
                                data-email="{{ $dealer->email }}"
@@ -241,7 +241,7 @@
                             </button>
                             <button type="button"
                                class="icon-btn js-open-password"
-                               title="Set new password"
+                               title="{{ __('panel.admin.dealers.new_password') }}"
                                data-name="{{ $dealer->name }}"
                                data-email="{{ $dealer->email }}"
                                data-action="{{ route('admin.dealers.reset-password', $dealer) }}">
@@ -251,7 +251,7 @@
                             </button>
                             <button type="button"
                                class="icon-btn js-open-delete"
-                               title="Delete"
+                               title="{{ __('panel.admin.common.delete') }}"
                                data-action="{{ route('admin.dealers.destroy', $dealer) }}"
                                data-entity="dealer">✕</button>
                         </div>
@@ -261,11 +261,11 @@
                                 @csrf @method('PATCH')
                                 <button type="submit"
                                         class="btn btn--sm btn--danger"
-                                        onclick="return confirm('Revoke access for {{ $dealer->name }}?')">
+                                        onclick="return confirm('{{ __('panel.admin.dealers.revoke_confirm') }} {{ $dealer->name }}?')">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:13px;height:13px">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                     </svg>
-                                    Revoke
+                                    {{ __('panel.admin.common.reject') }}
                                 </button>
                             </form>
                         @else
@@ -275,7 +275,7 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:13px;height:13px">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                     </svg>
-                                    Approve
+                                    {{ __('panel.admin.common.approve') }}
                                 </button>
                             </form>
                         @endif
@@ -288,7 +288,7 @@
                     {{-- .panel-coming-soon from panel.css --}}
                     <div class="panel-coming-soon" style="border: none; box-shadow: none; padding: 3rem 2rem;">
                         <div class="panel-coming-soon__icon">👥</div>
-                        <h2>No Dealers Found</h2>
+                        <h2>{{ __('panel.admin.dealers.no_dealers') }}</h2>
                         <p>No dealer accounts exist yet. Create the first one using the button above.</p>
                     </div>
                 </td>
@@ -308,50 +308,50 @@
 <div class="modal-backdrop" id="createDealerModal">
     <div class="modal-container">
         <div class="modal-header">
-            <div class="modal-title">Create New Dealer</div>
+            <div class="modal-title">{{ __('panel.admin.dealers.create_new') }}</div>
             <button type="button" class="modal-close" data-close="#createDealerModal">✕</button>
         </div>
         <form method="POST" action="{{ route('admin.dealers.store') }}">
             @csrf
             <div class="grid grid--2">
                 <div class="form-group">
-                    <label class="form-label">Contact Name *</label>
+                    <label class="form-label">{{ __('panel.admin.dealers.contact_name') }} *</label>
                     <input name="name" class="form-input" placeholder="John Smith" value="{{ old('name') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Email *</label>
+                    <label class="form-label">{{ __('panel.admin.common.email') }} *</label>
                     <input type="email" name="email" class="form-input" placeholder="contact@company.com" value="{{ old('email') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Company Name *</label>
+                    <label class="form-label">{{ __('panel.admin.dealers.company_name') }} *</label>
                     <input name="company_name" class="form-input" placeholder="Company Name Ltd" value="{{ old('company_name') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Company Number *</label>
+                    <label class="form-label">{{ __('panel.admin.dealers.company_number') }} *</label>
                     <input name="company_number" class="form-input" placeholder="e.g., 12345678" value="{{ old('company_number') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">VAT Number *</label>
+                    <label class="form-label">{{ __('panel.admin.dealers.vat_number') }} *</label>
                     <input name="vat_number" class="form-input" placeholder="e.g., GB123456789" value="{{ old('vat_number') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Phone *</label>
+                    <label class="form-label">{{ __('panel.admin.common.phone') }} *</label>
                     <input name="phone" class="form-input" placeholder="020 1234 5678" value="{{ old('phone') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Postcode *</label>
+                    <label class="form-label">{{ __('panel.admin.common.postcode') }} *</label>
                     <input name="postcode" class="form-input" placeholder="SW1A 1AA" value="{{ old('postcode') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Address</label>
+                    <label class="form-label">{{ __('panel.admin.dealers.address') }}</label>
                     <input name="address" class="form-input" placeholder="Full business address" value="{{ old('address') }}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Website *</label>
+                    <label class="form-label">{{ __('panel.admin.dealers.website') }} *</label>
                     <input name="website" class="form-input" placeholder="https://www.company.com" value="{{ old('website') }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Temporary Password *</label>
+                    <label class="form-label">{{ __('panel.admin.dealers.temporary_password') }} *</label>
                     <input name="password" class="form-input" placeholder="TempPass123!" required>
                 </div>
             </div>
@@ -360,9 +360,9 @@
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:16px;height:16px">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
                     </svg>
-                    Create Dealer
+                    {{ __('panel.admin.dealers.create') }}
                 </button>
-                <button type="button" class="btn" data-close="#createDealerModal">Cancel</button>
+                <button type="button" class="btn" data-close="#createDealerModal">{{ __('panel.admin.common.cancel') }}</button>
             </div>
         </form>
     </div>
@@ -371,7 +371,7 @@
 <div class="modal-backdrop" id="editDealerModal">
     <div class="modal-container">
         <div class="modal-header">
-            <div class="modal-title">Edit Dealer - Full Profile Access</div>
+            <div class="modal-title">{{ __('panel.admin.dealers.edit_dealer') }}</div>
             <button type="button" class="modal-close" data-close="#editDealerModal">✕</button>
         </div>
         <form id="editDealerForm" method="POST" action="#">
@@ -379,23 +379,23 @@
             @method('PUT')
             <div class="modal-body">
                 <div class="grid grid--2">
-                    <div class="form-group"><label class="form-label">Contact Name *</label><input name="name" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Email *</label><input type="email" name="email" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Company Name *</label><input name="company_name" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Company Number *</label><input name="company_number" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">VAT Number *</label><input name="vat_number" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Phone *</label><input name="phone" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Postcode *</label><input name="postcode" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label">Address</label><input name="address" class="form-input"></div>
-                    <div class="form-group"><label class="form-label">Website *</label><input name="website" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.contact_name') }} *</label><input name="name" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.common.email') }} *</label><input type="email" name="email" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.company_name') }} *</label><input name="company_name" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.company_number') }} *</label><input name="company_number" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.vat_number') }} *</label><input name="vat_number" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.common.phone') }} *</label><input name="phone" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.common.postcode') }} *</label><input name="postcode" class="form-input" required></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.address') }}</label><input name="address" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">{{ __('panel.admin.dealers.website') }} *</label><input name="website" class="form-input" required></div>
                     <div class="form-group">
-                        <label class="form-label">Account Status</label>
+                        <label class="form-label">{{ __('panel.admin.dealers.account_status') }}</label>
                         <select name="status" class="form-input" id="editDealerStatus">
-                            <option value="pending">Pending Approval</option>
-                            <option value="approved">Approved / Active</option>
-                            <option value="paused">Pause Account</option>
-                            <option value="frozen">Freeze Account</option>
-                            <option value="revoked">Revoked / Disabled</option>
+                            <option value="pending">{{ __('panel.admin.dealers.pending_approval') }}</option>
+                            <option value="approved">{{ __('panel.admin.dealers.approved_active') }}</option>
+                            <option value="paused">{{ __('panel.admin.dealers.pause_account') }}</option>
+                            <option value="frozen">{{ __('panel.admin.dealers.freeze_account') }}</option>
+                            <option value="revoked">{{ __('panel.admin.dealers.revoked_disabled') }}</option>
                         </select>
                     </div>
                     <div class="form-group" id="resumeOptionContainer" style="display:none; grid-column: span 2;">
@@ -407,8 +407,8 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button type="submit" class="btn btn--primary">Save Changes</button>
-                <button type="button" class="btn" data-close="#editDealerModal">Cancel</button>
+                <button type="submit" class="btn btn--primary">{{ __('panel.admin.dealers.save_changes') }}</button>
+                <button type="button" class="btn" data-close="#editDealerModal">{{ __('panel.admin.common.cancel') }}</button>
             </div>
         </form>
     </div>
@@ -417,19 +417,19 @@
 <div class="modal-backdrop" id="creditsModal">
     <div class="modal-container modal-container--sm">
         <div class="modal-header">
-            <div class="modal-title">Add Credits</div>
+            <div class="modal-title">{{ __('panel.admin.dealers.add_credits') }}</div>
             <button type="button" class="modal-close" data-close="#creditsModal">✕</button>
         </div>
         <div class="text-sm text-muted" id="creditsCurrent">Current balance: 0 credits</div>
         <form id="creditsForm" method="POST" action="#">
             @csrf
             <div class="form-group mt-3">
-                <label class="form-label">Number of Credits to Add</label>
+                <label class="form-label">{{ __('panel.admin.dealers.credits_to_add') }}</label>
                 <input name="amount" type="number" min="1" class="form-input" placeholder="Enter amount" required>
             </div>
             <div class="modal-actions">
-                <button type="submit" class="btn btn--primary">+ Add Credits</button>
-                <button type="button" class="btn" data-close="#creditsModal">Cancel</button>
+                <button type="submit" class="btn btn--primary">+ {{ __('panel.admin.dealers.add_credits') }}</button>
+                <button type="button" class="btn" data-close="#creditsModal">{{ __('panel.admin.common.cancel') }}</button>
             </div>
         </form>
     </div>
@@ -438,23 +438,23 @@
 <div class="modal-backdrop" id="passwordModal">
     <div class="modal-container modal-container--sm">
         <div class="modal-header">
-            <div class="modal-title">Set New Password</div>
+            <div class="modal-title">{{ __('panel.admin.dealers.new_password') }}</div>
             <button type="button" class="modal-close" data-close="#passwordModal">✕</button>
         </div>
         <div class="text-sm text-muted" id="passwordTargetText">Update account password.</div>
         <form id="passwordForm" method="POST" action="#">
             @csrf
             <div class="form-group mt-3">
-                <label class="form-label">New Password</label>
+                <label class="form-label">{{ __('panel.admin.dealers.new_password') }}</label>
                 <input type="password" name="password" class="form-input" minlength="8" required>
             </div>
             <div class="form-group">
-                <label class="form-label">Confirm Password</label>
+                <label class="form-label">{{ __('panel.admin.dealers.confirm_password') }}</label>
                 <input type="password" name="password_confirmation" class="form-input" minlength="8" required>
             </div>
             <div class="modal-actions">
-                <button type="submit" class="btn btn--primary">Update Password</button>
-                <button type="button" class="btn" data-close="#passwordModal">Cancel</button>
+                <button type="submit" class="btn btn--primary">{{ __('panel.admin.dealers.update_password') }}</button>
+                <button type="button" class="btn" data-close="#passwordModal">{{ __('panel.admin.common.cancel') }}</button>
             </div>
         </form>
     </div>

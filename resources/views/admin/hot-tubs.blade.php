@@ -1,17 +1,17 @@
 @extends('layouts.admin')
-@section('title', 'Hot Tubs – Admin Panel')
+@section('title', __('panel.admin.pages.hot_tubs_index.title') . ' – Admin Panel')
 @section('content')
 
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Hot Tubs & Swim Spas</h1>
-        <p class="panel-page-sub">Manage product listings for both hot tubs and swim spas</p>
+        <h1 class="panel-page-title">{{ __('panel.admin.pages.hot_tubs_index.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.admin.pages.hot_tubs_index.sub') }}</p>
     </div>
     <button class="btn btn--primary btn--pill" id="toggleAddProduct">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-        Add Product
+        {{ __('panel.admin.pages.hot_tubs_index.add_product') }}
     </button>
 </div>
 

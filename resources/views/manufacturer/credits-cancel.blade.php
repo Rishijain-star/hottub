@@ -1,10 +1,10 @@
 @extends('layouts.manufacturer')
-@section('title', 'Payment Cancelled – Manufacturer Panel')
+@section('title', __('panel.credits_cancel.title').' - '.__('panel.manufacturer_title'))
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">Payment Not Completed</h1>
-        <p class="panel-page-sub">Your transaction was not processed</p>
+        <h1 class="panel-page-title">{{ __('panel.credits_cancel.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.credits_cancel.sub') }}</p>
     </div>
 </div>
 
@@ -14,12 +14,12 @@
             <path d="M18 6L6 18M6 6l12 12"></path>
         </svg>
     </div>
-    <h2 class="fw-800 mb-2" style="font-size: 1.5rem; color: var(--gray-900)">Payment Failed</h2>
-    <p class="text-muted mb-4">We were unable to complete your payment. No charges were applied, and no credits were added to your account.</p>
+    <h2 class="fw-800 mb-2" style="font-size: 1.5rem; color: var(--gray-900)">{{ __('panel.credits_cancel.failed') }}</h2>
+    <p class="text-muted mb-4">{{ __('panel.credits_cancel.body') }}</p>
     
     <div style="display: flex; gap: 1rem; justify-content: center;">
-        <a href="{{ route('manufacturer.credits') }}" class="btn btn--primary">Retry Payment</a>
-        <a href="{{ route('manufacturer.overview') }}" class="btn btn--ghost">Close</a>
+        <a href="{{ route('manufacturer.credits') }}" class="btn btn--primary">{{ __('panel.credits_cancel.retry') }}</a>
+        <a href="{{ route('manufacturer.overview') }}" class="btn btn--ghost">{{ __('panel.credits_cancel.close') }}</a>
     </div>
 </div>
 @endsection

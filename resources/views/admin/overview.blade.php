@@ -1,10 +1,10 @@
 @extends('layouts.admin')
-@section('title', 'Dashboard Overview – Admin Panel')
+@section('title', __('panel.admin.overview.title') . ' - ' . __('panel.admin_title'))
 @section('content')
 <div class="panel-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
     <div>
-        <h1 class="panel-page-title">Dashboard Overview</h1>
-        <p class="panel-page-sub">Platform performance at a glance</p>
+        <h1 class="panel-page-title">{{ __('panel.admin.overview.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.admin.overview.sub') }}</p>
     </div>
     <form method="GET" action="{{ route('admin.overview') }}" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
         <select name="month" class="form-input" style="min-width:180px;">
@@ -12,8 +12,8 @@
                 <option value="{{ $value }}" {{ $selectedMonth === $value ? 'selected' : '' }}>{{ $label }}</option>
             @endforeach
         </select>
-        <button type="submit" class="btn btn--ghost btn--sm">Apply</button>
-        <a href="{{ route('admin.overview.report', ['month' => $selectedMonth]) }}" class="btn btn--primary btn--sm">Download Analytics Report</a>
+        <button type="submit" class="btn btn--ghost btn--sm">{{ __('panel.admin.common.apply') }}</button>
+        <a href="{{ route('admin.overview.report', ['month' => $selectedMonth]) }}" class="btn btn--primary btn--sm">{{ __('panel.admin.overview.download_report') }}</a>
     </form>
 </div>
 
@@ -21,12 +21,12 @@
 <div class="card" style="margin-bottom:1.5rem;padding:1.25rem 1.5rem;border:1px solid #fde68a;background:#fffbeb;border-radius:12px;">
     <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;">
         <div>
-            <div class="fw-800" style="font-size:1.05rem;color:#92400e;">New partner sign-ups awaiting review</div>
+            <div class="fw-800" style="font-size:1.05rem;color:#92400e;">{{ __('panel.admin.overview.pending_partners') }}</div>
             <p class="text-sm text-muted" style="margin:0.35rem 0 0;">{{ $pendingPartnerRegistrations }} pending ({{ $dealersPending ?? 0 }} dealers, {{ $manufacturersPending ?? 0 }} manufacturers)</p>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-            <a href="{{ route('admin.dealers.index') }}" class="btn btn--primary btn--sm">Review dealers</a>
-            <a href="{{ route('admin.manufacturers') }}" class="btn btn--outline btn--sm">Review manufacturers</a>
+            <a href="{{ route('admin.dealers.index') }}" class="btn btn--primary btn--sm">{{ __('panel.admin.overview.review_dealers') }}</a>
+            <a href="{{ route('admin.manufacturers') }}" class="btn btn--outline btn--sm">{{ __('panel.admin.overview.review_manufacturers') }}</a>
         </div>
     </div>
 </div>
@@ -85,7 +85,7 @@
         <div class="stat-card-modern__icon" style="background:#eff6ff; color:#3b82f6;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
-        <div class="stat-card-modern__label">Total Leads</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.total_leads') }}</div>
         <div class="stat-card-modern__value">{{ $leadsTotal }}</div>
     </div>
 
@@ -93,7 +93,7 @@
         <div class="stat-card-modern__icon" style="background:#fff7ed; color:#f97316;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
-        <div class="stat-card-modern__label">Active Leads</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.active_leads') }}</div>
         <div class="stat-card-modern__value">{{ $activeLeadsCount }}</div>
     </div>
 
@@ -101,7 +101,7 @@
         <div class="stat-card-modern__icon" style="background:#f5f3ff; color:#8b5cf6;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
         </div>
-        <div class="stat-card-modern__label">Dealer Leads</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.dealer_leads') }}</div>
         <div class="stat-card-modern__value">{{ $dealerPurchasedCount }}</div>
     </div>
 
@@ -109,7 +109,7 @@
         <div class="stat-card-modern__icon" style="background:#f0f9ff; color:#0ea5e9;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
         </div>
-        <div class="stat-card-modern__label">Manuf. Leads</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.manufacturer_leads') }}</div>
         <div class="stat-card-modern__value">{{ $manufacturerPurchasedCount }}</div>
     </div>
 
@@ -117,7 +117,7 @@
         <div class="stat-card-modern__icon" style="background:#ecfdf5; color:#10b981;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         </div>
-        <div class="stat-card-modern__label">Total Won</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.total_won') }}</div>
         <div class="stat-card-modern__value">{{ $totalConverted }}</div>
     </div>
 
@@ -126,7 +126,7 @@
         <div class="stat-card-modern__icon" style="background:#fff1f2; color:#f43f5e;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1.5 17.5"/><polyline points="17 6 23 6 23 12"/></svg>
         </div>
-        <div class="stat-card-modern__label">Conversion Rate</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.conversion_rate') }}</div>
         <div class="stat-card-modern__value">{{ number_format($overallConversionRate, 1) }}%</div>
     </div>
 
@@ -134,7 +134,7 @@
         <div class="stat-card-modern__icon" style="background:#f8fafc; color:#475569;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         </div>
-        <div class="stat-card-modern__label">Dealer Rate</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.dealer_rate') }}</div>
         <div class="stat-card-modern__value">{{ number_format($dealerConversionRate, 1) }}%</div>
     </div>
 
@@ -142,14 +142,14 @@
         <div class="stat-card-modern__icon" style="background:#fdf4ff; color:#d946ef;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
-        <div class="stat-card-modern__label">Manuf. Rate</div>
+        <div class="stat-card-modern__label">{{ __('panel.admin.overview.manufacturer_rate') }}</div>
         <div class="stat-card-modern__value">{{ number_format($manufacturerConversionRate, 1) }}%</div>
     </div>
 
     <div class="stat-card-modern" style="grid-column: span 2; background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <div class="stat-card-modern__label" style="color:rgba(255,255,255,0.8);">Total Revenue</div>
+                <div class="stat-card-modern__label" style="color:rgba(255,255,255,0.8);">{{ __('panel.admin.overview.total_revenue') }}</div>
                 <div class="stat-card-modern__value" style="color:#fff; font-size:2rem;">£{{ number_format($revenue, 2) }}</div>
             </div>
             <div style="width:56px; height:56px; background:rgba(255,255,255,0.2); border-radius:14px; display:flex; align-items:center; justify-content:center; color:#fff;">
@@ -179,7 +179,7 @@
 
 @if($supportRequests->count() > 0)
 <div class="card" style="margin-bottom:1rem">
-    <div class="fw-800 mb-3" style="font-size:1.05rem;color:var(--gray-900)">Recent Support Requests</div>
+    <div class="fw-800 mb-3" style="font-size:1.05rem;color:var(--gray-900)">{{ __('panel.admin.overview.recent_support_requests') }}</div>
     <div style="display:flex;flex-direction:column;gap:0.75rem">
         @foreach($supportRequests as $req)
             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem;background:var(--gray-50);border-radius:8px;border:1px solid var(--gray-200)">
@@ -199,15 +199,15 @@
 
 <div class="grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1rem">
     <div class="card">
-        <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Add Hot Tub</div>
+        <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">{{ __('panel.admin.overview.add_hot_tub') }}</div>
         <div class="text-sm text-muted">Create new product listing with images and specs</div>
     </div>
     <div class="card">
-        <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">Approve Dealers</div>
+        <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">{{ __('panel.admin.overview.approve_dealers') }}</div>
         <div class="text-sm text-muted">Review pending dealer applications</div>
     </div>
     <div class="card">
-        <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">View Leads</div>
+        <div class="fw-800 mb-2" style="font-size:1.05rem;color:var(--gray-900)">{{ __('panel.admin.overview.view_leads') }}</div>
         <div class="text-sm text-muted">Monitor lead activity and conversions</div>
     </div>
 </div>

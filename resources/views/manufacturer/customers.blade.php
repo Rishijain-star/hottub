@@ -1,24 +1,24 @@
 @extends('layouts.manufacturer')
-@section('title', 'My Customers – Manufacturer Panel')
+@section('title', __('panel.customers.title').' - '.__('panel.manufacturer_title'))
 @section('content')
 <div class="panel-page-header">
     <div>
-        <h1 class="panel-page-title">My Customers</h1>
-        <p class="panel-page-sub">Converted customers — open Messages to chat.</p>
+        <h1 class="panel-page-title">{{ __('panel.customers.title') }}</h1>
+        <p class="panel-page-sub">{{ __('panel.customers.sub') }}</p>
     </div>
 </div>
 
 <div class="card" style="margin-bottom:1rem;">
     <form method="GET" action="{{ route('manufacturer.customers.index') }}" class="panel-filter-form panel-filter-form--2">
         <div class="form-group mb-0">
-            <label class="form-label">Search</label>
-            <input type="text" name="search" class="form-input" placeholder="Search by name, email, or phone" value="{{ request('search') }}">
+            <label class="form-label">{{ __('panel.common.search') }}</label>
+            <input type="text" name="search" class="form-input" placeholder="{{ __('panel.customers.search_placeholder') }}" value="{{ request('search') }}">
         </div>
         <div class="form-group mb-0 panel-filter-actions-col">
             <label class="form-label panel-filter-actions__label-spacer" aria-hidden="true">&nbsp;</label>
             <div class="panel-filter-actions">
-                <button type="submit" class="btn btn--primary">Search</button>
-                <a href="{{ route('manufacturer.customers.index') }}" class="btn btn--ghost">Clear</a>
+                <button type="submit" class="btn btn--primary">{{ __('panel.common.search') }}</button>
+                <a href="{{ route('manufacturer.customers.index') }}" class="btn btn--ghost">{{ __('panel.common.clear') }}</a>
             </div>
         </div>
     </form>
@@ -26,16 +26,16 @@
 
 <div class="card" style="overflow-x:auto;">
     @if($customers->isEmpty())
-        <p class="text-muted" style="padding:1rem;">No converted customers yet. When you mark a lead as delivered / won, it will appear here.</p>
+        <p class="text-muted" style="padding:1rem;">{{ __('panel.customers.no_customers') }}</p>
     @else
         <table class="table" style="width:100%;border-collapse:collapse;font-size:0.9rem;">
             <thead>
                 <tr style="text-align:left;border-bottom:1px solid var(--gray-200);">
-                    <th style="padding:0.65rem 0.5rem;">Customer</th>
-                    <th style="padding:0.65rem 0.5rem;">Contact</th>
-                    <th style="padding:0.65rem 0.5rem;">Plan overview</th>
-                    <th style="padding:0.65rem 0.5rem;">Next follow-up</th>
-                    <th style="padding:0.65rem 0.5rem;">Actions</th>
+                    <th style="padding:0.65rem 0.5rem;">{{ __('panel.customers.customer') }}</th>
+                    <th style="padding:0.65rem 0.5rem;">{{ __('panel.customers.contact') }}</th>
+                    <th style="padding:0.65rem 0.5rem;">{{ __('panel.customers.plan_overview') }}</th>
+                    <th style="padding:0.65rem 0.5rem;">{{ __('panel.customers.next_follow_up') }}</th>
+                    <th style="padding:0.65rem 0.5rem;">{{ __('panel.customers.actions') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -46,14 +46,14 @@
                     <tr style="border-bottom:1px solid var(--gray-100);vertical-align:top;">
                         <td style="padding:0.75rem 0.5rem;">
                             <div class="fw-700">{{ $lead->name }}</div>
-                            <div class="text-xs text-muted">Updated {{ $lead->updated_at?->diffForHumans() }}</div>
+                            <div class="text-xs text-muted">{{ __('panel.customers.updated', ['time' => $lead->updated_at?->diffForHumans()]) }}</div>
                         </td>
                         <td style="padding:0.75rem 0.5rem;">
                             <div>{{ $lead->email }}</div>
                             <div class="text-muted">{{ $lead->phone ?: '—' }}</div>
                             @php $chatUser = isset($customerUsersByEmail) ? $customerUsersByEmail->get(strtolower((string) $lead->email)) : null; @endphp
                             @if(!$chatUser)
-                                <div class="text-xs" style="margin-top:0.35rem;color:#b45309;">Reminder: ask the customer to create an account with this same email.</div>
+                                <div class="text-xs" style="margin-top:0.35rem;color:#b45309;">{{ __('panel.customers.account_reminder') }}</div>
                             @endif
                         </td>
                         <td style="padding:0.75rem 0.5rem;">
@@ -63,10 +63,10 @@
                             @if($plan)
                                 @php
                                     $statusLabel = match ($plan->status) {
-                                        'active' => 'Active',
-                                        'cancellation_scheduled' => 'Scheduled for Cancellation',
-                                        'cancelled' => 'Cancelled by Customer',
-                                        'expired' => 'Expired',
+                                        'active' => __('panel.customers.plan_active'),
+                                        'cancellation_scheduled' => __('panel.customers.plan_cancel_scheduled'),
+                                        'cancelled' => __('panel.customers.plan_cancelled'),
+                                        'expired' => __('panel.customers.plan_expired'),
                                         default => ucfirst((string) $plan->status),
                                     };
                                     $statusClass = match ($plan->status) {
@@ -76,19 +76,19 @@
                                         'expired' => '',
                                         default => '',
                                     };
-                                    $typeLabel = (($plan->package->plan_type ?? 'yearly') === 'monthly') ? 'Monthly' : 'Yearly';
+                                    $typeLabel = (($plan->package->plan_type ?? 'yearly') === 'monthly') ? __('panel.customers.monthly') : __('panel.customers.yearly');
                                 @endphp
-                                <div class="fw-700">{{ $plan->package->name ?? 'Maintenance Plan' }}</div>
-                                <div class="text-xs text-muted">Type: {{ $typeLabel }}</div>
-                                <div class="text-xs text-muted">Amount: {{ isset($plan->package->price) ? number_format((float) $plan->package->price, 2) : '—' }}</div>
-                                <div class="text-xs text-muted">Purchase: {{ optional($plan->created_at)->format('d M Y') ?: '—' }}</div>
-                                <div class="text-xs text-muted">Expiry: {{ optional($plan->expiry_date)->format('d M Y') ?: '—' }}</div>
+                                <div class="fw-700">{{ $plan->package->name ?? __('panel.customers.maintenance_plan') }}</div>
+                                <div class="text-xs text-muted">{{ __('panel.customers.type', ['value' => $typeLabel]) }}</div>
+                                <div class="text-xs text-muted">{{ __('panel.customers.amount', ['value' => isset($plan->package->price) ? number_format((float) $plan->package->price, 2) : '—']) }}</div>
+                                <div class="text-xs text-muted">{{ __('panel.customers.purchase', ['date' => optional($plan->created_at)->format('d M Y') ?: '—']) }}</div>
+                                <div class="text-xs text-muted">{{ __('panel.customers.expiry', ['date' => optional($plan->expiry_date)->format('d M Y') ?: '—']) }}</div>
                                 <div style="margin-top:0.35rem;">
                                     <span class="badge {{ $statusClass }}">{{ $statusLabel }}</span>
                                 </div>
                                 @if($plan->status === 'cancellation_scheduled')
                                     <div class="text-xs" style="margin-top:0.3rem;color:#b45309;">
-                                        Will cancel on {{ optional($plan->cancellation_effective_at ?? $plan->expiry_date)->format('d M Y') ?: '—' }}
+                                        {{ __('panel.customers.cancel_on', ['date' => optional($plan->cancellation_effective_at ?? $plan->expiry_date)->format('d M Y') ?: '—']) }}
                                     </div>
                                     @if(!empty($plan->cancellation_reason))
                                         <button type="button"
@@ -96,12 +96,12 @@
                                                 data-customer="{{ $lead->name }}"
                                                 data-reason="{{ $plan->cancellation_reason }}"
                                                 style="margin-top:0.35rem;">
-                                            View reason
+                                            {{ __('panel.customers.view_reason') }}
                                         </button>
                                     @endif
                                 @elseif($plan->status === 'cancelled')
                                     <div class="text-xs text-muted" style="margin-top:0.3rem;">
-                                        Cancelled on {{ optional($plan->cancelled_at ?? $plan->cancellation_effective_at)->format('d M Y') ?: '—' }}
+                                        {{ __('panel.customers.cancelled_on', ['date' => optional($plan->cancelled_at ?? $plan->cancellation_effective_at)->format('d M Y') ?: '—']) }}
                                     </div>
                                     @if(!empty($plan->cancellation_reason))
                                         <button type="button"
@@ -109,12 +109,12 @@
                                                 data-customer="{{ $lead->name }}"
                                                 data-reason="{{ $plan->cancellation_reason }}"
                                                 style="margin-top:0.35rem;">
-                                            View reason
+                                            {{ __('panel.customers.view_reason') }}
                                         </button>
                                     @endif
                                 @endif
                             @else
-                                <span class="text-muted text-sm">No maintenance plan</span>
+                                <span class="text-muted text-sm">{{ __('panel.customers.no_maintenance_plan') }}</span>
                             @endif
                         </td>
                         <td style="padding:0.75rem 0.5rem;">
@@ -122,14 +122,14 @@
                                 <span class="text-sm">{{ $nextTask->due_date->format('M j, Y') }}</span>
                                 <div class="text-xs text-muted">{{ \Illuminate\Support\Str::limit($nextTask->content, 60) }}</div>
                             @else
-                                <span class="text-muted text-sm">None scheduled</span>
+                                <span class="text-muted text-sm">{{ __('panel.customers.none_scheduled') }}</span>
                             @endif
                         </td>
                         <td style="padding:0.75rem 0.5rem;">
                             @if($chatUser)
-                                <a href="{{ route('manufacturer.messages', ['with' => $chatUser->id]) }}" class="btn btn--primary btn--sm">Chat</a>
+                                <a href="{{ route('manufacturer.messages', ['with' => $chatUser->id]) }}" class="btn btn--primary btn--sm">{{ __('panel.customers.chat') }}</a>
                             @else
-                                <span class="text-muted text-sm">Waiting for account</span>
+                                <span class="text-muted text-sm">{{ __('panel.customers.waiting_account') }}</span>
                             @endif
                         </td>
                     </tr>
@@ -143,8 +143,8 @@
 <div class="modal-backdrop" id="cancelReasonModalMfr" role="dialog" aria-modal="true" aria-labelledby="cancelReasonModalMfrTitle">
     <div class="modal" style="width:min(520px,94vw)" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <div class="modal-title" id="cancelReasonModalMfrTitle">Cancellation Reason</div>
-            <button type="button" class="modal-close" id="cancelReasonModalMfrClose" aria-label="Close">&times;</button>
+            <div class="modal-title" id="cancelReasonModalMfrTitle">{{ __('panel.customers.cancellation_reason') }}</div>
+            <button type="button" class="modal-close" id="cancelReasonModalMfrClose" aria-label="{{ __('panel.common.close') }}">&times;</button>
         </div>
         <div class="modal-body">
             <div class="text-sm text-muted" id="cancelReasonModalMfrCustomer" style="margin-bottom:0.4rem;"></div>
@@ -159,8 +159,8 @@
 <script>
     (function () {
         function openCancelReasonMfr(customer, reason) {
-            document.getElementById('cancelReasonModalMfrCustomer').textContent = customer ? ('Customer: ' + customer) : '';
-            document.getElementById('cancelReasonModalMfrText').textContent = reason || 'No reason provided.';
+            document.getElementById('cancelReasonModalMfrCustomer').textContent = customer ? @json(__('panel.customers.customer_label', ['name' => '___NAME___'])).replace('___NAME___', customer) : '';
+            document.getElementById('cancelReasonModalMfrText').textContent = reason || @json(__('panel.customers.no_reason'));
             document.getElementById('cancelReasonModalMfr').classList.add('active');
         }
         function closeCancelReasonMfr() {

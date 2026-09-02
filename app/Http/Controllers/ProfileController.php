@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -22,16 +23,12 @@ class ProfileController extends Controller
                 'company_number' => 'nullable|string|max:255',
                 'vat_number' => 'nullable|string|max:255',
                 'address' => 'nullable|string',
-                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:20480',
             ]);
 
             if ($request->hasFile('profile_picture')) {
                 $path = $request->file('profile_picture')->store('profile-pictures', 'public');
-                // Resize and optimize the image (v3 syntax)
-                $manager = new ImageManager(new Driver());
-                $image = $manager->read(storage_path('app/public/' . $path));
-                $image->cover(120, 120);
-                $image->save();
+                self::resizeProfilePictureIfRaster($path);
                 $user->profile_picture = $path;
             }
 
@@ -46,21 +43,31 @@ class ProfileController extends Controller
         } else {
             // Dealers and manufacturers can only update profile picture
             $request->validate([
-                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:20480',
             ]);
 
             if ($request->hasFile('profile_picture')) {
                 $path = $request->file('profile_picture')->store('profile-pictures', 'public');
-                // Resize and optimize the image (v3 syntax)
-                $manager = new ImageManager(new Driver());
-                $image = $manager->read(storage_path('app/public/' . $path));
-                $image->cover(120, 120);
-                $image->save();
+                self::resizeProfilePictureIfRaster($path);
                 $user->profile_picture = $path;
                 $user->save();
             }
         }
 
         return back()->with('success', 'Profile updated successfully.');
+    }
+
+    /** @param  string  $path  Relative path on the `public` disk (e.g. profile-pictures/…) */
+    private static function resizeProfilePictureIfRaster(string $path): void
+    {
+        $absolute = Storage::disk('public')->path($path);
+        $ext = strtolower((string) pathinfo($absolute, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+            return;
+        }
+        $manager = new ImageManager(new Driver());
+        $image = $manager->read($absolute);
+        $image->cover(120, 120);
+        $image->save($absolute);
     }
 }
